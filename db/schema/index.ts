@@ -602,4 +602,143 @@ export type NewServiceFaq = typeof serviceFaqs.$inferInsert;
 export type ServiceRelatedService = typeof serviceRelatedServices.$inferSelect;
 export type NewServiceRelatedService = typeof serviceRelatedServices.$inferInsert;
 
+/**
+ * ============================================================================
+ * STAGE 7 / PHASE 4: LEADS & CONSULTATION ENQUIRIES TABLE
+ * ============================================================================
+ */
+
+export const leads = pgTable(
+  'leads',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    fullName: varchar('full_name', { length: 150 }).notNull(),
+    phone: varchar('phone', { length: 50 }).notNull(),
+    email: varchar('email', { length: 255 }),
+    city: varchar('city', { length: 100 }),
+    serviceInterested: varchar('service_interested', { length: 255 }).notNull(),
+    serviceId: varchar('service_id', { length: 64 }),
+    message: text('message'),
+    source: varchar('source', { length: 100 }).default('Website Consultation Modal').notNull(),
+    status: varchar('status', { length: 32 })
+      .$type<'NEW' | 'CONTACTED' | 'IN_PROGRESS' | 'CONVERTED' | 'CLOSED'>()
+      .default('NEW')
+      .notNull(),
+    adminNotes: text('admin_notes'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedBy: varchar('updated_by', { length: 128 }),
+  },
+  (table) => ({
+    statusIdx: index('leads_status_idx').on(table.status),
+    createdAtIdx: index('leads_created_at_idx').on(table.createdAt),
+    serviceInterestedIdx: index('leads_service_interested_idx').on(table.serviceInterested),
+  })
+);
+
+export type Lead = typeof leads.$inferSelect;
+export type NewLead = typeof leads.$inferInsert;
+
+/**
+ * ============================================================================
+ * STAGE 8 / PHASE 5: TESTIMONIALS & CLIENT REVIEWS TABLE
+ * ============================================================================
+ */
+
+export const testimonials = pgTable(
+  'testimonials',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    clientName: varchar('client_name', { length: 150 }).notNull(),
+    company: varchar('company', { length: 150 }),
+    designation: varchar('designation', { length: 150 }),
+    quote: text('quote').notNull(),
+    rating: integer('rating').default(5).notNull(),
+    avatarUrl: varchar('avatar_url', { length: 512 }),
+    videoUrl: varchar('video_url', { length: 512 }),
+    isActive: boolean('is_active').default(true).notNull(),
+    displayOrder: integer('display_order').default(0).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedBy: varchar('updated_by', { length: 128 }),
+  },
+  (table) => ({
+    isActiveIdx: index('testimonials_is_active_idx').on(table.isActive),
+    displayOrderIdx: index('testimonials_display_order_idx').on(table.displayOrder),
+    createdAtIdx: index('testimonials_created_at_idx').on(table.createdAt),
+  })
+);
+
+export type Testimonial = typeof testimonials.$inferSelect;
+export type NewTestimonial = typeof testimonials.$inferInsert;
+
+/**
+ * ============================================================================
+ * STAGE 9 / PHASE 6: BLOGS & RESOURCES ARTICLE CATALOG
+ * ============================================================================
+ */
+
+export const blogs = pgTable(
+  'blogs',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    title: varchar('title', { length: 255 }).notNull(),
+    slug: varchar('slug', { length: 255 }).notNull().unique(),
+    category: varchar('category', { length: 100 }).notNull(),
+    author: varchar('author', { length: 150 }).notNull().default('LEGOMARK Editorial Board'),
+    content: text('content').notNull(),
+    excerpt: text('excerpt'),
+    featuredImage: varchar('featured_image', { length: 512 }),
+    seoTitle: varchar('seo_title', { length: 255 }),
+    metaDescription: text('meta_description'),
+    seoSlug: varchar('seo_slug', { length: 255 }),
+    isPublished: boolean('is_published').default(false).notNull(),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedBy: varchar('updated_by', { length: 128 }),
+  },
+  (table) => ({
+    slugIdx: index('blogs_slug_idx').on(table.slug),
+    categoryIdx: index('blogs_category_idx').on(table.category),
+    isPublishedIdx: index('blogs_is_published_idx').on(table.isPublished),
+    createdAtIdx: index('blogs_created_at_idx').on(table.createdAt),
+  })
+);
+
+export type Blog = typeof blogs.$inferSelect;
+export type NewBlog = typeof blogs.$inferInsert;
+
+/**
+ * ============================================================================
+ * STAGE 9 / PHASE 6: GLOBAL WEBSITE SETTINGS
+ * ============================================================================
+ */
+
+export const websiteSettings = pgTable(
+  'website_settings',
+  {
+    id: varchar('id', { length: 64 }).primaryKey().default('global'),
+    companyName: varchar('company_name', { length: 255 }).notNull().default('LEGOMARK INDIA'),
+    positioning: varchar('positioning', { length: 255 }).notNull().default('LEGAL, TAXATION & CORPORATE ADVISORY'),
+    tagline: text('tagline').notNull().default('Legal, Taxation & Corporate Advisory Services'),
+    businessDescription: text('business_description').notNull().default('Simplifying company registration, taxation, trademark protection, and business compliance through transparent professional services.'),
+    phone: varchar('phone', { length: 64 }).notNull().default('+91 75308 47878'),
+    mobile: varchar('mobile', { length: 64 }).notNull().default('+91 75308 47878'),
+    landline: varchar('landline', { length: 64 }).notNull().default('011-45768289'),
+    email: varchar('email', { length: 128 }).notNull().default('info@legomarkindia.com'),
+    whatsapp: varchar('whatsapp', { length: 64 }).notNull().default('+91 75308 47878'),
+    primaryWebsite: varchar('primary_website', { length: 255 }).notNull().default('www.legomarkindia.com'),
+    secondaryWebsite: varchar('secondary_website', { length: 255 }).default('www.legomark.com'),
+    officeHours: varchar('office_hours', { length: 255 }).notNull().default('Monday to Sunday: 11:00 AM – 8:00 PM'),
+    registeredOfficeAddress: text('registered_office_address').notNull().default('D-561, Pocket 11, DDA Janta Flats, Jasola, New Delhi – 110025'),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedBy: varchar('updated_by', { length: 128 }),
+  }
+);
+
+export type WebsiteSettings = typeof websiteSettings.$inferSelect;
+export type NewWebsiteSettings = typeof websiteSettings.$inferInsert;
+
+
 

@@ -1,11 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { AdminAuthProvider, useAdminAuth } from '../../context/AdminAuthContext';
-import { AdminHeader, AdminTab } from './AdminHeader';
+import { AdminHeader } from './AdminHeader';
+import { AdminSidebar, AdminNavSection } from './AdminSidebar';
+import { AdminDashboard } from './AdminDashboard';
 import { AdminLogin } from './AdminLogin';
 import { AdminChangePassword } from './AdminChangePassword';
 import { AdminPackagesPage } from './AdminPackagesPage';
-import { AdminFounderPage } from './AdminFounderPage';
-import { AdminOfficePage } from './AdminOfficePage';
+import { AdminServicesPage } from './AdminServicesPage';
+import { AdminLeadsPage } from './AdminLeadsPage';
+import { AdminWebsiteCMS } from './AdminWebsiteCMS';
+import { AdminTestimonialsCMS } from './AdminTestimonialsCMS';
+import { AdminMediaLibrary } from './AdminMediaLibrary';
+import { AdminBlogCMS } from './AdminBlogCMS';
+import { AdminWebsiteSettingsCMS } from './AdminWebsiteSettingsCMS';
+import { AdminPlaceholderView } from './AdminPlaceholderView';
 import { Loader2 } from 'lucide-react';
 
 interface AdminPortalInnerProps {
@@ -16,6 +24,8 @@ interface AdminPortalInnerProps {
 const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavigateHome }) => {
   const { user, isLoading, logout } = useAdminAuth();
   const [currentPath, setCurrentPath] = useState(initialPath);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -31,29 +41,62 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Determine current active tab from pathname
-  const getCurrentTab = (): AdminTab => {
-    if (currentPath.includes('/admin/founder')) return 'founder';
-    if (currentPath.includes('/admin/office')) return 'office';
-    return 'packages';
+  // Determine current active section from pathname
+  const getCurrentSection = (): AdminNavSection => {
+    if (currentPath.includes('/admin/packages')) return 'packages';
+    if (
+      currentPath.includes('/admin/website') ||
+      currentPath.includes('/admin/founder') ||
+      currentPath.includes('/admin/office')
+    ) {
+      return 'website';
+    }
+    if (currentPath.includes('/admin/services')) return 'services';
+    if (currentPath.includes('/admin/leads')) return 'leads';
+    if (currentPath.includes('/admin/testimonials') || currentPath.includes('/admin/reviews')) {
+      return 'testimonials';
+    }
+    if (currentPath.includes('/admin/media') || currentPath.includes('/admin/assets')) {
+      return 'media';
+    }
+    if (currentPath.includes('/admin/blogs')) return 'blogs';
+    if (currentPath.includes('/admin/settings')) return 'settings';
+    return 'dashboard';
   };
 
-  // If initial auth check is ongoing, show loading state
+  const handleNavigateSection = (section: AdminNavSection) => {
+    const routeMap: Record<AdminNavSection, string> = {
+      dashboard: '/admin/dashboard',
+      website: '/admin/website',
+      services: '/admin/services',
+      packages: '/admin/packages',
+      leads: '/admin/leads',
+      testimonials: '/admin/testimonials',
+      media: '/admin/media',
+      blogs: '/admin/blogs',
+      settings: '/admin/settings',
+    };
+    navigateTo(routeMap[section]);
+  };
+
+  // Loading indicator while validating session
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400">
-        <Loader2 className="w-8 h-8 animate-spin text-orange-500 mb-3" />
-        <p className="text-xs font-medium">Authenticating Admin Session...</p>
+      <div className="min-h-screen bg-[#070D1E] flex flex-col items-center justify-center text-slate-300">
+        <Loader2 className="w-10 h-10 animate-spin text-orange-500 mb-4" />
+        <div className="text-sm font-semibold tracking-wide text-slate-200">
+          Verifying LEGOMARK Admin Session...
+        </div>
       </div>
     );
   }
 
-  // If not authenticated and on admin route, show Login
+  // If not authenticated, render the Enterprise Admin Login screen
   if (!user) {
     return (
       <AdminLogin
         onLoginSuccess={() => {
-          navigateTo('/admin/packages');
+          navigateTo('/admin/dashboard');
         }}
         onNavigateHome={onNavigateHome}
       />
@@ -65,7 +108,7 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
     return (
       <AdminChangePassword
         onPasswordChanged={() => {
-          navigateTo('/admin/packages');
+          navigateTo('/admin/dashboard');
         }}
         onLogout={logout}
       />
@@ -77,40 +120,78 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
     return (
       <AdminChangePassword
         onPasswordChanged={() => {
-          navigateTo('/admin/packages');
+          navigateTo('/admin/dashboard');
         }}
         onLogout={logout}
       />
     );
   }
 
-  // If authenticated but on /admin/login, automatically redirect to /admin/packages
+  // If authenticated but on /admin/login, automatically redirect to /admin/dashboard
   if (currentPath === '/admin/login') {
-    window.history.replaceState({}, '', '/admin/packages');
+    window.history.replaceState({}, '', '/admin/dashboard');
   }
 
-  const activeTab = getCurrentTab();
+  const activeSection = getCurrentSection();
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-      <AdminHeader
-        currentTab={activeTab}
-        onNavigateTab={(tab) => {
-          if (tab === 'packages') {
-            navigateTo('/admin/packages');
-          } else if (tab === 'founder') {
-            navigateTo('/admin/founder');
-          } else if (tab === 'office') {
-            navigateTo('/admin/office');
-          }
-        }}
+    <div className="min-h-screen bg-[#070D1E] text-slate-100 flex">
+      {/* 1. Sidebar Navigation */}
+      <AdminSidebar
+        currentSection={activeSection}
+        onNavigateSection={handleNavigateSection}
         onNavigateHome={onNavigateHome}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
+        isMobileOpen={isMobileOpen}
+        onCloseMobile={() => setIsMobileOpen(false)}
+        user={user}
       />
-      <main className="flex-1">
-        {activeTab === 'packages' && <AdminPackagesPage />}
-        {activeTab === 'founder' && <AdminFounderPage />}
-        {activeTab === 'office' && <AdminOfficePage />}
-      </main>
+
+      {/* 2. Main Content Area */}
+      <div
+        className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${
+          isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'
+        }`}
+      >
+        {/* Header Bar */}
+        <AdminHeader
+          currentSection={activeSection}
+          onNavigateSection={handleNavigateSection}
+          onNavigateHome={onNavigateHome}
+          onOpenMobileMenu={() => setIsMobileOpen(true)}
+          isSidebarCollapsed={isSidebarCollapsed}
+        />
+
+        {/* Dynamic Section Content */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+          {activeSection === 'dashboard' && (
+            <AdminDashboard
+              user={user}
+              onNavigateSection={handleNavigateSection}
+              onNavigateHome={onNavigateHome}
+            />
+          )}
+          {activeSection === 'website' && <AdminWebsiteCMS />}
+          {activeSection === 'services' && <AdminServicesPage />}
+          {activeSection === 'packages' && <AdminPackagesPage />}
+          {activeSection === 'leads' && <AdminLeadsPage />}
+          {activeSection === 'testimonials' && <AdminTestimonialsCMS />}
+          {activeSection === 'media' && <AdminMediaLibrary />}
+          {activeSection === 'blogs' && <AdminBlogCMS />}
+          {activeSection === 'settings' && (
+            <AdminWebsiteSettingsCMS
+              onNavigateToSection={(sec) => {
+                if (sec === 'founder' || sec === 'office') {
+                  handleNavigateSection('website');
+                } else {
+                  handleNavigateSection(sec as any);
+                }
+              }}
+            />
+          )}
+        </main>
+      </div>
     </div>
   );
 };
@@ -125,4 +206,3 @@ export const AdminPortal: React.FC<{ initialPath: string; onNavigateHome: () => 
     </AdminAuthProvider>
   );
 };
-

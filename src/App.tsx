@@ -12,6 +12,7 @@ import { OfficeSection } from './components/office/OfficeSection';
 import { ClientLogos } from './components/logos/ClientLogos';
 import { TestimonialsSection } from './components/testimonials/TestimonialsSection';
 import { FAQSection } from './components/faq/FAQSection';
+import { BlogSection } from './components/blog/BlogSection';
 import { ConsultationCTA } from './components/cta/ConsultationCTA';
 import { Footer } from './components/layout/Footer';
 import { ConsultationModal } from './components/common/ConsultationModal';
@@ -189,6 +190,9 @@ export default function App() {
 
           {/* Client Testimonials */}
           <TestimonialsSection />
+
+          {/* Statutory Blog & Knowledge Resources */}
+          <BlogSection onOpenConsultation={handleOpenConsultation} />
 
           {/* FAQ Accordion */}
           <FAQSection onOpenConsultation={() => handleOpenConsultation('General Legal Inquiry')} />

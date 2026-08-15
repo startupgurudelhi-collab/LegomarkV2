@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Building2, Save, RefreshCw, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 import { fetchAdminOffice, updateAdminOffice, AdminOfficeProfile } from '../../services/adminProfile.service';
+import { MediaUploadDropzone } from './MediaUploadDropzone';
 
 export const AdminOfficePage: React.FC = () => {
   const [profile, setProfile] = useState<AdminOfficeProfile | null>(null);
@@ -76,7 +77,7 @@ export const AdminOfficePage: React.FC = () => {
         isActive: data.isActive ?? true,
       });
     } catch (err: any) {
-      setError(err.message || 'Failed to load office profile');
+      setError(err.message || 'Failed to load registered office profile');
     } finally {
       setIsLoading(false);
     }
@@ -101,11 +102,11 @@ export const AdminOfficePage: React.FC = () => {
       return;
     }
     if (!formData.mobile.trim()) {
-      setError('Mobile is required.');
+      setError('Mobile contact is required.');
       return;
     }
     if (!formData.email.trim()) {
-      setError('Email is required.');
+      setError('Email contact is required.');
       return;
     }
 
@@ -119,6 +120,11 @@ export const AdminOfficePage: React.FC = () => {
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
 
+    // Recompute full address if needed
+    const fullAddress =
+      formData.fullAddress.trim() ||
+      `${formData.addressLine1}, ${formData.addressLine2}, ${formData.city} – ${formData.pincode}`;
+
     setIsSaving(true);
     setError(null);
     setSuccessMessage(null);
@@ -131,22 +137,22 @@ export const AdminOfficePage: React.FC = () => {
         addressLine2: formData.addressLine2,
         city: formData.city,
         pincode: formData.pincode,
-        fullAddress: formData.fullAddress.trim() || `${formData.addressLine1}, ${formData.addressLine2}, ${formData.city} – ${formData.pincode}`,
+        fullAddress,
         mobile: formData.mobile,
-        mobileRaw: formData.mobileRaw || formData.mobile.replace(/[^\d+]/g, ''),
+        mobileRaw: formData.mobileRaw || formData.mobile.replace(/[^0-9+]/g, ''),
         landline: formData.landline,
-        landlineRaw: formData.landlineRaw || formData.landline.replace(/[^\d]/g, ''),
+        landlineRaw: formData.landlineRaw || formData.landline.replace(/[^0-9]/g, ''),
         email: formData.email,
         officeHours: formData.officeHours,
-        websites: websites.length > 0 ? websites : ['www.legomarkindia.com', 'www.legomark.com'],
-        primaryWebsite: formData.primaryWebsite || 'www.legomarkindia.com',
-        checklist: checklist.length > 0 ? checklist : undefined,
+        websites: websites.length > 0 ? websites : ['www.legomarkindia.com'],
+        primaryWebsite: formData.primaryWebsite,
+        checklist: checklist.length > 0 ? checklist : ['Licensed Corporate Legal Advisory'],
         mapEmbedUrl: formData.mapEmbedUrl.trim() || null,
         isActive: formData.isActive,
       });
 
       setProfile(updated);
-      setSuccessMessage('Office profile updated successfully.');
+      setSuccessMessage('Registered office details updated successfully.');
       setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: any) {
       setError(err.message || 'Failed to save changes.');
@@ -159,7 +165,7 @@ export const AdminOfficePage: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-slate-400">
         <RefreshCw className="w-8 h-8 animate-spin text-orange-500 mb-3" />
-        <p className="text-sm font-medium">Loading Office Profile...</p>
+        <p className="text-sm font-medium">Loading Registered Office Profile...</p>
       </div>
     );
   }
@@ -176,7 +182,7 @@ export const AdminOfficePage: React.FC = () => {
             <h1 className="text-xl font-bold text-white tracking-tight">Registered Office CMS</h1>
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Manage genuine registered office address, premises credentials, direct contact numbers, and office hours.
+            Manage official registered office premises, contact channels, and operational hours.
           </p>
         </div>
 
@@ -206,214 +212,195 @@ export const AdminOfficePage: React.FC = () => {
       {/* Form */}
       <form onSubmit={handleSubmit} className="mt-6 space-y-6">
         <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-6 space-y-6">
-          {/* Section: Basic & Address */}
+          {/* Native Upload ONLY for Registered Office Premises Photo */}
           <div>
-            <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider mb-3">
-              Office Premises & Location
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Office / Entity Name <span className="text-rose-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-hidden focus:border-orange-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Premises Photo Asset / Path (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={formData.premisesPhotoUrl}
-                  onChange={(e) => setFormData({ ...formData, premisesPhotoUrl: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-hidden focus:border-orange-500"
-                  placeholder="/assets/office.jpg or leave empty"
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Address Line 1 <span className="text-rose-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.addressLine1}
-                  onChange={(e) => setFormData({ ...formData, addressLine1: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-hidden focus:border-orange-500"
-                  placeholder="D-561, Pocket 11, DDA Janta Flats"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Address Line 2 (Area/Locality) <span className="text-rose-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.addressLine2}
-                  onChange={(e) => setFormData({ ...formData, addressLine2: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-hidden focus:border-orange-500"
-                  placeholder="Jasola"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  City <span className="text-rose-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-hidden focus:border-orange-500"
-                  placeholder="New Delhi"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Pincode <span className="text-rose-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.pincode}
-                  onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-hidden focus:border-orange-500"
-                  placeholder="110025"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Full Formatted Address
-                </label>
-                <input
-                  type="text"
-                  value={formData.fullAddress}
-                  onChange={(e) => setFormData({ ...formData, fullAddress: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-hidden focus:border-orange-500"
-                  placeholder="D-561, Pocket 11, DDA Janta Flats, Jasola, New Delhi – 110025"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section: Contact & Hours */}
-          <div className="pt-4 border-t border-slate-800">
-            <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider mb-3">
-              Official Communication Channels
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Mobile Number <span className="text-rose-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.mobile}
-                  onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-hidden focus:border-orange-500"
-                  placeholder="+91 75308 47878"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Landline Number <span className="text-rose-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.landline}
-                  onChange={(e) => setFormData({ ...formData, landline: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-hidden focus:border-orange-500"
-                  placeholder="011-45768289"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Official Email <span className="text-rose-400">*</span>
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-hidden focus:border-orange-500"
-                  placeholder="info@legomarkindia.com"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Office Working Hours <span className="text-rose-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.officeHours}
-                  onChange={(e) => setFormData({ ...formData, officeHours: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-hidden focus:border-orange-500"
-                  placeholder="Monday to Sunday: 11:00 AM – 8:00 PM"
-                  required
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Official Domains (One per line)
-                </label>
-                <textarea
-                  rows={2}
-                  value={formData.websitesText}
-                  onChange={(e) => setFormData({ ...formData, websitesText: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white font-mono focus:outline-hidden focus:border-orange-500"
-                  placeholder="www.legomarkindia.com&#10;www.legomark.com"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section: Checklist Highlights */}
-          <div className="pt-4 border-t border-slate-800">
-            <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider mb-3">
-              Office Capabilities & Checklist Items (One per line)
-            </h3>
-            <textarea
-              rows={4}
-              value={formData.checklistText}
-              onChange={(e) => setFormData({ ...formData, checklistText: e.target.value })}
-              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-hidden focus:border-orange-500"
-              placeholder="Registered office and corporate advisory services in New Delhi&#10;Consultation desk for business incorporation and compliance"
+            <MediaUploadDropzone
+              label="Registered Office Premises Photo (Native Upload Only)"
+              helperText="Upload official facade or corporate office photograph (PNG, JPG, WEBP)"
+              category="office"
+              accept="image"
+              currentValue={formData.premisesPhotoUrl}
+              onUploaded={(url) => setFormData({ ...formData, premisesPhotoUrl: url })}
+              onRemove={() => setFormData({ ...formData, premisesPhotoUrl: '' })}
             />
           </div>
 
-          {/* Status */}
-          <div className="flex items-center gap-3 pt-2">
-            <label className="relative inline-flex items-center cursor-pointer">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-4 border-t border-slate-800">
+            {/* Entity Name */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Corporate Entity Name <span className="text-rose-400">*</span>
+              </label>
               <input
-                type="checkbox"
-                checked={formData.isActive}
-                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                className="sr-only peer"
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-hidden focus:border-orange-500"
+                required
               />
-              <div className="w-9 h-5 bg-slate-800 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-600"></div>
+            </div>
+
+            {/* Status */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Publish Status
+              </label>
+              <select
+                value={formData.isActive ? 'active' : 'inactive'}
+                onChange={(e) => setFormData({ ...formData, isActive: e.target.value === 'active' })}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-hidden focus:border-orange-500"
+              >
+                <option value="active">Active (Visible on public website)</option>
+                <option value="inactive">Inactive (Draft)</option>
+              </select>
+            </div>
+
+            {/* Address Line 1 */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Address Line 1 <span className="text-rose-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.addressLine1}
+                onChange={(e) => setFormData({ ...formData, addressLine1: e.target.value })}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-hidden focus:border-orange-500"
+                placeholder="D-561, Pocket 11, DDA Janta Flats"
+                required
+              />
+            </div>
+
+            {/* Address Line 2 */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Address Line 2 <span className="text-rose-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.addressLine2}
+                onChange={(e) => setFormData({ ...formData, addressLine2: e.target.value })}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-hidden focus:border-orange-500"
+                placeholder="Jasola"
+                required
+              />
+            </div>
+
+            {/* City */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                City <span className="text-rose-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.city}
+                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-hidden focus:border-orange-500"
+                placeholder="New Delhi"
+                required
+              />
+            </div>
+
+            {/* Pincode */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Pincode <span className="text-rose-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.pincode}
+                onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-hidden focus:border-orange-500"
+                placeholder="110025"
+                required
+              />
+            </div>
+
+            {/* Mobile Contact */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Mobile Contact <span className="text-rose-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.mobile}
+                onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-hidden focus:border-orange-500"
+                placeholder="+91 75308 47878"
+                required
+              />
+            </div>
+
+            {/* Landline */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Landline Phone
+              </label>
+              <input
+                type="text"
+                value={formData.landline}
+                onChange={(e) => setFormData({ ...formData, landline: e.target.value })}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-hidden focus:border-orange-500"
+                placeholder="011-45768289"
+              />
+            </div>
+
+            {/* Email */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Corporate Email <span className="text-rose-400">*</span>
+              </label>
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-hidden focus:border-orange-500"
+                placeholder="info@legomarkindia.com"
+                required
+              />
+            </div>
+
+            {/* Hours */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Office Hours Schedule <span className="text-rose-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.officeHours}
+                onChange={(e) => setFormData({ ...formData, officeHours: e.target.value })}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-hidden focus:border-orange-500"
+                placeholder="Monday to Sunday: 11:00 AM – 8:00 PM"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Full Address */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              Full Formatted Address
             </label>
-            <span className="text-xs font-semibold text-slate-300">
-              Active on Public Website
-            </span>
+            <input
+              type="text"
+              value={formData.fullAddress}
+              onChange={(e) => setFormData({ ...formData, fullAddress: e.target.value })}
+              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-hidden focus:border-orange-500"
+              placeholder="D-561, Pocket 11, DDA Janta Flats, Jasola, New Delhi – 110025"
+            />
+          </div>
+
+          {/* Checklist */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              Operational Highlights & Features (One per line)
+            </label>
+            <textarea
+              rows={3}
+              value={formData.checklistText}
+              onChange={(e) => setFormData({ ...formData, checklistText: e.target.value })}
+              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-hidden focus:border-orange-500 font-mono text-xs"
+              placeholder="MCA Authorized & Registered Office&#10;7 Days Support Schedule&#10;Direct Founder Advisory Support"
+            />
           </div>
         </div>
 
@@ -423,17 +410,21 @@ export const AdminOfficePage: React.FC = () => {
             type="button"
             onClick={loadData}
             disabled={isSaving}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition-colors cursor-pointer"
+            className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition-colors"
           >
             Reset Form
           </button>
           <button
             type="submit"
             disabled={isSaving}
-            className="px-5 py-2 bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
+            className="px-5 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
           >
-            {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-            <span>{isSaving ? 'Saving Changes...' : 'Save Office Profile'}</span>
+            {isSaving ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            <span>{isSaving ? 'Saving Changes...' : 'Save Registered Office'}</span>
           </button>
         </div>
       </form>

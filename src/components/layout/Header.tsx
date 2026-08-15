@@ -31,6 +31,7 @@ export const Header: React.FC<HeaderProps> = ({
     { label: 'Why Us', sectionId: 'why-us-section', hasDropdown: false },
     { label: 'Leadership', sectionId: 'founder-section', hasDropdown: false },
     { label: 'Our Office', sectionId: 'office-section', hasDropdown: false },
+    { label: 'Resources', sectionId: 'resources', hasDropdown: false },
     { label: 'FAQ', sectionId: 'faq-section', hasDropdown: false },
   ];
 

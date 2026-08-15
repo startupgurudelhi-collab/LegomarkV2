@@ -1,6 +1,22 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { AdminPackage, PackageFormData, BillingType } from '../../types/admin';
-import { X, Plus, Trash2, ArrowUp, ArrowDown, Loader2, CheckCircle2, AlertCircle, Sparkles, HelpCircle } from 'lucide-react';
+import { AdminService } from '../../types/adminService';
+import { adminServiceApi } from '../../services/adminService.service';
+import {
+  X,
+  Plus,
+  Trash2,
+  ArrowUp,
+  ArrowDown,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  Sparkles,
+  HelpCircle,
+  Building2,
+  Search,
+  Check,
+} from 'lucide-react';
 
 interface PackageEditorModalProps {
   isOpen: boolean;
@@ -49,6 +65,24 @@ export const PackageEditorModal: React.FC<PackageEditorModalProps> = ({
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [showUnsavedPrompt, setShowUnsavedPrompt] = useState(false);
+
+  // Associated Services from database
+  const [servicesList, setServicesList] = useState<AdminService[]>([]);
+  const [serviceSearch, setServiceSearch] = useState('');
+  const [selectedServiceId, setSelectedServiceId] = useState<string>('');
+
+  useEffect(() => {
+    if (isOpen) {
+      adminServiceApi
+        .getAllServices()
+        .then((res) => {
+          setServicesList(res.services || []);
+        })
+        .catch((e) => {
+          console.warn('Could not load services for package association', e);
+        });
+    }
+  }, [isOpen]);
 
   // Snapshot initial state to check for unsaved dirty changes
   const initialSnapshot = useMemo(() => {
@@ -425,6 +459,68 @@ export const PackageEditorModal: React.FC<PackageEditorModalProps> = ({
                 placeholder="e.g., Essential legal setup for founders launch-ready in 7 days"
                 className="w-full px-3 py-2 text-xs bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-600 focus:outline-hidden focus:ring-2 focus:ring-orange-500"
               />
+            </div>
+
+            {/* Associated Service Select */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">
+                Associated Service <span className="text-slate-400 font-normal">(Searchable from Services Catalogue)</span>
+              </label>
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={serviceSearch}
+                    onChange={(e) => setServiceSearch(e.target.value)}
+                    placeholder="Search services to associate or link..."
+                    className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-950 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-600 focus:outline-none focus:border-orange-500"
+                  />
+                </div>
+                <div className="max-h-32 overflow-y-auto border border-slate-800 rounded-lg bg-slate-950/60 divide-y divide-slate-800/60 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedServiceId('')}
+                    className={`w-full text-left p-2 rounded text-xs transition flex items-center justify-between ${
+                      selectedServiceId === ''
+                        ? 'bg-orange-500/20 text-orange-300 font-semibold'
+                        : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
+                    }`}
+                  >
+                    <span>General / Global Package (Not linked to single service)</span>
+                    {selectedServiceId === '' && <Check className="w-3.5 h-3.5 text-orange-400 shrink-0" />}
+                  </button>
+                  {servicesList
+                    .filter((s) => !serviceSearch || s.title.toLowerCase().includes(serviceSearch.toLowerCase()) || s.slug.includes(serviceSearch.toLowerCase()))
+                    .map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedServiceId(s.id);
+                          if (!formData.name) {
+                            setFormData((prev) => ({
+                              ...prev,
+                              name: `${s.title} Package`,
+                              idealFor: prev.idealFor || s.shortDesc,
+                            }));
+                          }
+                        }}
+                        className={`w-full text-left p-2 rounded text-xs transition flex items-center justify-between ${
+                          selectedServiceId === s.id
+                            ? 'bg-orange-500/20 text-orange-300 font-semibold'
+                            : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
+                        }`}
+                      >
+                        <div className="min-w-0 pr-2">
+                          <div className="font-medium text-slate-200 truncate">{s.title}</div>
+                          <div className="text-[10px] text-slate-500 truncate">{s.category?.name || 'General'} • {s.startingPrice} • {s.timeline}</div>
+                        </div>
+                        {selectedServiceId === s.id && <Check className="w-3.5 h-3.5 text-orange-400 shrink-0" />}
+                      </button>
+                    ))}
+                </div>
+              </div>
             </div>
           </div>
 

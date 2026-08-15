@@ -129,6 +129,44 @@ export const createServiceSchema = z.object({
     .max(1000, 'Meta description cannot exceed 1000 characters')
     .nullable()
     .optional(),
+  features: z.array(z.string().trim()).optional(),
+  highlights: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        title: z.string().trim().min(1),
+        description: z.string().trim().min(1),
+        iconName: z.string().trim().optional(),
+        displayOrder: z.number().optional(),
+      })
+    )
+    .optional(),
+  benefits: z.array(z.string().trim()).optional(),
+  deliverables: z.array(z.string().trim()).optional(),
+  documents: z.array(z.string().trim()).optional(),
+  processSteps: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        stepNumber: z.string().trim().optional(),
+        title: z.string().trim().min(1),
+        description: z.string().trim().min(1),
+        displayOrder: z.number().optional(),
+      })
+    )
+    .optional(),
+  faqs: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        question: z.string().trim().min(1),
+        answer: z.string().trim().min(1),
+        displayOrder: z.number().optional(),
+        isActive: z.boolean().optional(),
+      })
+    )
+    .optional(),
+  relatedServiceIds: z.array(z.string().trim()).optional(),
 });
 
 // Zod Schema for Service Updates (ID is immutable)
@@ -241,6 +279,44 @@ export const updateServiceSchema = z.object({
     .max(1000, 'Meta description cannot exceed 1000 characters')
     .nullable()
     .optional(),
+  features: z.array(z.string().trim()).optional(),
+  highlights: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        title: z.string().trim().min(1),
+        description: z.string().trim().min(1),
+        iconName: z.string().trim().optional(),
+        displayOrder: z.number().optional(),
+      })
+    )
+    .optional(),
+  benefits: z.array(z.string().trim()).optional(),
+  deliverables: z.array(z.string().trim()).optional(),
+  documents: z.array(z.string().trim()).optional(),
+  processSteps: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        stepNumber: z.string().trim().optional(),
+        title: z.string().trim().min(1),
+        description: z.string().trim().min(1),
+        displayOrder: z.number().optional(),
+      })
+    )
+    .optional(),
+  faqs: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        question: z.string().trim().min(1),
+        answer: z.string().trim().min(1),
+        displayOrder: z.number().optional(),
+        isActive: z.boolean().optional(),
+      })
+    )
+    .optional(),
+  relatedServiceIds: z.array(z.string().trim()).optional(),
 });
 
 // Zod Schema for Status Toggle

@@ -61,6 +61,32 @@ export interface AdminServiceItem {
     faqCount: number;
     relatedServiceCount: number;
   };
+  features?: string[];
+  highlights?: Array<{
+    id?: string;
+    title: string;
+    description: string;
+    iconName?: string;
+    displayOrder?: number;
+  }>;
+  benefits?: string[];
+  deliverables?: string[];
+  documents?: string[];
+  processSteps?: Array<{
+    id?: string;
+    stepNumber?: string;
+    title: string;
+    description: string;
+    displayOrder?: number;
+  }>;
+  faqs?: Array<{
+    id?: string;
+    question: string;
+    answer: string;
+    displayOrder?: number;
+    isActive?: boolean;
+  }>;
+  relatedServiceIds?: string[];
 }
 
 export interface CreateServiceInput {
@@ -88,6 +114,29 @@ export interface CreateServiceInput {
   aliases?: string[];
   seoTitle?: string | null;
   metaDescription?: string | null;
+  features?: string[];
+  highlights?: Array<{
+    title: string;
+    description: string;
+    iconName?: string;
+    displayOrder?: number;
+  }>;
+  benefits?: string[];
+  deliverables?: string[];
+  documents?: string[];
+  processSteps?: Array<{
+    stepNumber?: string;
+    title: string;
+    description: string;
+    displayOrder?: number;
+  }>;
+  faqs?: Array<{
+    question: string;
+    answer: string;
+    displayOrder?: number;
+    isActive?: boolean;
+  }>;
+  relatedServiceIds?: string[];
 }
 
 export interface UpdateServiceInput {
@@ -114,6 +163,29 @@ export interface UpdateServiceInput {
   aliases?: string[];
   seoTitle?: string | null;
   metaDescription?: string | null;
+  features?: string[];
+  highlights?: Array<{
+    title: string;
+    description: string;
+    iconName?: string;
+    displayOrder?: number;
+  }>;
+  benefits?: string[];
+  deliverables?: string[];
+  documents?: string[];
+  processSteps?: Array<{
+    stepNumber?: string;
+    title: string;
+    description: string;
+    displayOrder?: number;
+  }>;
+  faqs?: Array<{
+    question: string;
+    answer: string;
+    displayOrder?: number;
+    isActive?: boolean;
+  }>;
+  relatedServiceIds?: string[];
 }
 
 export interface ReorderServiceItem {
@@ -334,7 +406,7 @@ export class AdminServiceRepository {
   }
 
   /**
-   * Find a service by primary key ID with category and child counts
+   * Find a service by primary key ID with category, child counts, and full child entity arrays
    */
   async findById(id: string): Promise<AdminServiceItem | null> {
     const isConnected = await pingDatabase();
@@ -347,6 +419,30 @@ export class AdminServiceRepository {
       const details = getServiceBySlug(s.slug);
       const now = new Date();
       const p = parseStartingPrice(s.startingPrice);
+
+      const highlights = (details?.landingPage?.benefits || []).map((b, i) => ({
+        id: `hl-${i}`,
+        title: `Key Highlight ${i + 1}`,
+        description: b,
+        iconName: 'ShieldCheck',
+        displayOrder: i,
+      }));
+
+      const processSteps = (details?.landingPage?.process || []).map((step, i) => ({
+        id: `proc-${i}`,
+        stepNumber: `0${i + 1}`,
+        title: step.title,
+        description: step.description,
+        displayOrder: i,
+      }));
+
+      const faqs = (details?.landingPage?.faqs || []).map((faq, i) => ({
+        id: `faq-${i}`,
+        question: faq.question,
+        answer: faq.answer,
+        displayOrder: i,
+        isActive: true,
+      }));
 
       return {
         id: s.id,
@@ -388,14 +484,22 @@ export class AdminServiceRepository {
           : null,
         counts: {
           featureCount: s.features?.length || 0,
-          highlightCount: details?.landingPage?.benefits?.length || 4,
+          highlightCount: highlights.length || 4,
           benefitCount: details?.landingPage?.benefits?.length || 4,
           deliverableCount: details?.landingPage?.deliverables?.length || 4,
           documentCount: details?.landingPage?.documents?.length || 4,
-          processStepCount: details?.landingPage?.process?.length || 4,
-          faqCount: details?.landingPage?.faqs?.length || 4,
+          processStepCount: processSteps.length || 4,
+          faqCount: faqs.length || 4,
           relatedServiceCount: 3,
         },
+        features: s.features || [],
+        highlights,
+        benefits: details?.landingPage?.benefits || [],
+        deliverables: details?.landingPage?.deliverables || [],
+        documents: details?.landingPage?.documents || [],
+        processSteps,
+        faqs,
+        relatedServiceIds: [],
       };
     }
 
@@ -422,25 +526,25 @@ export class AdminServiceRepository {
 
       const { service: s, category: c } = rows[0];
 
-      // Fetch dynamic child counts for this single service
+      // Fetch dynamic child entity lists and counts for this single service
       const [
-        featureCountRes,
-        highlightCountRes,
-        benefitCountRes,
-        deliverableCountRes,
-        docCountRes,
-        processCountRes,
-        faqCountRes,
-        relatedCountRes,
+        featRows,
+        hlRows,
+        benRows,
+        delivRows,
+        docRows,
+        procRows,
+        faqRows,
+        relRows,
       ] = await Promise.all([
-        db.select({ val: count() }).from(serviceFeatures).where(eq(serviceFeatures.serviceId, id)),
-        db.select({ val: count() }).from(serviceHighlights).where(eq(serviceHighlights.serviceId, id)),
-        db.select({ val: count() }).from(serviceBenefits).where(eq(serviceBenefits.serviceId, id)),
-        db.select({ val: count() }).from(serviceDeliverables).where(eq(serviceDeliverables.serviceId, id)),
-        db.select({ val: count() }).from(serviceDocuments).where(eq(serviceDocuments.serviceId, id)),
-        db.select({ val: count() }).from(serviceProcessSteps).where(eq(serviceProcessSteps.serviceId, id)),
-        db.select({ val: count() }).from(serviceFaqs).where(eq(serviceFaqs.serviceId, id)),
-        db.select({ val: count() }).from(serviceRelatedServices).where(eq(serviceRelatedServices.serviceId, id)),
+        db.select().from(serviceFeatures).where(eq(serviceFeatures.serviceId, id)).orderBy(asc(serviceFeatures.displayOrder)),
+        db.select().from(serviceHighlights).where(eq(serviceHighlights.serviceId, id)).orderBy(asc(serviceHighlights.displayOrder)),
+        db.select().from(serviceBenefits).where(eq(serviceBenefits.serviceId, id)).orderBy(asc(serviceBenefits.displayOrder)),
+        db.select().from(serviceDeliverables).where(eq(serviceDeliverables.serviceId, id)).orderBy(asc(serviceDeliverables.displayOrder)),
+        db.select().from(serviceDocuments).where(eq(serviceDocuments.serviceId, id)).orderBy(asc(serviceDocuments.displayOrder)),
+        db.select().from(serviceProcessSteps).where(eq(serviceProcessSteps.serviceId, id)).orderBy(asc(serviceProcessSteps.displayOrder)),
+        db.select().from(serviceFaqs).where(eq(serviceFaqs.serviceId, id)).orderBy(asc(serviceFaqs.displayOrder)),
+        db.select().from(serviceRelatedServices).where(eq(serviceRelatedServices.serviceId, id)).orderBy(asc(serviceRelatedServices.displayOrder)),
       ]);
 
       return {
@@ -473,15 +577,41 @@ export class AdminServiceRepository {
         updatedBy: s.updatedBy,
         category: c ? { ...c } : null,
         counts: {
-          featureCount: Number(featureCountRes[0]?.val) || 0,
-          highlightCount: Number(highlightCountRes[0]?.val) || 0,
-          benefitCount: Number(benefitCountRes[0]?.val) || 0,
-          deliverableCount: Number(deliverableCountRes[0]?.val) || 0,
-          documentCount: Number(docCountRes[0]?.val) || 0,
-          processStepCount: Number(processCountRes[0]?.val) || 0,
-          faqCount: Number(faqCountRes[0]?.val) || 0,
-          relatedServiceCount: Number(relatedCountRes[0]?.val) || 0,
+          featureCount: featRows.length,
+          highlightCount: hlRows.length,
+          benefitCount: benRows.length,
+          deliverableCount: delivRows.length,
+          documentCount: docRows.length,
+          processStepCount: procRows.length,
+          faqCount: faqRows.length,
+          relatedServiceCount: relRows.length,
         },
+        features: featRows.map((f) => f.featureText),
+        highlights: hlRows.map((h) => ({
+          id: h.id,
+          title: h.title,
+          description: h.description,
+          iconName: h.iconName,
+          displayOrder: h.displayOrder,
+        })),
+        benefits: benRows.map((b) => b.benefitText),
+        deliverables: delivRows.map((d) => d.deliverableText),
+        documents: docRows.map((d) => d.documentText),
+        processSteps: procRows.map((p) => ({
+          id: p.id,
+          stepNumber: p.stepNumber,
+          title: p.title,
+          description: p.description,
+          displayOrder: p.displayOrder,
+        })),
+        faqs: faqRows.map((f) => ({
+          id: f.id,
+          question: f.question,
+          answer: f.answer,
+          displayOrder: f.displayOrder,
+          isActive: f.isActive,
+        })),
+        relatedServiceIds: relRows.map((r) => r.relatedServiceId),
       };
     } catch (error) {
       logger.error(`Error in AdminServiceRepository.findById for ${id}`, 'AdminServiceRepo', error);
@@ -576,6 +706,93 @@ export class AdminServiceRepository {
       })
       .returning();
 
+    // Insert child collections if provided
+    if (input.features && input.features.length > 0) {
+      await db.insert(serviceFeatures).values(
+        input.features.map((f, i) => ({
+          serviceId: inserted.id,
+          featureText: f,
+          displayOrder: i,
+        }))
+      );
+    }
+
+    if (input.highlights && input.highlights.length > 0) {
+      await db.insert(serviceHighlights).values(
+        input.highlights.map((h, i) => ({
+          serviceId: inserted.id,
+          title: h.title,
+          description: h.description,
+          iconName: h.iconName || 'ShieldCheck',
+          displayOrder: h.displayOrder !== undefined ? h.displayOrder : i,
+        }))
+      );
+    }
+
+    if (input.benefits && input.benefits.length > 0) {
+      await db.insert(serviceBenefits).values(
+        input.benefits.map((b, i) => ({
+          serviceId: inserted.id,
+          benefitText: b,
+          displayOrder: i,
+        }))
+      );
+    }
+
+    if (input.deliverables && input.deliverables.length > 0) {
+      await db.insert(serviceDeliverables).values(
+        input.deliverables.map((d, i) => ({
+          serviceId: inserted.id,
+          deliverableText: d,
+          displayOrder: i,
+        }))
+      );
+    }
+
+    if (input.documents && input.documents.length > 0) {
+      await db.insert(serviceDocuments).values(
+        input.documents.map((doc, i) => ({
+          serviceId: inserted.id,
+          documentText: doc,
+          displayOrder: i,
+        }))
+      );
+    }
+
+    if (input.processSteps && input.processSteps.length > 0) {
+      await db.insert(serviceProcessSteps).values(
+        input.processSteps.map((step, i) => ({
+          serviceId: inserted.id,
+          stepNumber: step.stepNumber || `0${i + 1}`,
+          title: step.title,
+          description: step.description,
+          displayOrder: step.displayOrder !== undefined ? step.displayOrder : i,
+        }))
+      );
+    }
+
+    if (input.faqs && input.faqs.length > 0) {
+      await db.insert(serviceFaqs).values(
+        input.faqs.map((faq, i) => ({
+          serviceId: inserted.id,
+          question: faq.question,
+          answer: faq.answer,
+          displayOrder: faq.displayOrder !== undefined ? faq.displayOrder : i,
+          isActive: faq.isActive !== undefined ? faq.isActive : true,
+        }))
+      );
+    }
+
+    if (input.relatedServiceIds && input.relatedServiceIds.length > 0) {
+      await db.insert(serviceRelatedServices).values(
+        input.relatedServiceIds.map((relId, i) => ({
+          serviceId: inserted.id,
+          relatedServiceId: relId,
+          displayOrder: i,
+        }))
+      );
+    }
+
     const full = await this.findById(inserted.id);
     if (!full) {
       throw new Error(`Failed to retrieve newly created service '${inserted.id}'`);
@@ -584,7 +801,7 @@ export class AdminServiceRepository {
   }
 
   /**
-   * Update service metadata (id is immutable)
+   * Update service metadata and child entity tables
    */
   async updateService(id: string, input: UpdateServiceInput, updatedBy?: string): Promise<AdminServiceItem | null> {
     const db = getDatabase();
@@ -622,6 +839,118 @@ export class AdminServiceRepository {
       .returning();
 
     if (!updated) return null;
+
+    // Update child collections if provided
+    if (input.features !== undefined) {
+      await db.delete(serviceFeatures).where(eq(serviceFeatures.serviceId, id));
+      if (input.features.length > 0) {
+        await db.insert(serviceFeatures).values(
+          input.features.map((f, i) => ({
+            serviceId: id,
+            featureText: f,
+            displayOrder: i,
+          }))
+        );
+      }
+    }
+
+    if (input.highlights !== undefined) {
+      await db.delete(serviceHighlights).where(eq(serviceHighlights.serviceId, id));
+      if (input.highlights.length > 0) {
+        await db.insert(serviceHighlights).values(
+          input.highlights.map((h, i) => ({
+            serviceId: id,
+            title: h.title,
+            description: h.description,
+            iconName: h.iconName || 'ShieldCheck',
+            displayOrder: h.displayOrder !== undefined ? h.displayOrder : i,
+          }))
+        );
+      }
+    }
+
+    if (input.benefits !== undefined) {
+      await db.delete(serviceBenefits).where(eq(serviceBenefits.serviceId, id));
+      if (input.benefits.length > 0) {
+        await db.insert(serviceBenefits).values(
+          input.benefits.map((b, i) => ({
+            serviceId: id,
+            benefitText: b,
+            displayOrder: i,
+          }))
+        );
+      }
+    }
+
+    if (input.deliverables !== undefined) {
+      await db.delete(serviceDeliverables).where(eq(serviceDeliverables.serviceId, id));
+      if (input.deliverables.length > 0) {
+        await db.insert(serviceDeliverables).values(
+          input.deliverables.map((d, i) => ({
+            serviceId: id,
+            deliverableText: d,
+            displayOrder: i,
+          }))
+        );
+      }
+    }
+
+    if (input.documents !== undefined) {
+      await db.delete(serviceDocuments).where(eq(serviceDocuments.serviceId, id));
+      if (input.documents.length > 0) {
+        await db.insert(serviceDocuments).values(
+          input.documents.map((doc, i) => ({
+            serviceId: id,
+            documentText: doc,
+            displayOrder: i,
+          }))
+        );
+      }
+    }
+
+    if (input.processSteps !== undefined) {
+      await db.delete(serviceProcessSteps).where(eq(serviceProcessSteps.serviceId, id));
+      if (input.processSteps.length > 0) {
+        await db.insert(serviceProcessSteps).values(
+          input.processSteps.map((step, i) => ({
+            serviceId: id,
+            stepNumber: step.stepNumber || `0${i + 1}`,
+            title: step.title,
+            description: step.description,
+            displayOrder: step.displayOrder !== undefined ? step.displayOrder : i,
+          }))
+        );
+      }
+    }
+
+    if (input.faqs !== undefined) {
+      await db.delete(serviceFaqs).where(eq(serviceFaqs.serviceId, id));
+      if (input.faqs.length > 0) {
+        await db.insert(serviceFaqs).values(
+          input.faqs.map((faq, i) => ({
+            serviceId: id,
+            question: faq.question,
+            answer: faq.answer,
+            displayOrder: faq.displayOrder !== undefined ? faq.displayOrder : i,
+            isActive: faq.isActive !== undefined ? faq.isActive : true,
+          }))
+        );
+      }
+    }
+
+    if (input.relatedServiceIds !== undefined) {
+      await db.delete(serviceRelatedServices).where(eq(serviceRelatedServices.serviceId, id));
+      if (input.relatedServiceIds.length > 0) {
+        await db.insert(serviceRelatedServices).values(
+          input.relatedServiceIds.map((relId, i) => ({
+            serviceId: id,
+            relatedServiceId: relId,
+            displayOrder: i,
+          }))
+        );
+      }
+    }
+
     return await this.findById(id);
   }
 

@@ -1,19 +1,70 @@
 import React from 'react';
 import { useAdminAuth } from '../../context/AdminAuthContext';
-import { ShieldCheck, Package, LogOut, ExternalLink, User, Building2, KeyRound } from 'lucide-react';
-
-export type AdminTab = 'packages' | 'founder' | 'office';
+import {
+  Menu,
+  ShieldCheck,
+  LogOut,
+  ExternalLink,
+  User,
+  KeyRound,
+  Bell,
+  Search,
+} from 'lucide-react';
+import { AdminNavSection } from './AdminSidebar';
 
 interface AdminHeaderProps {
-  currentTab: AdminTab;
-  onNavigateTab: (tab: AdminTab) => void;
+  currentSection: AdminNavSection;
+  onNavigateSection: (section: AdminNavSection) => void;
   onNavigateHome: () => void;
+  onOpenMobileMenu: () => void;
+  isSidebarCollapsed: boolean;
 }
 
+const SECTION_TITLES: Record<AdminNavSection, { title: string; subtitle: string }> = {
+  dashboard: {
+    title: 'Executive Dashboard',
+    subtitle: 'High-level business activity & catalog overview',
+  },
+  website: {
+    title: 'Website & CMS Management',
+    subtitle: 'Homepage content, founder bio, and registered offices',
+  },
+  services: {
+    title: 'Services & Practice Areas',
+    subtitle: 'Legal, taxation, and corporate compliance services catalog',
+  },
+  packages: {
+    title: 'Package Management',
+    subtitle: 'Manage commercial packages, deliverables and public display',
+  },
+  leads: {
+    title: 'Leads & Enquiries',
+    subtitle: 'Inbound consultation requests and prospect follow-ups',
+  },
+  testimonials: {
+    title: 'Reviews & Testimonials',
+    subtitle: 'Client endorsements, photos, and video testimonials',
+  },
+  media: {
+    title: 'Media & Website Assets',
+    subtitle: 'Direct file uploads and asset library management',
+  },
+  blogs: {
+    title: 'Blogs & Legal Insights',
+    subtitle: 'Publish articles, guides, and tax compliance updates',
+  },
+  settings: {
+    title: 'Admin Settings',
+    subtitle: 'Administrator profile and security credentials',
+  },
+};
+
 export const AdminHeader: React.FC<AdminHeaderProps> = ({
-  currentTab,
-  onNavigateTab,
+  currentSection,
+  onNavigateSection,
   onNavigateHome,
+  onOpenMobileMenu,
+  isSidebarCollapsed,
 }) => {
   const { user, logout, isLoading } = useAdminAuth();
 
@@ -22,91 +73,58 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
     window.location.href = '/admin/login';
   };
 
+  const sectionMeta = SECTION_TITLES[currentSection] || {
+    title: 'Admin Portal',
+    subtitle: 'Control Center',
+  };
+
   return (
-    <header className="sticky top-0 z-40 bg-slate-900 border-b border-slate-800 text-slate-100 shadow-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-30 bg-[#0B132B] border-b border-slate-800/90 text-slate-100 shadow-sm">
+      <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Left: Brand + Admin Badge */}
-          <div className="flex items-center space-x-4">
+          {/* Left: Mobile Menu Trigger + Breadcrumb Title */}
+          <div className="flex items-center space-x-3 sm:space-x-4">
             <button
-              onClick={onNavigateHome}
-              className="flex items-center space-x-2 text-left focus:outline-hidden group"
-              title="Return to Public Website"
+              onClick={onOpenMobileMenu}
+              className="lg:hidden p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 focus:outline-hidden"
+              aria-label="Open sidebar menu"
             >
-              <div className="w-8 h-8 rounded-lg bg-orange-600 flex items-center justify-center font-bold text-white shadow-xs group-hover:bg-orange-500 transition-colors">
-                L
-              </div>
-              <div>
-                <div className="text-sm font-bold tracking-tight text-white flex items-center gap-1.5">
-                  LEGOMARK INDIA
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-sm text-[10px] font-semibold bg-orange-500/20 text-orange-400 border border-orange-500/30">
-                    PORTAL
-                  </span>
-                </div>
-                <div className="text-[11px] text-slate-400">Admin Control Center</div>
-              </div>
+              <Menu className="w-5 h-5" />
             </button>
 
-            {/* Navigation Tabs */}
-            <nav className="hidden md:flex items-center space-x-1 pl-6 border-l border-slate-800">
-              <button
-                onClick={() => onNavigateTab('packages')}
-                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-                  currentTab === 'packages'
-                    ? 'bg-slate-800 text-orange-400 border border-slate-700 shadow-xs'
-                    : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
-                }`}
-              >
-                <Package className="w-3.5 h-3.5" />
-                <span>Packages</span>
-              </button>
-
-              <button
-                onClick={() => onNavigateTab('founder')}
-                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-                  currentTab === 'founder'
-                    ? 'bg-slate-800 text-orange-400 border border-slate-700 shadow-xs'
-                    : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
-                }`}
-              >
-                <User className="w-3.5 h-3.5" />
-                <span>Founder Profile</span>
-              </button>
-
-              <button
-                onClick={() => onNavigateTab('office')}
-                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-                  currentTab === 'office'
-                    ? 'bg-slate-800 text-orange-400 border border-slate-700 shadow-xs'
-                    : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
-                }`}
-              >
-                <Building2 className="w-3.5 h-3.5" />
-                <span>Registered Office</span>
-              </button>
-            </nav>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-sm sm:text-base font-bold text-white tracking-tight">
+                  {sectionMeta.title}
+                </h1>
+                <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-sm text-[10px] font-semibold bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                  {currentSection.toUpperCase()}
+                </span>
+              </div>
+              <p className="hidden md:block text-[11px] text-slate-400">{sectionMeta.subtitle}</p>
+            </div>
           </div>
 
-          {/* Right: User & Actions */}
-          <div className="flex items-center space-x-3">
-            {/* View Live Site Link */}
+          {/* Right: Quick Actions + User Profile + Logout */}
+          <div className="flex items-center space-x-2 sm:space-x-3">
+            {/* View Live Website Button */}
             <button
               onClick={onNavigateHome}
-              className="hidden sm:flex items-center space-x-1 text-xs font-medium text-slate-400 hover:text-slate-200 transition-colors px-2 py-1 rounded-md hover:bg-slate-800"
-              title="View Public Website"
+              className="hidden sm:inline-flex items-center space-x-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-800 px-3 py-1.5 rounded-lg transition-colors"
+              title="Open Public Website in Viewer"
             >
-              <span>View Site</span>
-              <ExternalLink className="w-3 h-3" />
+              <span>View Website</span>
+              <ExternalLink className="w-3 h-3 text-slate-400" />
             </button>
 
-            {/* User Profile Info */}
+            {/* Admin User Profile Pill */}
             {user && (
-              <div className="flex items-center space-x-2 bg-slate-800/70 border border-slate-700/60 rounded-full py-1 px-2.5">
-                <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-slate-300 text-xs font-medium">
-                  <User className="w-3.5 h-3.5" />
+              <div className="flex items-center space-x-2 bg-slate-900 border border-slate-800 rounded-lg py-1 px-2 sm:px-2.5">
+                <div className="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 font-bold text-xs border border-slate-700">
+                  <User className="w-3.5 h-3.5 text-orange-400" />
                 </div>
-                <div className="hidden sm:block text-left text-xs leading-tight">
-                  <div className="font-medium text-slate-200 truncate max-w-[130px]">
+                <div className="hidden lg:block text-left text-xs leading-tight">
+                  <div className="font-semibold text-slate-200 truncate max-w-[130px]">
                     {user.fullName || user.email}
                   </div>
                   <div className="flex items-center gap-1 text-[10px] text-slate-400">
@@ -117,25 +135,25 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
               </div>
             )}
 
-            {/* Change Password Link */}
+            {/* Security / Password Link (Points strictly to frozen password change) */}
             <button
               onClick={() => {
                 window.history.pushState({}, '', '/admin/change-password');
                 window.dispatchEvent(new PopStateEvent('popstate'));
               }}
-              className="hidden md:flex items-center space-x-1 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2.5 py-1.5 rounded-md transition-colors cursor-pointer"
-              title="Change Account Password"
+              className="hidden md:inline-flex items-center space-x-1 text-xs font-medium bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 hover:border-slate-700 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
+              title="Update Admin Security Credentials"
             >
               <KeyRound className="w-3.5 h-3.5 text-amber-400" />
               <span>Password</span>
             </button>
 
-            {/* Logout Button */}
+            {/* Logout Action */}
             <button
               onClick={handleLogout}
               disabled={isLoading}
-              className="flex items-center space-x-1 text-xs font-medium bg-slate-800 hover:bg-rose-950/60 hover:text-rose-300 text-slate-300 border border-slate-700 hover:border-rose-800/60 px-3 py-1.5 rounded-md transition-colors cursor-pointer"
-              title="Log out of Admin Portal"
+              className="inline-flex items-center space-x-1 text-xs font-semibold bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-900/60 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+              title="Log out of Admin Control Center"
             >
               <LogOut className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Logout</span>
@@ -146,4 +164,3 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
     </header>
   );
 };
-

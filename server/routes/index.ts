@@ -10,6 +10,15 @@ import adminFounderRoutes from './admin-founder.routes';
 import adminOfficeRoutes from './admin-office.routes';
 import adminServiceCategoryRoutes from './admin-service-category.routes';
 import adminServiceRoutes from './admin-service.routes';
+import adminMediaRoutes from './admin-media.routes';
+import leadRoutes from './lead.routes';
+import adminLeadRoutes from './admin-lead.routes';
+import testimonialRoutes from './testimonial.routes';
+import adminTestimonialRoutes from './admin-testimonial.routes';
+import blogRoutes from './blog.routes';
+import adminBlogRoutes from './admin-blog.routes';
+import settingsRoutes from './settings.routes';
+import adminSettingsRoutes from './admin-settings.routes';
 
 const apiRouter = Router();
 
@@ -18,13 +27,22 @@ apiRouter.use('/', healthRoutes);
 apiRouter.use('/auth', authRoutes);
 apiRouter.use('/packages', packageRoutes);
 apiRouter.use('/services', serviceRoutes);
+apiRouter.use('/testimonials', testimonialRoutes);
+apiRouter.use('/blogs', blogRoutes);
+apiRouter.use('/settings', settingsRoutes);
+apiRouter.use('/leads', leadRoutes);
+apiRouter.use('/consultations', leadRoutes);
 apiRouter.use('/admin/packages', adminPackageRoutes);
 apiRouter.use('/admin/service-categories', adminServiceCategoryRoutes);
 apiRouter.use('/admin/services', adminServiceRoutes);
+apiRouter.use('/admin/leads', adminLeadRoutes);
+apiRouter.use('/admin/testimonials', adminTestimonialRoutes);
+apiRouter.use('/admin/blogs', adminBlogRoutes);
+apiRouter.use('/admin/settings', adminSettingsRoutes);
 apiRouter.use('/founder', founderRoutes);
 apiRouter.use('/office', officeRoutes);
 apiRouter.use('/admin/founder', adminFounderRoutes);
 apiRouter.use('/admin/office', adminOfficeRoutes);
+apiRouter.use('/admin', adminMediaRoutes);
 
 export default apiRouter;
-

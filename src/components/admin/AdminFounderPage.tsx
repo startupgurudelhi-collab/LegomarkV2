@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Save, RefreshCw, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 import { fetchAdminFounder, updateAdminFounder, AdminFounderProfile } from '../../services/adminProfile.service';
+import { MediaUploadDropzone } from './MediaUploadDropzone';
 
 export const AdminFounderPage: React.FC = () => {
   const [profile, setProfile] = useState<AdminFounderProfile | null>(null);
@@ -203,22 +204,33 @@ export const AdminFounderPage: React.FC = () => {
               />
             </div>
 
-            {/* Photo URL */}
+            {/* Status */}
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Founder Photo Asset / Path (Optional)
+                Publish Status
               </label>
-              <input
-                type="text"
-                value={formData.photoUrl}
-                onChange={(e) => setFormData({ ...formData, photoUrl: e.target.value })}
+              <select
+                value={formData.isActive ? 'active' : 'inactive'}
+                onChange={(e) => setFormData({ ...formData, isActive: e.target.value === 'active' })}
                 className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-hidden focus:border-orange-500"
-                placeholder="/assets/founder.jpg or leave empty for icon"
-              />
-              <p className="text-[11px] text-slate-500 mt-1">
-                Protected Brand Media: Do not replace genuine photo with AI-generated or stock media.
-              </p>
+              >
+                <option value="active">Active (Visible on public website)</option>
+                <option value="inactive">Inactive (Draft)</option>
+              </select>
             </div>
+          </div>
+
+          {/* Native Media Upload ONLY (NO URL FIELDS) */}
+          <div className="pt-2 border-t border-slate-800">
+            <MediaUploadDropzone
+              label="Founder Photo (Native Upload Only)"
+              helperText="Upload official corporate portrait (PNG, JPG, WEBP)"
+              category="founder"
+              accept="image"
+              currentValue={formData.photoUrl}
+              onUploaded={(url) => setFormData({ ...formData, photoUrl: url })}
+              onRemove={() => setFormData({ ...formData, photoUrl: '' })}
+            />
           </div>
 
           {/* Description */}
@@ -259,26 +271,10 @@ export const AdminFounderPage: React.FC = () => {
               rows={4}
               value={formData.coreAreasText}
               onChange={(e) => setFormData({ ...formData, coreAreasText: e.target.value })}
-              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white font-mono focus:outline-hidden focus:border-orange-500"
+              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-hidden focus:border-orange-500 font-mono text-xs"
               placeholder="Company Registration&#10;Taxation & Compliance&#10;Trademark Protection&#10;Business Licensing"
               required
             />
-          </div>
-
-          {/* Status */}
-          <div className="flex items-center gap-3 pt-2">
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formData.isActive}
-                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                className="sr-only peer"
-              />
-              <div className="w-9 h-5 bg-slate-800 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-600"></div>
-            </label>
-            <span className="text-xs font-semibold text-slate-300">
-              Active on Public Website
-            </span>
           </div>
         </div>
 
@@ -288,16 +284,20 @@ export const AdminFounderPage: React.FC = () => {
             type="button"
             onClick={loadData}
             disabled={isSaving}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition-colors cursor-pointer"
+            className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition-colors"
           >
             Reset Form
           </button>
           <button
             type="submit"
             disabled={isSaving}
-            className="px-5 py-2 bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
+            className="px-5 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
           >
-            {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+            {isSaving ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
             <span>{isSaving ? 'Saving Changes...' : 'Save Founder Profile'}</span>
           </button>
         </div>

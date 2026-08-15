@@ -30,10 +30,14 @@ async function bootstrap() {
   // Step 4: Apply Request Logging
   app.use(requestLogger);
 
-  // Step 5: Mount API Router
+  // Step 5: Mount Uploads Static Directory
+  const uploadsDir = path.resolve(process.cwd(), 'public', 'uploads');
+  app.use('/uploads', express.static(uploadsDir));
+
+  // Step 6: Mount API Router
   app.use('/api', apiRouter);
 
-  // Step 6: Integrate Vite Middleware in Dev or Serve Static Dist in Prod
+  // Step 7: Integrate Vite Middleware in Dev or Serve Static Dist in Prod
   if (config.env !== 'production') {
     logger.info('Mounting Vite middleware for development...', 'Vite');
     const vite = await createViteServer({
@@ -58,16 +62,16 @@ async function bootstrap() {
     });
   }
 
-  // Step 7: Centralized Error Handling Middleware
+  // Step 8: Centralized Error Handling Middleware
   app.use(errorHandler);
 
-  // Step 8: Start Listening on Port 3000 and 0.0.0.0
+  // Step 9: Start Listening on Port 3000 and 0.0.0.0
   const server = app.listen(config.port, config.host, () => {
     logger.info(`LEGOMARK India server listening on http://${config.host}:${config.port}`, 'Server');
     logger.info(`Health check available at http://${config.host}:${config.port}/api/health`, 'Server');
   });
 
-  // Step 9: Graceful Shutdown Handlers
+  // Step 10: Graceful Shutdown Handlers
   const gracefulShutdown = async (signal: string) => {
     logger.info(`Received ${signal}. Initiating graceful shutdown...`, 'Server');
     server.close(async () => {
