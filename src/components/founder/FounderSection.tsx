@@ -29,43 +29,58 @@ export const FounderSection: React.FC<FounderSectionProps> = ({ onOpenConsultati
         {/* Clean White Rounded Container */}
         <div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-12 shadow-xs">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-            {/* Left Column: Founder Profile Card */}
-            <div className="lg:col-span-5 flex flex-col items-center">
-              <div className="w-full max-w-sm bg-slate-50 border border-slate-200 rounded-xl p-6 text-center space-y-4 shadow-xs">
-                {/* Profile Visual */}
-                <div className="w-32 h-32 mx-auto rounded-xl bg-white border border-slate-200 flex flex-col items-center justify-center shadow-xs overflow-hidden">
+            {/* Left Column: Large Prominent Founder Portrait Card */}
+            <div className="lg:col-span-5 flex flex-col items-center lg:items-start">
+              <div className="w-full max-w-md lg:max-w-none flex flex-col space-y-4">
+                {/* Large Executive Portrait Frame */}
+                <div className="relative w-full aspect-[4/5] sm:aspect-[3/4] lg:aspect-[4/5] min-h-[380px] sm:min-h-[440px] max-h-[540px] rounded-2xl overflow-hidden bg-slate-900 border border-slate-200 shadow-md group">
                   {founderData.photoUrl ? (
                     <img
                       src={founderData.photoUrl}
                       alt={founderData.name}
                       referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover"
+                      loading="eager"
+                      decoding="async"
+                      className="w-full h-full object-cover object-top transition-transform duration-500 ease-out group-hover:scale-[1.02]"
                     />
                   ) : (
-                    <>
-                      <User className="w-14 h-14 text-slate-400" />
-                      <span className="text-[10px] text-slate-500 font-semibold mt-1 uppercase">Leadership</span>
-                    </>
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-400 p-8 text-center">
+                      <div className="w-24 h-24 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center mb-4 text-slate-300">
+                        <User className="w-12 h-12" />
+                      </div>
+                      <span className="text-sm font-semibold text-white uppercase tracking-wider">
+                        Executive Leadership
+                      </span>
+                      <span className="text-xs text-slate-400 mt-1">LEGOMARK INDIA</span>
+                    </div>
                   )}
+
+                  {/* Gradient Overlay with Profile Info on Photo */}
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#0B132B] via-[#0B132B]/75 to-transparent pt-16 pb-5 px-5 text-white">
+                    <h4 className="text-lg sm:text-xl font-bold tracking-tight text-white drop-shadow-xs">
+                      {founderData.name}
+                    </h4>
+                    <p className="text-xs sm:text-sm font-semibold text-orange-400 mt-0.5">
+                      {founderData.designation}
+                    </p>
+                    <p className="text-[11px] text-slate-300">
+                      {founderData.organization}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="space-y-1">
-                  <h4 className="text-lg font-bold text-[#0B132B]">{founderData.name}</h4>
-                  <p className="text-xs text-orange-600 font-semibold">
-                    {founderData.designation}
-                  </p>
-                  <p className="text-[11px] text-slate-500">
-                    {founderData.organization}
-                  </p>
-                </div>
-
+                {/* Founder Quote Card */}
                 {founderData.quote && (
-                  <p className="text-xs italic text-slate-600 px-3 py-1 bg-white border border-slate-200/80 rounded-lg">
-                    "{founderData.quote}"
-                  </p>
+                  <div className="p-4 bg-slate-50 border-l-4 border-orange-500 rounded-r-xl border border-slate-200/80 shadow-2xs">
+                    <p className="text-xs sm:text-sm italic text-slate-700 leading-relaxed">
+                      "{founderData.quote}"
+                    </p>
+                  </div>
                 )}
 
-                <div className="pt-2 border-t border-slate-200 flex justify-center gap-4 text-[11px] text-slate-600 font-medium">
+                {/* Registered Office Indicator */}
+                <div className="flex items-center gap-2 text-xs text-slate-500 px-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                   <span>{address.city} Registered Office</span>
                 </div>
               </div>
