@@ -1,0 +1,6 @@
+{
+  "name": "LEGOMARK India",
+  "description": "Premier corporate legal, taxation, intellectual property, and company incorporation platform for LEGOMARK INDIA.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

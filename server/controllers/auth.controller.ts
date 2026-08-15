@@ -1,0 +1,133 @@
+import { Request, Response, NextFunction } from 'express';
+import { authService } from '../services/auth.service';
+import { ADMIN_COOKIE_NAME } from '../middleware/auth';
+import { config } from '../config/env';
+import { logger } from '../utils/logger';
+
+export class AuthController {
+  /**
+   * POST /api/auth/login
+   */
+  async login(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { email, password } = req.body || {};
+
+      if (!email || !password) {
+        res.status(400).json({
+          success: false,
+          error: 'Email and password are required',
+        });
+        return;
+      }
+
+      // Extract client network metadata
+      const ipAddress = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress;
+      const userAgent = req.headers['user-agent'];
+
+      const result = await authService.login(email, password, { ipAddress, userAgent });
+
+      // Set secure HttpOnly cookie
+      const maxAgeMs = config.auth.sessionMaxAgeDays * 24 * 60 * 60 * 1000;
+      res.cookie(ADMIN_COOKIE_NAME, result.rawSessionToken, {
+        httpOnly: true,
+        secure: config.auth.cookieSecure,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: maxAgeMs,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Logged in successfully',
+        data: {
+          user: result.user,
+          expiresAt: result.expiresAt,
+        },
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Invalid credentials';
+      logger.warn(`Login attempt failed: ${errorMessage}`, 'AuthController');
+
+      res.status(401).json({
+        success: false,
+        error: errorMessage,
+      });
+    }
+  }
+
+  /**
+   * POST /api/auth/logout
+   */
+  async logout(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const rawToken = req.cookies?.[ADMIN_COOKIE_NAME] || req.signedCookies?.[ADMIN_COOKIE_NAME] || req.headers.authorization?.replace('Bearer ', '');
+
+      if (rawToken) {
+        await authService.logout(rawToken);
+      }
+
+      res.clearCookie(ADMIN_COOKIE_NAME, {
+        httpOnly: true,
+        secure: config.auth.cookieSecure,
+        sameSite: 'lax',
+        path: '/',
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Logged out successfully',
+      });
+    } catch (error) {
+      logger.error('Logout error', 'AuthController', error);
+      res.clearCookie(ADMIN_COOKIE_NAME, { path: '/' });
+      res.status(200).json({
+        success: true,
+        message: 'Session cleared',
+      });
+    }
+  }
+
+  /**
+   * GET /api/auth/me
+   */
+  async getMe(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      res.status(200).json({
+        success: true,
+        data: {
+          user: req.user,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * POST /api/auth/logout-all
+   */
+  async logoutAll(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (req.user?.id) {
+        await authService.logoutAll(req.user.id);
+      }
+
+      res.clearCookie(ADMIN_COOKIE_NAME, {
+        httpOnly: true,
+        secure: config.auth.cookieSecure,
+        sameSite: 'lax',
+        path: '/',
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'All active sessions have been invalidated successfully',
+      });
+    } catch (error) {
+      logger.error('Logout all error', 'AuthController', error);
+      next(error);
+    }
+  }
+}
+
+export const authController = new AuthController();
