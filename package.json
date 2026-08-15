@@ -3,9 +3,10 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "main": "dist/server.cjs",
   "scripts": {
-    "dev": "tsx server/index.ts",
-    "build": "vite build && esbuild server/index.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "dev": "tsx server.ts",
+    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx db/migrate.ts",

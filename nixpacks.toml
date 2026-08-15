@@ -1,0 +1,14 @@
+# Nixpacks configuration for Coolify deployment
+# Explicitly instructs Nixpacks to use the Node.js runtime instead of the static Nginx provider
+
+[phases.setup]
+nixPkgs = ["nodejs_22"]
+
+[phases.install]
+cmds = ["npm install"]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npm run start"
