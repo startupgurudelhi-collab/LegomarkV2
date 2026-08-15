@@ -156,7 +156,7 @@ export const OfficeSection: React.FC<OfficeSectionProps> = ({ onOpenConsultation
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#0B132B] via-[#0B132B]/80 to-transparent pt-12 pb-4 px-5 flex items-end justify-between">
                     <div>
                       <span className="text-[11px] font-semibold text-orange-400 uppercase tracking-wider block">
-                        Headquarters
+                        Registered Office
                       </span>
                       <h4 className="text-base sm:text-lg font-bold text-white tracking-tight">
                         {officeData.city} Registered Office

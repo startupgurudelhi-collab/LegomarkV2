@@ -8,11 +8,16 @@ import { requestLogger } from './middleware/requestLogger';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import apiRouter from './routes/index';
 import { logger } from './utils/logger';
+import { ensureUploadDirectoriesExist } from './utils/upload';
 
 async function bootstrap() {
   logger.info('====================================================', 'Bootstrap');
   logger.info(`Starting LEGOMARK India Server in [${config.env}] mode`, 'Bootstrap');
+  logger.info(`Persistent Uploads Directory: [${config.uploadsDir}]`, 'Bootstrap');
   logger.info('====================================================', 'Bootstrap');
+
+  // Step 0: Ensure persistent upload storage directories exist
+  ensureUploadDirectoriesExist();
 
   // Step 1: Verify PostgreSQL connection before or upon server startup
   const dbConnected = await verifyDatabaseConnection();
@@ -30,9 +35,8 @@ async function bootstrap() {
   // Step 4: Apply Request Logging
   app.use(requestLogger);
 
-  // Step 5: Mount Uploads Static Directory
-  const uploadsDir = path.resolve(process.cwd(), 'public', 'uploads');
-  app.use('/uploads', express.static(uploadsDir));
+  // Step 5: Mount Persistent Uploads Static Directory
+  app.use('/uploads', express.static(config.uploadsDir));
 
   // Step 6: Mount API Router
   app.use('/api', apiRouter);

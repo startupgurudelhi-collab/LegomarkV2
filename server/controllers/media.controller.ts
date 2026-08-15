@@ -2,8 +2,10 @@ import { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import fs from 'fs';
 import { logger } from '../utils/logger';
+import { config } from '../config/env';
+import { SUB_DIRS } from '../utils/upload';
 
-const UPLOAD_ROOT = path.resolve(process.cwd(), 'public', 'uploads');
+const UPLOAD_ROOT = config.uploadsDir;
 
 export interface MediaAssetItem {
   id: string;

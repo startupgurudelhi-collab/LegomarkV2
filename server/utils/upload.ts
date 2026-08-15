@@ -2,30 +2,38 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { Request } from 'express';
+import { config } from '../config/env';
 
-// Define authoritative upload directory under public/uploads
-const UPLOAD_DIR = path.resolve(process.cwd(), 'public', 'uploads');
-
-// Ensure upload directory exists recursively
-if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-}
+// Authoritative upload directory: configurable via UPLOADS_DIR (for persistent volume mounting)
+export const UPLOAD_DIR = config.uploadsDir;
 
 // Subdirectories for categorization
-const SUB_DIRS = ['founder', 'office', 'logos', 'testimonials', 'media'];
-SUB_DIRS.forEach((dir) => {
-  const subPath = path.join(UPLOAD_DIR, dir);
-  if (!fs.existsSync(subPath)) {
-    fs.mkdirSync(subPath, { recursive: true });
+export const SUB_DIRS = ['founder', 'office', 'logos', 'testimonials', 'media'] as const;
+export type UploadCategory = typeof SUB_DIRS[number];
+
+// Ensure upload directory and subcategories exist recursively
+export function ensureUploadDirectoriesExist(): void {
+  if (!fs.existsSync(UPLOAD_DIR)) {
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
   }
-});
+
+  SUB_DIRS.forEach((dir) => {
+    const subPath = path.join(UPLOAD_DIR, dir);
+    if (!fs.existsSync(subPath)) {
+      fs.mkdirSync(subPath, { recursive: true });
+    }
+  });
+}
+
+// Initialize on module load
+ensureUploadDirectoriesExist();
 
 // Configure disk storage
 const storage = multer.diskStorage({
   destination: (req: Request, file: Express.Multer.File, cb) => {
     // Determine category based on query or route params
-    const category = (req.query.category as string) || (req.body.category as string) || 'media';
-    const targetDir = SUB_DIRS.includes(category)
+    const category = ((req.query.category as string) || (req.body.category as string) || 'media') as UploadCategory;
+    const targetDir = (SUB_DIRS as readonly string[]).includes(category)
       ? path.join(UPLOAD_DIR, category)
       : path.join(UPLOAD_DIR, 'media');
 

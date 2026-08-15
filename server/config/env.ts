@@ -1,3 +1,4 @@
+import path from 'path';
 import dotenv from 'dotenv';
 import { logger } from '../utils/logger';
 
@@ -22,6 +23,7 @@ export interface AppConfig {
     cookieSecure: boolean;
     sessionMaxAgeDays: number;
   };
+  uploadsDir: string;
   appUrl?: string;
 }
 
@@ -30,6 +32,11 @@ function resolveConfig(): AppConfig {
   const port = parseInt(process.env.PORT || '3000', 10);
   const host = '0.0.0.0'; // Essential for Cloud Run / Coolify / Docker
   const corsOrigin = process.env.CORS_ORIGIN || '*';
+
+  // Configurable persistent media uploads directory (Coolify Persistent Volume / Host Mount)
+  const uploadsDir = process.env.UPLOADS_DIR
+    ? path.resolve(process.env.UPLOADS_DIR)
+    : path.resolve(process.cwd(), 'public', 'uploads');
 
   const dbSsl = process.env.DB_SSL === 'true';
 
@@ -66,6 +73,7 @@ function resolveConfig(): AppConfig {
     corsOrigin,
     database,
     auth,
+    uploadsDir,
     appUrl: process.env.APP_URL || `http://localhost:${port}`,
   };
 }
