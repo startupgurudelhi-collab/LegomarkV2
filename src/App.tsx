@@ -85,6 +85,13 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
+  const handleNavigatePath = useCallback((path: string) => {
+    setActiveServiceSlug(null);
+    setCurrentPath(path);
+    window.history.pushState({}, '', path);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   const handleNavigateSection = useCallback((sectionId: string) => {
     if (activeServiceSlug || currentPath.startsWith('/admin')) {
       // If currently on a dedicated service page or admin, transition back to home first
@@ -127,6 +134,7 @@ export default function App() {
         onNavigateSection={handleNavigateSection}
         onNavigateService={handleNavigateService}
         onNavigateHome={handleNavigateHome}
+        onNavigatePath={handleNavigatePath}
       />
 
       {/* 2. Page Content: Dedicated Service Landing Page OR Full Corporate Portal */}
@@ -195,6 +203,8 @@ export default function App() {
         onNavigateSection={handleNavigateSection}
         onOpenConsultation={handleOpenConsultation}
         onNavigateService={handleNavigateService}
+        onNavigateHome={handleNavigateHome}
+        onNavigatePath={handleNavigatePath}
         onToggleDiagnostics={() => setShowDiagnostics(!showDiagnostics)}
       />
 

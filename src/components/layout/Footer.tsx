@@ -6,6 +6,8 @@ interface FooterProps {
   onNavigateSection: (sectionId: string) => void;
   onOpenConsultation: (serviceName?: string) => void;
   onNavigateService?: (slug: string) => void;
+  onNavigateHome?: () => void;
+  onNavigatePath?: (path: string) => void;
   onToggleDiagnostics?: () => void;
 }
 
@@ -13,6 +15,8 @@ export const Footer: React.FC<FooterProps> = ({
   onNavigateSection,
   onOpenConsultation,
   onNavigateService,
+  onNavigateHome,
+  onNavigatePath,
   onToggleDiagnostics,
 }) => {
   const { address, contact, positioning } = COMPANY_PROFILE;
@@ -274,7 +278,17 @@ export const Footer: React.FC<FooterProps> = ({
 
             <div className="flex items-center gap-4">
               <a
-                href="/admin/packages"
+                href="/admin/login"
+                onClick={(e) => {
+                  if (!e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0) {
+                    e.preventDefault();
+                    if (onNavigatePath) {
+                      onNavigatePath('/admin/login');
+                    } else {
+                      window.location.assign('/admin/login');
+                    }
+                  }
+                }}
                 className="text-slate-500 hover:text-slate-400 transition-colors cursor-pointer text-[10px] underline"
               >
                 Admin Portal

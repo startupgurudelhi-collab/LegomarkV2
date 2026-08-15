@@ -8,6 +8,7 @@ interface HeaderProps {
   onNavigateSection: (sectionId: string) => void;
   onNavigateService?: (slug: string) => void;
   onNavigateHome?: () => void;
+  onNavigatePath?: (path: string) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -15,6 +16,7 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigateSection,
   onNavigateService,
   onNavigateHome,
+  onNavigatePath,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [servicesMenuOpen, setServicesMenuOpen] = useState(false);
@@ -245,15 +247,25 @@ export const Header: React.FC<HeaderProps> = ({
               <Search className="w-4 h-4" />
             </button>
 
-            {/* Subtle Login Link */}
-            <button
-              onClick={() => onOpenConsultation('Client Portal Login')}
+            {/* Subtle Login Link to Admin / Client Portal */}
+            <a
+              href="/admin/login"
+              onClick={(e) => {
+                if (!e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0) {
+                  e.preventDefault();
+                  if (onNavigatePath) {
+                    onNavigatePath('/admin/login');
+                  } else {
+                    window.location.assign('/admin/login');
+                  }
+                }
+              }}
               className="flex items-center gap-1 text-xs font-bold text-slate-700 hover:text-[#0B132B] px-2.5 py-2 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
-              title="Client Portal Login"
+              title="Portal Login"
             >
               <User className="w-3.5 h-3.5 text-slate-500" />
               <span>Login</span>
-            </button>
+            </a>
 
             {/* Orange Consultation CTA */}
             <button
@@ -331,16 +343,24 @@ export const Header: React.FC<HeaderProps> = ({
                 </a>
               </div>
             </div>
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                onOpenConsultation('Client Portal Login');
+            <a
+              href="/admin/login"
+              onClick={(e) => {
+                if (!e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0) {
+                  e.preventDefault();
+                  setMobileMenuOpen(false);
+                  if (onNavigatePath) {
+                    onNavigatePath('/admin/login');
+                  } else {
+                    window.location.assign('/admin/login');
+                  }
+                }
               }}
-              className="flex items-center gap-1 text-xs font-bold text-slate-700 px-2.5 py-1.5 bg-white border border-slate-200 rounded-md"
+              className="flex items-center gap-1 text-xs font-bold text-slate-700 px-2.5 py-1.5 bg-white border border-slate-200 rounded-md cursor-pointer"
             >
               <User className="w-3.5 h-3.5 text-slate-500" />
               <span>Login</span>
-            </button>
+            </a>
           </div>
 
           <nav className="flex flex-col space-y-1">
