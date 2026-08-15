@@ -22,6 +22,7 @@ async function bootstrap() {
 
   // Step 2: Initialize Express App
   const app = express();
+  app.set('trust proxy', 1); // Trust first-hop reverse proxy (Coolify / Cloud Run / Nginx / Traefik)
 
   // Step 3: Apply Security & Body Parsers
   applySecurityMiddleware(app);

@@ -205,6 +205,7 @@ export class AuthRepository {
     passwordHash: string;
     fullName: string;
     role?: 'ADMIN' | 'EDITOR';
+    mustChangePassword?: boolean;
   }): Promise<AdminUser> {
     const db = getDatabase();
     const rows = await db
@@ -215,7 +216,28 @@ export class AuthRepository {
         fullName: data.fullName.trim(),
         role: data.role || 'ADMIN',
         isActive: true,
+        mustChangePassword: data.mustChangePassword ?? false,
       })
+      .returning();
+
+    return rows[0];
+  }
+
+  /**
+   * Update admin user password and clear must_change_password flag
+   */
+  async updatePassword(userId: string, newPasswordHash: string): Promise<AdminUser> {
+    const db = getDatabase();
+    const rows = await db
+      .update(adminUsers)
+      .set({
+        passwordHash: newPasswordHash,
+        mustChangePassword: false,
+        failedAttempts: 0,
+        lockedUntil: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(adminUsers.id, userId))
       .returning();
 
     return rows[0];

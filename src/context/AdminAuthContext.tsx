@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { AdminUser } from '../types/admin';
-import { getCurrentAdminUser, loginAdmin, logoutAdmin } from '../services/adminAuth.service';
+import { getCurrentAdminUser, loginAdmin, logoutAdmin, changeAdminPassword } from '../services/adminAuth.service';
 
 interface AdminAuthContextType {
   user: AdminUser | null;
@@ -8,6 +8,7 @@ interface AdminAuthContextType {
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  changePassword: (params: { currentPassword?: string; newPassword: string; confirmPassword?: string }) => Promise<void>;
   checkAuth: () => Promise<void>;
   clearError: () => void;
 }
@@ -63,6 +64,25 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
+  const changePassword = async (params: {
+    currentPassword?: string;
+    newPassword: string;
+    confirmPassword?: string;
+  }): Promise<void> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const updatedUser = await changeAdminPassword(params);
+      setUser(updatedUser);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to update password';
+      setError(msg);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const clearError = () => setError(null);
 
   return (
@@ -73,6 +93,7 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         error,
         login,
         logout,
+        changePassword,
         checkAuth,
         clearError,
       }}

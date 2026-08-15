@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAdminAuth } from '../../context/AdminAuthContext';
-import { ShieldCheck, Package, LogOut, ExternalLink, User, Building2 } from 'lucide-react';
+import { ShieldCheck, Package, LogOut, ExternalLink, User, Building2, KeyRound } from 'lucide-react';
 
 export type AdminTab = 'packages' | 'founder' | 'office';
 
@@ -116,6 +116,19 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
                 </div>
               </div>
             )}
+
+            {/* Change Password Link */}
+            <button
+              onClick={() => {
+                window.history.pushState({}, '', '/admin/change-password');
+                window.dispatchEvent(new PopStateEvent('popstate'));
+              }}
+              className="hidden md:flex items-center space-x-1 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2.5 py-1.5 rounded-md transition-colors cursor-pointer"
+              title="Change Account Password"
+            >
+              <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+              <span>Password</span>
+            </button>
 
             {/* Logout Button */}
             <button

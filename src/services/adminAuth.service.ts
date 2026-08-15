@@ -69,6 +69,41 @@ export async function getCurrentAdminUser(): Promise<AdminUser | null> {
   }
 }
 
+export interface ChangePasswordResponse {
+  success: boolean;
+  message?: string;
+  data?: {
+    user: AdminUser;
+  };
+  error?: string;
+}
+
+/**
+ * Change admin user password (authenticated)
+ */
+export async function changeAdminPassword(params: {
+  currentPassword?: string;
+  newPassword: string;
+  confirmPassword?: string;
+}): Promise<AdminUser> {
+  const response = await fetch('/api/auth/change-password', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify(params),
+  });
+
+  const data: ChangePasswordResponse = await response.json();
+
+  if (!response.ok || !data.success || !data.data?.user) {
+    throw new Error(data.error || 'Failed to update password. Please check requirements and try again.');
+  }
+
+  return data.data.user;
+}
+
 /**
  * Terminate current admin session and clear cookie
  */

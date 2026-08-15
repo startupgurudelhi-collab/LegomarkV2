@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AdminAuthProvider, useAdminAuth } from '../../context/AdminAuthContext';
 import { AdminHeader, AdminTab } from './AdminHeader';
 import { AdminLogin } from './AdminLogin';
+import { AdminChangePassword } from './AdminChangePassword';
 import { AdminPackagesPage } from './AdminPackagesPage';
 import { AdminFounderPage } from './AdminFounderPage';
 import { AdminOfficePage } from './AdminOfficePage';
@@ -13,7 +14,7 @@ interface AdminPortalInnerProps {
 }
 
 const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavigateHome }) => {
-  const { user, isLoading } = useAdminAuth();
+  const { user, isLoading, logout } = useAdminAuth();
   const [currentPath, setCurrentPath] = useState(initialPath);
 
   useEffect(() => {
@@ -55,6 +56,30 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
           navigateTo('/admin/packages');
         }}
         onNavigateHome={onNavigateHome}
+      />
+    );
+  }
+
+  // If authenticated and user must change password (forced first-login change)
+  if (user.mustChangePassword) {
+    return (
+      <AdminChangePassword
+        onPasswordChanged={() => {
+          navigateTo('/admin/packages');
+        }}
+        onLogout={logout}
+      />
+    );
+  }
+
+  // If user navigated directly to /admin/change-password voluntarily
+  if (currentPath === '/admin/change-password') {
+    return (
+      <AdminChangePassword
+        onPasswordChanged={() => {
+          navigateTo('/admin/packages');
+        }}
+        onLogout={logout}
       />
     );
   }

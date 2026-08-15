@@ -104,6 +104,62 @@ export class AuthController {
   }
 
   /**
+   * POST /api/auth/change-password
+   * Authenticated admin password update
+   */
+  async changePassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user?.id) {
+        res.status(401).json({
+          success: false,
+          error: 'Authentication required. Please sign in.',
+        });
+        return;
+      }
+
+      const { currentPassword, newPassword, confirmPassword } = req.body || {};
+
+      if (!newPassword) {
+        res.status(400).json({
+          success: false,
+          error: 'New password is required.',
+        });
+        return;
+      }
+
+      if (confirmPassword && newPassword !== confirmPassword) {
+        res.status(400).json({
+          success: false,
+          error: 'New password and confirmation password do not match.',
+        });
+        return;
+      }
+
+      const updatedUser = await authService.changePassword(
+        req.user.id,
+        newPassword,
+        currentPassword
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Password changed successfully. You may now access the admin portal.',
+        data: {
+          user: updatedUser,
+        },
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to change password.';
+      logger.warn(`Password change failed for user [${req.user?.email}]: ${errorMessage}`, 'AuthController');
+
+      res.status(400).json({
+        success: false,
+        error: errorMessage,
+      });
+    }
+  }
+
+  /**
    * POST /api/auth/logout-all
    */
   async logoutAll(req: Request, res: Response, next: NextFunction): Promise<void> {

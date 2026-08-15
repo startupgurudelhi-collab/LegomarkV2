@@ -17,6 +17,7 @@ export interface AuthUserProfile {
   email: string;
   fullName: string;
   role: 'ADMIN' | 'EDITOR';
+  mustChangePassword: boolean;
 }
 
 export interface LoginResult {
@@ -45,6 +46,29 @@ export class AuthService {
    */
   async verifyPassword(password: string, hash: string): Promise<boolean> {
     return bcrypt.compare(password, hash);
+  }
+
+  /**
+   * Validate password strength
+   * Requirements: 8+ chars, uppercase, lowercase, number, special char
+   */
+  validatePasswordStrength(password: string): { valid: boolean; error?: string } {
+    if (!password || password.length < 8) {
+      return { valid: false, error: 'Password must be at least 8 characters long.' };
+    }
+    if (!/[A-Z]/.test(password)) {
+      return { valid: false, error: 'Password must contain at least one uppercase letter (A-Z).' };
+    }
+    if (!/[a-z]/.test(password)) {
+      return { valid: false, error: 'Password must contain at least one lowercase letter (a-z).' };
+    }
+    if (!/[0-9]/.test(password)) {
+      return { valid: false, error: 'Password must contain at least one number (0-9).' };
+    }
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+      return { valid: false, error: 'Password must contain at least one special character (!@#$%&* etc.).' };
+    }
+    return { valid: true };
   }
 
   /**
@@ -121,6 +145,7 @@ export class AuthService {
         email: user.email,
         fullName: user.fullName,
         role: user.role as 'ADMIN' | 'EDITOR',
+        mustChangePassword: user.mustChangePassword,
       },
       expiresAt,
     };
@@ -170,8 +195,60 @@ export class AuthService {
         email: user.email,
         fullName: user.fullName,
         role: user.role as 'ADMIN' | 'EDITOR',
+        mustChangePassword: user.mustChangePassword,
       },
       session,
+    };
+  }
+
+  /**
+   * Change user password securely
+   */
+  async changePassword(
+    userId: string,
+    newPasswordRaw: string,
+    currentPasswordRaw?: string
+  ): Promise<AuthUserProfile> {
+    if (!userId) {
+      throw new Error('User ID is required');
+    }
+
+    const strengthCheck = this.validatePasswordStrength(newPasswordRaw);
+    if (!strengthCheck.valid) {
+      throw new Error(strengthCheck.error || 'Password does not meet strength requirements.');
+    }
+
+    const user = await authRepository.findUserById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    if (!user.isActive) {
+      throw new Error('Account is inactive.');
+    }
+
+    // If current password provided, verify it
+    if (currentPasswordRaw) {
+      const isCurrentValid = await this.verifyPassword(currentPasswordRaw, user.passwordHash);
+      if (!isCurrentValid) {
+        throw new Error('Current password is incorrect.');
+      }
+    }
+
+    // Hash new password using bcrypt
+    const newPasswordHash = await this.hashPassword(newPasswordRaw);
+
+    // Update in database: reset mustChangePassword to false
+    const updatedUser = await authRepository.updatePassword(userId, newPasswordHash);
+
+    logger.info(`Password successfully updated for admin user [${updatedUser.email}]`, 'AuthService');
+
+    return {
+      id: updatedUser.id,
+      email: updatedUser.email,
+      fullName: updatedUser.fullName,
+      role: updatedUser.role as 'ADMIN' | 'EDITOR',
+      mustChangePassword: updatedUser.mustChangePassword,
     };
   }
 

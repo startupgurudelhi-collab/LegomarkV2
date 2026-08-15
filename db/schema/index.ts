@@ -140,6 +140,7 @@ export const adminUsers = pgTable('admin_users', {
   fullName: varchar('full_name', { length: 150 }).notNull(),
   role: varchar('role', { length: 30 }).$type<'ADMIN' | 'EDITOR'>().default('EDITOR').notNull(),
   isActive: boolean('is_active').default(true).notNull(),
+  mustChangePassword: boolean('must_change_password').default(false).notNull(),
   failedAttempts: integer('failed_attempts').default(0).notNull(),
   lockedUntil: timestamp('locked_until', { withTimezone: true }),
   lastLoginAt: timestamp('last_login_at', { withTimezone: true }),

@@ -6,6 +6,7 @@ export interface AdminUser {
   fullName: string;
   role: AdminRole;
   isActive: boolean;
+  mustChangePassword?: boolean;
   lastLoginAt: string | null;
 }
 
