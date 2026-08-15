@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { authService, AuthUserProfile } from '../services/auth.service';
 import { AdminSession } from '../../db/schema/index';
 import { logger } from '../utils/logger';
+import { getSessionCookieOptions } from '../utils/cookie';
 
 export const ADMIN_COOKIE_NAME = 'legomark_admin_session';
 
@@ -41,7 +42,8 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
     if (!authResult) {
       // Clear invalid/expired cookie
-      res.clearCookie(ADMIN_COOKIE_NAME, { path: '/' });
+      const cookieOptions = getSessionCookieOptions(req);
+      res.clearCookie(ADMIN_COOKIE_NAME, cookieOptions);
       res.status(401).json({
         success: false,
         error: 'Invalid or expired session. Please sign in again.',

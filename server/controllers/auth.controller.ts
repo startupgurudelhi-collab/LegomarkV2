@@ -3,6 +3,7 @@ import { authService } from '../services/auth.service';
 import { ADMIN_COOKIE_NAME } from '../middleware/auth';
 import { config } from '../config/env';
 import { logger } from '../utils/logger';
+import { getSessionCookieOptions } from '../utils/cookie';
 
 export class AuthController {
   /**
@@ -26,15 +27,10 @@ export class AuthController {
 
       const result = await authService.login(email, password, { ipAddress, userAgent });
 
-      // Set secure HttpOnly cookie
+      // Set adaptive HttpOnly session cookie (dynamically checks HTTPS / proxy TLS)
       const maxAgeMs = config.auth.sessionMaxAgeDays * 24 * 60 * 60 * 1000;
-      res.cookie(ADMIN_COOKIE_NAME, result.rawSessionToken, {
-        httpOnly: true,
-        secure: config.auth.cookieSecure,
-        sameSite: 'lax',
-        path: '/',
-        maxAge: maxAgeMs,
-      });
+      const cookieOptions = getSessionCookieOptions(req, maxAgeMs);
+      res.cookie(ADMIN_COOKIE_NAME, result.rawSessionToken, cookieOptions);
 
       res.status(200).json({
         success: true,
@@ -66,12 +62,8 @@ export class AuthController {
         await authService.logout(rawToken);
       }
 
-      res.clearCookie(ADMIN_COOKIE_NAME, {
-        httpOnly: true,
-        secure: config.auth.cookieSecure,
-        sameSite: 'lax',
-        path: '/',
-      });
+      const cookieOptions = getSessionCookieOptions(req);
+      res.clearCookie(ADMIN_COOKIE_NAME, cookieOptions);
 
       res.status(200).json({
         success: true,
@@ -168,12 +160,8 @@ export class AuthController {
         await authService.logoutAll(req.user.id);
       }
 
-      res.clearCookie(ADMIN_COOKIE_NAME, {
-        httpOnly: true,
-        secure: config.auth.cookieSecure,
-        sameSite: 'lax',
-        path: '/',
-      });
+      const cookieOptions = getSessionCookieOptions(req);
+      res.clearCookie(ADMIN_COOKIE_NAME, cookieOptions);
 
       res.status(200).json({
         success: true,
