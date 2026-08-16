@@ -83,7 +83,9 @@ class TestimonialRepository {
    * Public Read: Get only active/published testimonials ordered by displayOrder asc
    */
   async getPublicTestimonials(): Promise<Testimonial[]> {
+    const isProduction = process.env.NODE_ENV === 'production';
     const dbStatus = await pingDatabase();
+
     if (dbStatus.connected) {
       try {
         const db = getDatabase();
@@ -93,12 +95,19 @@ class TestimonialRepository {
           .where(eq(testimonials.isActive, true))
           .orderBy(asc(testimonials.displayOrder), asc(testimonials.createdAt));
 
-        if (rows && rows.length > 0) {
-          return rows;
-        }
+        return rows || [];
       } catch (err) {
-        logger.error('Error fetching public testimonials from DB', 'TestimonialRepo', err);
+        logger.error('Database error fetching public testimonials from PostgreSQL', 'TestimonialRepo', err);
+        if (isProduction) {
+          return [];
+        }
       }
+    } else if (isProduction) {
+      logger.error(
+        `PostgreSQL database is unavailable in production (${dbStatus.error || 'Connection refused'}). Returning empty public testimonials list instead of fallback seed data.`,
+        'TestimonialRepo'
+      );
+      return [];
     }
 
     return this.fallbackStore
@@ -114,6 +123,7 @@ class TestimonialRepository {
     total: number;
     stats: TestimonialStats;
   }> {
+    const isProduction = process.env.NODE_ENV === 'production';
     const dbStatus = await pingDatabase();
     let allRecords: Testimonial[] = [];
 
@@ -125,15 +135,21 @@ class TestimonialRepository {
           .from(testimonials)
           .orderBy(asc(testimonials.displayOrder), desc(testimonials.createdAt));
 
-        if (rows && rows.length > 0) {
-          allRecords = rows;
+        allRecords = rows || [];
+      } catch (err) {
+        logger.error('Database error fetching admin testimonials from PostgreSQL', 'TestimonialRepo', err);
+        if (isProduction) {
+          allRecords = [];
         } else {
           allRecords = [...this.fallbackStore];
         }
-      } catch (err) {
-        logger.error('Error fetching admin testimonials from DB', 'TestimonialRepo', err);
-        allRecords = [...this.fallbackStore];
       }
+    } else if (isProduction) {
+      logger.error(
+        `PostgreSQL database is unavailable in production (${dbStatus.error || 'Connection refused'}). Returning empty CMS testimonials list instead of fallback seed data.`,
+        'TestimonialRepo'
+      );
+      allRecords = [];
     } else {
       allRecords = [...this.fallbackStore];
     }
@@ -199,7 +215,9 @@ class TestimonialRepository {
    * Get single testimonial by ID
    */
   async getById(id: string): Promise<Testimonial | null> {
+    const isProduction = process.env.NODE_ENV === 'production';
     const dbStatus = await pingDatabase();
+
     if (dbStatus.connected) {
       try {
         const db = getDatabase();
@@ -210,9 +228,17 @@ class TestimonialRepository {
           .limit(1);
 
         if (rows && rows.length > 0) return rows[0];
+        return null;
       } catch (err) {
-        logger.error('Error fetching testimonial by ID from DB', 'TestimonialRepo', err);
+        logger.error('Database error fetching testimonial by ID from PostgreSQL', 'TestimonialRepo', err);
+        if (isProduction) return null;
       }
+    } else if (isProduction) {
+      logger.error(
+        `PostgreSQL database is unavailable in production (${dbStatus.error || 'Connection refused'}). Cannot fetch testimonial ${id}.`,
+        'TestimonialRepo'
+      );
+      return null;
     }
 
     return this.fallbackStore.find((t) => t.id === id) || null;
@@ -222,6 +248,7 @@ class TestimonialRepository {
    * Create new client review/testimonial
    */
   async create(input: CreateTestimonialInput, author = 'Admin'): Promise<Testimonial> {
+    const isProduction = process.env.NODE_ENV === 'production';
     const dbStatus = await pingDatabase();
     const newId = crypto.randomUUID();
     const now = new Date();
@@ -257,8 +284,17 @@ class TestimonialRepository {
           return inserted[0];
         }
       } catch (err) {
-        logger.error('Error inserting testimonial into DB', 'TestimonialRepo', err);
+        logger.error('Database error inserting testimonial into PostgreSQL', 'TestimonialRepo', err);
+        if (isProduction) {
+          throw new Error('Database operation failed in production');
+        }
       }
+    } else if (isProduction) {
+      logger.error(
+        `PostgreSQL database is unavailable in production (${dbStatus.error || 'Connection refused'}). Cannot persist testimonial creation.`,
+        'TestimonialRepo'
+      );
+      throw new Error('PostgreSQL database is not connected in production');
     }
 
     this.fallbackStore.unshift(newRecord);
@@ -269,6 +305,7 @@ class TestimonialRepository {
    * Update existing testimonial
    */
   async update(id: string, input: UpdateTestimonialInput, author = 'Admin'): Promise<Testimonial | null> {
+    const isProduction = process.env.NODE_ENV === 'production';
     const dbStatus = await pingDatabase();
     const now = new Date();
 
@@ -301,9 +338,19 @@ class TestimonialRepository {
           if (idx >= 0) this.fallbackStore[idx] = updated[0];
           return updated[0];
         }
+        return null;
       } catch (err) {
-        logger.error('Error updating testimonial in DB', 'TestimonialRepo', err);
+        logger.error('Database error updating testimonial in PostgreSQL', 'TestimonialRepo', err);
+        if (isProduction) {
+          throw new Error('Database operation failed in production');
+        }
       }
+    } else if (isProduction) {
+      logger.error(
+        `PostgreSQL database is unavailable in production (${dbStatus.error || 'Connection refused'}). Cannot persist testimonial update.`,
+        'TestimonialRepo'
+      );
+      throw new Error('PostgreSQL database is not connected in production');
     }
 
     const idx = this.fallbackStore.findIndex((t) => t.id === id);
@@ -325,17 +372,8 @@ class TestimonialRepository {
     orderItems: { id: string; displayOrder: number }[],
     author = 'Admin'
   ): Promise<boolean> {
+    const isProduction = process.env.NODE_ENV === 'production';
     const dbStatus = await pingDatabase();
-
-    // Update in-memory fallback
-    for (const item of orderItems) {
-      const found = this.fallbackStore.find((t) => t.id === item.id);
-      if (found) {
-        found.displayOrder = item.displayOrder;
-        found.updatedAt = new Date();
-        found.updatedBy = author;
-      }
-    }
 
     if (dbStatus.connected) {
       try {
@@ -350,8 +388,37 @@ class TestimonialRepository {
             })
             .where(eq(testimonials.id, item.id));
         }
+
+        for (const item of orderItems) {
+          const found = this.fallbackStore.find((t) => t.id === item.id);
+          if (found) {
+            found.displayOrder = item.displayOrder;
+            found.updatedAt = new Date();
+            found.updatedBy = author;
+          }
+        }
+        return true;
       } catch (err) {
-        logger.error('Error updating testimonial display orders in DB', 'TestimonialRepo', err);
+        logger.error('Database error updating testimonial display orders in PostgreSQL', 'TestimonialRepo', err);
+        if (isProduction) {
+          throw new Error('Database operation failed in production');
+        }
+      }
+    } else if (isProduction) {
+      logger.error(
+        `PostgreSQL database is unavailable in production (${dbStatus.error || 'Connection refused'}). Cannot persist testimonial display order changes.`,
+        'TestimonialRepo'
+      );
+      throw new Error('PostgreSQL database is not connected in production');
+    }
+
+    // Update in-memory fallback
+    for (const item of orderItems) {
+      const found = this.fallbackStore.find((t) => t.id === item.id);
+      if (found) {
+        found.displayOrder = item.displayOrder;
+        found.updatedAt = new Date();
+        found.updatedBy = author;
       }
     }
 
@@ -362,19 +429,30 @@ class TestimonialRepository {
    * Delete testimonial
    */
   async delete(id: string): Promise<boolean> {
+    const isProduction = process.env.NODE_ENV === 'production';
     const dbStatus = await pingDatabase();
-    this.fallbackStore = this.fallbackStore.filter((t) => t.id !== id);
 
     if (dbStatus.connected) {
       try {
         const db = getDatabase();
         await db.delete(testimonials).where(eq(testimonials.id, id));
+        this.fallbackStore = this.fallbackStore.filter((t) => t.id !== id);
         return true;
       } catch (err) {
-        logger.error('Error deleting testimonial from DB', 'TestimonialRepo', err);
+        logger.error('Database error deleting testimonial from PostgreSQL', 'TestimonialRepo', err);
+        if (isProduction) {
+          throw new Error('Database operation failed in production');
+        }
       }
+    } else if (isProduction) {
+      logger.error(
+        `PostgreSQL database is unavailable in production (${dbStatus.error || 'Connection refused'}). Cannot delete testimonial.`,
+        'TestimonialRepo'
+      );
+      throw new Error('PostgreSQL database is not connected in production');
     }
 
+    this.fallbackStore = this.fallbackStore.filter((t) => t.id !== id);
     return true;
   }
 }
