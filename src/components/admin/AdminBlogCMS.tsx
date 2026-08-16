@@ -34,6 +34,8 @@ import {
 } from '../../services/blog.service';
 import { MediaUploadDropzone } from './MediaUploadDropzone';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { RichTextEditor } from './RichTextEditor';
+import { RichContentRenderer } from '../blog/RichContentRenderer';
 
 const BLOG_CATEGORIES = [
   'Company Registration',
@@ -726,16 +728,15 @@ export const AdminBlogCMS: React.FC = () => {
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                      Full Article Body (Markdown supported) *
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
+                      <span>Full Article Body & Rich Visual Content *</span>
+                      <span className="text-[11px] text-slate-500 font-normal">Headings, Lists, Quotes, Links & Native Inline Media</span>
                     </label>
-                    <textarea
-                      rows={10}
-                      required
-                      placeholder="Write comprehensive article content with headings (##), bullet points, and statutory references..."
+                    <RichTextEditor
                       value={formData.content}
-                      onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white font-mono focus:outline-hidden focus:border-orange-500 resize-y"
+                      onChange={(newContent) => setFormData({ ...formData, content: newContent })}
+                      placeholder="Write comprehensive statutory guide with headings (#, ##), bullet points (*), quotations (>), and inline illustrations..."
+                      minHeight="420px"
                     />
                   </div>
                 </div>
@@ -903,8 +904,11 @@ export const AdminBlogCMS: React.FC = () => {
                 )}
               </div>
 
-              <div className="prose prose-invert max-w-none text-slate-300 text-sm leading-relaxed whitespace-pre-wrap font-sans border-t border-slate-800 pt-4">
-                {previewBlog.content}
+              <div className="border-t border-slate-800 pt-6">
+                <RichContentRenderer
+                  content={previewBlog.content}
+                  className="prose prose-invert max-w-none text-slate-200"
+                />
               </div>
             </div>
           </div>

@@ -13,6 +13,8 @@ import { ClientLogos } from './components/logos/ClientLogos';
 import { TestimonialsSection } from './components/testimonials/TestimonialsSection';
 import { FAQSection } from './components/faq/FAQSection';
 import { BlogSection } from './components/blog/BlogSection';
+import { BlogLandingPage } from './components/blog/BlogLandingPage';
+import { BlogDetailPage } from './components/blog/BlogDetailPage';
 import { ConsultationCTA } from './components/cta/ConsultationCTA';
 import { Footer } from './components/layout/Footer';
 import { ConsultationModal } from './components/common/ConsultationModal';
@@ -46,6 +48,21 @@ export default function App() {
     return null;
   });
 
+  const [activeBlogSlug, setActiveBlogSlug] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      const pathname = window.location.pathname;
+      if (pathname.startsWith('/resources/blog/')) {
+        const slug = pathname.replace('/resources/blog/', '').replace(/\/$/, '').trim();
+        return slug || null;
+      }
+      if (pathname.startsWith('/blog/')) {
+        const slug = pathname.replace('/blog/', '').replace(/\/$/, '').trim();
+        return slug || null;
+      }
+    }
+    return null;
+  });
+
   const { health, loading, lastChecked, refreshHealth } = useHealthReport();
 
   // Listen to browser popstate (back/forward)
@@ -53,11 +70,23 @@ export default function App() {
     const handlePopState = () => {
       const pathname = window.location.pathname;
       setCurrentPath(pathname);
+
+      // Route matching
       if (pathname.startsWith('/services/')) {
         const slug = pathname.replace('/services/', '').replace(/\/$/, '').trim();
         setActiveServiceSlug(slug || null);
+        setActiveBlogSlug(null);
+      } else if (pathname.startsWith('/resources/blog/')) {
+        const slug = pathname.replace('/resources/blog/', '').replace(/\/$/, '').trim();
+        setActiveBlogSlug(slug || null);
+        setActiveServiceSlug(null);
+      } else if (pathname.startsWith('/blog/')) {
+        const slug = pathname.replace('/blog/', '').replace(/\/$/, '').trim();
+        setActiveBlogSlug(slug || null);
+        setActiveServiceSlug(null);
       } else {
         setActiveServiceSlug(null);
+        setActiveBlogSlug(null);
       }
     };
 
@@ -74,13 +103,31 @@ export default function App() {
 
   const handleNavigateService = useCallback((slug: string) => {
     setActiveServiceSlug(slug);
+    setActiveBlogSlug(null);
     setCurrentPath(`/services/${slug}`);
     window.history.pushState({}, '', `/services/${slug}`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
+  const handleNavigateBlogDetail = useCallback((slug: string) => {
+    setActiveBlogSlug(slug);
+    setActiveServiceSlug(null);
+    setCurrentPath(`/resources/blog/${slug}`);
+    window.history.pushState({}, '', `/resources/blog/${slug}`);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  const handleNavigateResources = useCallback(() => {
+    setActiveBlogSlug(null);
+    setActiveServiceSlug(null);
+    setCurrentPath('/resources');
+    window.history.pushState({}, '', '/resources');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   const handleNavigateHome = useCallback(() => {
     setActiveServiceSlug(null);
+    setActiveBlogSlug(null);
     setCurrentPath('/');
     window.history.pushState({}, '', '/');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -88,15 +135,22 @@ export default function App() {
 
   const handleNavigatePath = useCallback((path: string) => {
     setActiveServiceSlug(null);
+    setActiveBlogSlug(null);
     setCurrentPath(path);
     window.history.pushState({}, '', path);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
   const handleNavigateSection = useCallback((sectionId: string) => {
-    if (activeServiceSlug || currentPath.startsWith('/admin')) {
-      // If currently on a dedicated service page or admin, transition back to home first
+    if (sectionId === 'resources') {
+      handleNavigateResources();
+      return;
+    }
+
+    if (activeServiceSlug || activeBlogSlug || currentPath === '/resources' || currentPath.startsWith('/admin')) {
+      // If currently on a dedicated page or admin, transition back to home first
       setActiveServiceSlug(null);
+      setActiveBlogSlug(null);
       setCurrentPath('/');
       window.history.pushState({}, '', '/');
       setTimeout(() => {
@@ -113,7 +167,7 @@ export default function App() {
         el.scrollIntoView({ behavior: 'smooth' });
       }
     }
-  }, [activeServiceSlug, currentPath]);
+  }, [activeServiceSlug, activeBlogSlug, currentPath, handleNavigateResources]);
 
   // If path is admin route, render isolated Admin Portal
   if (currentPath.startsWith('/admin')) {
@@ -126,6 +180,7 @@ export default function App() {
   }
 
   const currentServiceItem = activeServiceSlug ? getServiceBySlug(activeServiceSlug) : undefined;
+  const isResourcesLanding = currentPath === '/resources' || currentPath === '/blog';
 
   return (
     <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-orange-500 selection:text-white antialiased">
@@ -138,8 +193,22 @@ export default function App() {
         onNavigatePath={handleNavigatePath}
       />
 
-      {/* 2. Page Content: Dedicated Service Landing Page OR Full Corporate Portal */}
-      {activeServiceSlug !== null ? (
+      {/* 2. Page Content: Dedicated Article Page OR Resources Landing Page OR Service Landing Page OR Homepage */}
+      {activeBlogSlug !== null ? (
+        <BlogDetailPage
+          slug={activeBlogSlug}
+          onOpenConsultation={handleOpenConsultation}
+          onNavigateResources={handleNavigateResources}
+          onNavigateBlogDetail={handleNavigateBlogDetail}
+          onNavigateHome={handleNavigateHome}
+        />
+      ) : isResourcesLanding ? (
+        <BlogLandingPage
+          onOpenConsultation={handleOpenConsultation}
+          onNavigateBlogDetail={handleNavigateBlogDetail}
+          onNavigateHome={handleNavigateHome}
+        />
+      ) : activeServiceSlug !== null ? (
         <ServiceLandingPage
           service={currentServiceItem}
           onOpenConsultation={handleOpenConsultation}
@@ -191,8 +260,12 @@ export default function App() {
           {/* Client Testimonials */}
           <TestimonialsSection />
 
-          {/* Statutory Blog & Knowledge Resources */}
-          <BlogSection onOpenConsultation={handleOpenConsultation} />
+          {/* Statutory Blog & Knowledge Resources Grid (navigates to dedicated page) */}
+          <BlogSection
+            onOpenConsultation={handleOpenConsultation}
+            onNavigateBlogDetail={handleNavigateBlogDetail}
+            onNavigateResources={handleNavigateResources}
+          />
 
           {/* FAQ Accordion */}
           <FAQSection onOpenConsultation={() => handleOpenConsultation('General Legal Inquiry')} />
@@ -225,7 +298,7 @@ export default function App() {
           <div className="relative w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-6 max-h-[85vh] overflow-y-auto">
             <button
               onClick={() => setShowDiagnostics(false)}
-              className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+              className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -241,4 +314,3 @@ export default function App() {
     </div>
   );
 }
-

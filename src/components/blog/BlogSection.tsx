@@ -20,14 +20,19 @@ import { fetchPublicBlogs } from '../../services/blog.service';
 
 interface BlogSectionProps {
   onOpenConsultation?: (serviceName?: string) => void;
+  onNavigateBlogDetail?: (slug: string) => void;
+  onNavigateResources?: () => void;
 }
 
-export const BlogSection: React.FC<BlogSectionProps> = ({ onOpenConsultation }) => {
+export const BlogSection: React.FC<BlogSectionProps> = ({
+  onOpenConsultation,
+  onNavigateBlogDetail,
+  onNavigateResources,
+}) => {
   const [articles, setArticles] = useState<BlogPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [activeArticle, setActiveArticle] = useState<BlogPost | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -74,6 +79,14 @@ export const BlogSection: React.FC<BlogSectionProps> = ({ onOpenConsultation }) 
     }
   };
 
+  const handleCardClick = (slug: string) => {
+    if (onNavigateBlogDetail) {
+      onNavigateBlogDetail(slug);
+    } else if (onNavigateResources) {
+      onNavigateResources();
+    }
+  };
+
   return (
     <section id="resources" className="py-20 bg-slate-50 border-t border-slate-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -99,7 +112,7 @@ export const BlogSection: React.FC<BlogSectionProps> = ({ onOpenConsultation }) 
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                   selectedCategory === cat
                     ? 'bg-[#0B132B] text-white shadow-xs'
                     : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
@@ -161,7 +174,7 @@ export const BlogSection: React.FC<BlogSectionProps> = ({ onOpenConsultation }) 
             {articles.map((article) => (
               <article
                 key={article.id}
-                onClick={() => setActiveArticle(article)}
+                onClick={() => handleCardClick(article.slug)}
                 className="bg-white border border-slate-200/80 rounded-2xl p-6 hover:shadow-lg hover:border-orange-500/30 transition-all duration-200 flex flex-col justify-between cursor-pointer group"
               >
                 <div>
@@ -210,92 +223,20 @@ export const BlogSection: React.FC<BlogSectionProps> = ({ onOpenConsultation }) 
             ))}
           </div>
         )}
-      </div>
 
-      {/* ARTICLE READER MODAL */}
-      {activeArticle && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-fadeIn">
-            {/* Modal Header */}
-            <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50">
-              <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-700">
-                  {activeArticle.category}
-                </span>
-                <span className="text-xs text-slate-400">|</span>
-                <span className="text-xs text-slate-600 font-medium">{activeArticle.author}</span>
-              </div>
-              <button
-                onClick={() => setActiveArticle(null)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-6 sm:p-8 overflow-y-auto space-y-6">
-              {activeArticle.featuredImage && (
-                <div className="w-full h-64 rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
-                  <img
-                    src={activeArticle.featuredImage}
-                    alt={activeArticle.title}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              )}
-
-              <div>
-                <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0B132B] tracking-tight">
-                  {activeArticle.title}
-                </h2>
-                <div className="flex items-center gap-4 text-xs text-slate-500 mt-2">
-                  <span className="flex items-center gap-1">
-                    <Calendar className="w-3.5 h-3.5" />
-                    Published {formatDate(activeArticle.publishedAt || activeArticle.createdAt)}
-                  </span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                    Verified Statutory Content
-                  </span>
-                </div>
-              </div>
-
-              {activeArticle.excerpt && (
-                <div className="p-4 rounded-xl bg-orange-50/70 border-l-4 border-orange-500 text-sm text-slate-800 font-medium leading-relaxed">
-                  {activeArticle.excerpt}
-                </div>
-              )}
-
-              {/* Formatted Markdown-like Content */}
-              <div className="text-sm leading-relaxed text-slate-700 space-y-4 whitespace-pre-wrap font-sans border-t border-slate-100 pt-4">
-                {activeArticle.content}
-              </div>
-
-              {/* Consultation Callout in Blog */}
-              <div className="p-6 rounded-2xl bg-[#0B132B] text-white flex flex-col sm:flex-row items-center justify-between gap-4 mt-8">
-                <div>
-                  <h4 className="text-base font-bold text-white">Need Professional Legal Assistance?</h4>
-                  <p className="text-xs text-slate-300 mt-1">
-                    Our compliance advocates and company secretaries handle entire filing workflows end-to-end.
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    const svc = activeArticle.category || 'General Consultation';
-                    setActiveArticle(null);
-                    if (onOpenConsultation) onOpenConsultation(svc);
-                  }}
-                  className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-xl transition-all shadow-md shrink-0"
-                >
-                  Book Free Consultation
-                </button>
-              </div>
-            </div>
+        {/* View All Resources CTA */}
+        {onNavigateResources && (
+          <div className="mt-12 text-center">
+            <button
+              onClick={onNavigateResources}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-[#0B132B] hover:bg-slate-900 text-white text-xs font-bold rounded-xl transition-all shadow-md cursor-pointer"
+            >
+              <span>Explore All Resources & Statutory Guides</span>
+              <ArrowRight className="w-4 h-4 text-orange-400" />
+            </button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </section>
   );
 };
