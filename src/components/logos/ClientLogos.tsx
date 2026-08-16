@@ -51,12 +51,14 @@ export const ClientLogos: React.FC = () => {
                 className="flex items-center gap-3 px-5 py-3 bg-white border border-slate-200/80 rounded-xl shadow-xs hover:shadow-md hover:border-slate-300 transition-all shrink-0 min-w-[190px] h-16 group"
               >
                 {item.logoUrl ? (
-                  <img
-                    src={item.logoUrl}
-                    alt={item.name}
-                    referrerPolicy="no-referrer"
-                    className="h-8 max-w-[120px] object-contain filter grayscale opacity-75 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-300"
-                  />
+                  <div className="flex items-center justify-center h-9 max-w-[130px] shrink-0">
+                    <img
+                      src={item.logoUrl}
+                      alt={item.name}
+                      referrerPolicy="no-referrer"
+                      className="max-h-9 max-w-[130px] w-auto h-auto object-contain transition-transform duration-200 group-hover:scale-105"
+                    />
+                  </div>
                 ) : (
                   <div className="w-8 h-8 rounded-lg bg-slate-100 group-hover:bg-orange-50 text-slate-600 group-hover:text-orange-600 border border-slate-200 flex items-center justify-center font-black text-xs shrink-0 transition-colors">
                     {item.name.charAt(0)}

@@ -56,7 +56,7 @@ export const DEFAULT_CLIENT_LOGOS_SEED: ClientLogo[] = [
 ];
 
 class ClientLogoRepository {
-  private inMemoryStore: ClientLogo[] = [...DEFAULT_CLIENT_LOGOS_SEED];
+  private inMemoryStore: ClientLogo[] = [];
 
   /**
    * Public: Get all active client logos sorted by display order
@@ -72,11 +72,9 @@ class ClientLogoRepository {
           .where(eq(clientLogos.isActive, true))
           .orderBy(asc(clientLogos.displayOrder));
 
-        if (rows && rows.length > 0) {
-          return rows;
-        }
+        return rows;
       } catch (err) {
-        logger.error('Error fetching public client logos from DB, using fallback seed', 'ClientLogoRepo', err);
+        logger.error('Error fetching public client logos from DB', 'ClientLogoRepo', err);
       }
     }
 
@@ -98,11 +96,9 @@ class ClientLogoRepository {
           .from(clientLogos)
           .orderBy(asc(clientLogos.displayOrder));
 
-        if (rows && rows.length > 0) {
-          return rows;
-        }
+        return rows;
       } catch (err) {
-        logger.error('Error fetching admin client logos from DB, using fallback seed', 'ClientLogoRepo', err);
+        logger.error('Error fetching admin client logos from DB', 'ClientLogoRepo', err);
       }
     }
 
@@ -229,9 +225,8 @@ class ClientLogoRepository {
       }
     }
 
-    const prevLen = this.inMemoryStore.length;
     this.inMemoryStore = this.inMemoryStore.filter((l) => l.id !== id);
-    return this.inMemoryStore.length < prevLen;
+    return true;
   }
 
   /**
