@@ -55,12 +55,15 @@ export const AdminWebsiteSettingsCMS: React.FC<AdminWebsiteSettingsCMSProps> = (
     logoUrl: null,
   });
 
+  const [logoAction, setLogoAction] = useState<'unchanged' | 'updated' | 'removed'>('unchanged');
+
   const loadSettings = async () => {
     setIsLoading(true);
     setError(null);
     try {
       const data = await fetchAdminSettings();
       setSettings(data);
+      setLogoAction('unchanged');
       setFormData({
         companyName: data.companyName || 'LEGOMARK INDIA',
         positioning: data.positioning || 'LEGAL, TAXATION & CORPORATE ADVISORY',
@@ -99,8 +102,32 @@ export const AdminWebsiteSettingsCMS: React.FC<AdminWebsiteSettingsCMSProps> = (
     setSuccessMessage(null);
 
     try {
-      const updated = await updateAdminSettings(formData);
+      const payload: UpdateWebsiteSettingsInput = {
+        companyName: formData.companyName,
+        positioning: formData.positioning,
+        tagline: formData.tagline,
+        businessDescription: formData.businessDescription,
+        phone: formData.phone,
+        mobile: formData.mobile,
+        landline: formData.landline,
+        email: formData.email,
+        whatsapp: formData.whatsapp,
+        primaryWebsite: formData.primaryWebsite,
+        secondaryWebsite: formData.secondaryWebsite,
+        officeHours: formData.officeHours,
+        registeredOfficeAddress: formData.registeredOfficeAddress,
+      };
+
+      // Only include logoUrl if explicitly updated or removed by the admin
+      if (logoAction === 'updated' && formData.logoUrl) {
+        payload.logoUrl = formData.logoUrl;
+      } else if (logoAction === 'removed') {
+        payload.logoUrl = null;
+      }
+
+      const updated = await updateAdminSettings(payload);
       setSettings(updated);
+      setLogoAction('unchanged');
       setSuccessMessage('Website configuration saved successfully to database.');
       setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: any) {
@@ -245,7 +272,10 @@ export const AdminWebsiteSettingsCMS: React.FC<AdminWebsiteSettingsCMSProps> = (
                     </div>
                     <button
                       type="button"
-                      onClick={() => setFormData({ ...formData, logoUrl: null })}
+                      onClick={() => {
+                        setFormData({ ...formData, logoUrl: null });
+                        setLogoAction('removed');
+                      }}
                       className="px-3 py-1.5 text-xs font-semibold text-rose-400 hover:text-rose-300 bg-rose-950/30 hover:bg-rose-950/60 border border-rose-800/40 rounded-lg transition-colors flex items-center gap-1.5"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -263,8 +293,12 @@ export const AdminWebsiteSettingsCMS: React.FC<AdminWebsiteSettingsCMSProps> = (
                       currentValue={formData.logoUrl}
                       onUploaded={(url) => {
                         setFormData({ ...formData, logoUrl: url });
+                        setLogoAction('updated');
                       }}
-                      onRemove={() => setFormData({ ...formData, logoUrl: null })}
+                      onRemove={() => {
+                        setFormData({ ...formData, logoUrl: null });
+                        setLogoAction('removed');
+                      }}
                     />
                     <p className="text-[11px] text-slate-400">
                       When no custom image is uploaded, the public header automatically renders the classic <strong className="text-white">"LM LEGOMARK INDIA"</strong> text badge.

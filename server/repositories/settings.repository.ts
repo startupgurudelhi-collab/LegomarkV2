@@ -74,6 +74,7 @@ class SettingsRepository {
    * Update or upsert website settings
    */
   async updateSettings(input: UpdateSettingsInput, authorUser = 'Admin'): Promise<WebsiteSettings> {
+    const existing = await this.getSettings();
     const dbStatus = await pingDatabase();
     const now = new Date();
 
@@ -95,27 +96,32 @@ class SettingsRepository {
     if (input.secondaryWebsite !== undefined) patch.secondaryWebsite = input.secondaryWebsite.trim();
     if (input.officeHours !== undefined) patch.officeHours = input.officeHours.trim();
     if (input.registeredOfficeAddress !== undefined) patch.registeredOfficeAddress = input.registeredOfficeAddress.trim();
-    if (input.logoUrl !== undefined) patch.logoUrl = input.logoUrl ? input.logoUrl.trim() : null;
+    
+    // Only touch logoUrl if explicitly provided in input.
+    // If undefined/omitted, preserve the existing database value.
+    if (input.logoUrl !== undefined) {
+      patch.logoUrl = input.logoUrl ? input.logoUrl.trim() : null;
+    }
 
     if (dbStatus.connected) {
       try {
         const db = getDatabase();
         const merged: NewWebsiteSettings = {
           id: 'global',
-          companyName: patch.companyName || this.fallbackStore.companyName,
-          positioning: patch.positioning || this.fallbackStore.positioning,
-          tagline: patch.tagline || this.fallbackStore.tagline,
-          businessDescription: patch.businessDescription || this.fallbackStore.businessDescription,
-          phone: patch.phone || this.fallbackStore.phone,
-          mobile: patch.mobile || this.fallbackStore.mobile,
-          landline: patch.landline || this.fallbackStore.landline,
-          email: patch.email || this.fallbackStore.email,
-          whatsapp: patch.whatsapp || this.fallbackStore.whatsapp,
-          primaryWebsite: patch.primaryWebsite || this.fallbackStore.primaryWebsite,
-          secondaryWebsite: patch.secondaryWebsite || this.fallbackStore.secondaryWebsite,
-          officeHours: patch.officeHours || this.fallbackStore.officeHours,
-          registeredOfficeAddress: patch.registeredOfficeAddress || this.fallbackStore.registeredOfficeAddress,
-          logoUrl: patch.logoUrl !== undefined ? patch.logoUrl : this.fallbackStore.logoUrl,
+          companyName: patch.companyName !== undefined ? patch.companyName : existing.companyName,
+          positioning: patch.positioning !== undefined ? patch.positioning : existing.positioning,
+          tagline: patch.tagline !== undefined ? patch.tagline : existing.tagline,
+          businessDescription: patch.businessDescription !== undefined ? patch.businessDescription : existing.businessDescription,
+          phone: patch.phone !== undefined ? patch.phone : existing.phone,
+          mobile: patch.mobile !== undefined ? patch.mobile : existing.mobile,
+          landline: patch.landline !== undefined ? patch.landline : existing.landline,
+          email: patch.email !== undefined ? patch.email : existing.email,
+          whatsapp: patch.whatsapp !== undefined ? patch.whatsapp : existing.whatsapp,
+          primaryWebsite: patch.primaryWebsite !== undefined ? patch.primaryWebsite : existing.primaryWebsite,
+          secondaryWebsite: patch.secondaryWebsite !== undefined ? patch.secondaryWebsite : existing.secondaryWebsite,
+          officeHours: patch.officeHours !== undefined ? patch.officeHours : existing.officeHours,
+          registeredOfficeAddress: patch.registeredOfficeAddress !== undefined ? patch.registeredOfficeAddress : existing.registeredOfficeAddress,
+          logoUrl: patch.logoUrl !== undefined ? patch.logoUrl : existing.logoUrl,
           updatedAt: now,
           updatedBy: authorUser,
         };
@@ -139,7 +145,7 @@ class SettingsRepository {
     }
 
     this.fallbackStore = {
-      ...this.fallbackStore,
+      ...existing,
       ...patch,
     };
     return this.fallbackStore;
