@@ -732,6 +732,7 @@ export const websiteSettings = pgTable(
     secondaryWebsite: varchar('secondary_website', { length: 255 }).default('www.legomark.com'),
     officeHours: varchar('office_hours', { length: 255 }).notNull().default('Monday to Sunday: 11:00 AM – 8:00 PM'),
     registeredOfficeAddress: text('registered_office_address').notNull().default('D-561, Pocket 11, DDA Janta Flats, Jasola, New Delhi – 110025'),
+    logoUrl: varchar('logo_url', { length: 512 }),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
     updatedBy: varchar('updated_by', { length: 128 }),
   }
@@ -739,6 +740,35 @@ export const websiteSettings = pgTable(
 
 export type WebsiteSettings = typeof websiteSettings.$inferSelect;
 export type NewWebsiteSettings = typeof websiteSettings.$inferInsert;
+
+/**
+ * ============================================================================
+ * STAGE 10 / PHASE 7: CLIENT LOGOS SHOWCASE
+ * ============================================================================
+ */
+
+export const clientLogos = pgTable(
+  'client_logos',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: varchar('name', { length: 255 }).notNull(),
+    logoUrl: varchar('logo_url', { length: 512 }).notNull(),
+    category: varchar('category', { length: 100 }).notNull().default('General Corporate'),
+    isActive: boolean('is_active').notNull().default(true),
+    displayOrder: integer('display_order').notNull().default(1),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedBy: varchar('updated_by', { length: 128 }),
+  },
+  (table) => ({
+    isActiveIdx: index('client_logos_is_active_idx').on(table.isActive),
+    displayOrderIdx: index('client_logos_display_order_idx').on(table.displayOrder),
+  })
+);
+
+export type ClientLogo = typeof clientLogos.$inferSelect;
+export type NewClientLogo = typeof clientLogos.$inferInsert;
+
 
 
 

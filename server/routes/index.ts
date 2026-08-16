@@ -19,6 +19,8 @@ import blogRoutes from './blog.routes';
 import adminBlogRoutes from './admin-blog.routes';
 import settingsRoutes from './settings.routes';
 import adminSettingsRoutes from './admin-settings.routes';
+import clientLogoRoutes from './client-logo.routes';
+import adminClientLogoRoutes from './admin-client-logo.routes';
 
 const apiRouter = Router();
 
@@ -30,6 +32,7 @@ apiRouter.use('/services', serviceRoutes);
 apiRouter.use('/testimonials', testimonialRoutes);
 apiRouter.use('/blogs', blogRoutes);
 apiRouter.use('/settings', settingsRoutes);
+apiRouter.use('/client-logos', clientLogoRoutes);
 apiRouter.use('/leads', leadRoutes);
 apiRouter.use('/consultations', leadRoutes);
 apiRouter.use('/admin/packages', adminPackageRoutes);
@@ -39,6 +42,7 @@ apiRouter.use('/admin/leads', adminLeadRoutes);
 apiRouter.use('/admin/testimonials', adminTestimonialRoutes);
 apiRouter.use('/admin/blogs', adminBlogRoutes);
 apiRouter.use('/admin/settings', adminSettingsRoutes);
+apiRouter.use('/admin/client-logos', adminClientLogoRoutes);
 apiRouter.use('/founder', founderRoutes);
 apiRouter.use('/office', officeRoutes);
 apiRouter.use('/admin/founder', adminFounderRoutes);

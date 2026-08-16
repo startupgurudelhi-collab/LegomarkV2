@@ -17,9 +17,12 @@ import {
   ShieldCheck,
   FileText,
   Info,
+  Image as ImageIcon,
+  Trash2,
 } from 'lucide-react';
 import { WebsiteSettingsData, UpdateWebsiteSettingsInput } from '../../types/settings';
 import { fetchAdminSettings, updateAdminSettings } from '../../services/settings.service';
+import { MediaUploadDropzone } from './MediaUploadDropzone';
 
 interface AdminWebsiteSettingsCMSProps {
   onNavigateToSection?: (sectionId: string) => void;
@@ -49,6 +52,7 @@ export const AdminWebsiteSettingsCMS: React.FC<AdminWebsiteSettingsCMSProps> = (
     secondaryWebsite: '',
     officeHours: '',
     registeredOfficeAddress: '',
+    logoUrl: null,
   });
 
   const loadSettings = async () => {
@@ -75,6 +79,7 @@ export const AdminWebsiteSettingsCMS: React.FC<AdminWebsiteSettingsCMSProps> = (
         registeredOfficeAddress:
           data.registeredOfficeAddress ||
           'D-561, Pocket 11, DDA Janta Flats, Jasola, New Delhi – 110025',
+        logoUrl: data.logoUrl || null,
       });
     } catch (err: any) {
       setError(err.message || 'Failed to load website settings');
@@ -211,6 +216,63 @@ export const AdminWebsiteSettingsCMS: React.FC<AdminWebsiteSettingsCMSProps> = (
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* BRAND LOGO MANAGEMENT */}
+              <div className="md:col-span-2 p-4 bg-slate-950/60 border border-slate-800 rounded-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                    <ImageIcon className="w-3.5 h-3.5 text-orange-400" />
+                    <span>Official Brand Logo (Header & Public Presence)</span>
+                  </label>
+                  <span className="text-[11px] text-slate-500">Persistent Disk Storage (PNG / SVG / WebP)</span>
+                </div>
+
+                {formData.logoUrl ? (
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-3 bg-slate-900 border border-slate-800 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="w-24 h-12 bg-white/5 border border-slate-700/60 rounded-md p-1.5 flex items-center justify-center overflow-hidden">
+                        <img
+                          src={formData.logoUrl}
+                          alt="LEGOMARK Logo Preview"
+                          className="max-h-full max-w-full object-contain"
+                        />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-white truncate max-w-xs">{formData.logoUrl}</p>
+                        <p className="text-[11px] text-emerald-400 flex items-center gap-1 mt-0.5">
+                          <CheckCircle2 className="w-3 h-3" /> Active Official Logo
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, logoUrl: null })}
+                      className="px-3 py-1.5 text-xs font-semibold text-rose-400 hover:text-rose-300 bg-rose-950/30 hover:bg-rose-950/60 border border-rose-800/40 rounded-lg transition-colors flex items-center gap-1.5"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Remove Logo (Reset to Text Emblem)
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <MediaUploadDropzone
+                      category="logos"
+                      accept="image"
+                      maxSizeMB={5}
+                      label="Upload Official LEGOMARK Logo (PNG, SVG, or WebP)"
+                      helperText="Official firm vector/raster emblem. Transparent background recommended."
+                      currentValue={formData.logoUrl}
+                      onUploaded={(url) => {
+                        setFormData({ ...formData, logoUrl: url });
+                      }}
+                      onRemove={() => setFormData({ ...formData, logoUrl: null })}
+                    />
+                    <p className="text-[11px] text-slate-400">
+                      When no custom image is uploaded, the public header automatically renders the classic <strong className="text-white">"LM LEGOMARK INDIA"</strong> text badge.
+                    </p>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                   Firm / Brand Name *

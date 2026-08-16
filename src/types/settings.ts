@@ -13,6 +13,7 @@ export interface WebsiteSettingsData {
   secondaryWebsite?: string;
   officeHours: string;
   registeredOfficeAddress: string;
+  logoUrl?: string | null;
   updatedAt?: string;
   updatedBy?: string | null;
 }
@@ -31,4 +32,5 @@ export interface UpdateWebsiteSettingsInput {
   secondaryWebsite?: string;
   officeHours?: string;
   registeredOfficeAddress?: string;
+  logoUrl?: string | null;
 }

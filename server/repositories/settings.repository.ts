@@ -18,6 +18,7 @@ export interface UpdateSettingsInput {
   secondaryWebsite?: string;
   officeHours?: string;
   registeredOfficeAddress?: string;
+  logoUrl?: string | null;
 }
 
 const DEFAULT_SETTINGS: WebsiteSettings = {
@@ -35,6 +36,7 @@ const DEFAULT_SETTINGS: WebsiteSettings = {
   secondaryWebsite: COMPANY_PROFILE.contact.websites[1] || 'www.legomark.com',
   officeHours: COMPANY_PROFILE.contact.officeHours || 'Monday to Sunday: 11:00 AM – 8:00 PM',
   registeredOfficeAddress: COMPANY_PROFILE.address.fullAddress || 'D-561, Pocket 11, DDA Janta Flats, Jasola, New Delhi – 110025',
+  logoUrl: null,
   updatedAt: new Date(),
   updatedBy: 'System Default',
 };
@@ -93,6 +95,7 @@ class SettingsRepository {
     if (input.secondaryWebsite !== undefined) patch.secondaryWebsite = input.secondaryWebsite.trim();
     if (input.officeHours !== undefined) patch.officeHours = input.officeHours.trim();
     if (input.registeredOfficeAddress !== undefined) patch.registeredOfficeAddress = input.registeredOfficeAddress.trim();
+    if (input.logoUrl !== undefined) patch.logoUrl = input.logoUrl ? input.logoUrl.trim() : null;
 
     if (dbStatus.connected) {
       try {
@@ -112,6 +115,7 @@ class SettingsRepository {
           secondaryWebsite: patch.secondaryWebsite || this.fallbackStore.secondaryWebsite,
           officeHours: patch.officeHours || this.fallbackStore.officeHours,
           registeredOfficeAddress: patch.registeredOfficeAddress || this.fallbackStore.registeredOfficeAddress,
+          logoUrl: patch.logoUrl !== undefined ? patch.logoUrl : this.fallbackStore.logoUrl,
           updatedAt: now,
           updatedBy: authorUser,
         };

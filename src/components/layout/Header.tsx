@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Phone, Mail, Clock, Menu, X, ArrowRight, Search, User, ChevronDown, ChevronUp, HelpCircle, ShieldCheck, FileText, Sparkles, Building2, Receipt, Award, Briefcase } from 'lucide-react';
 import { COMPANY_PROFILE, SERVICE_CATEGORIES, SERVICES } from '../../data/websiteData';
 import { ServicesMegaMenu } from './ServicesMegaMenu';
+import { fetchPublicSettings } from '../../services/settings.service';
+import { WebsiteSettingsData } from '../../types/settings';
 
 interface HeaderProps {
   onOpenConsultation: (serviceName?: string) => void;
@@ -21,8 +23,18 @@ export const Header: React.FC<HeaderProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [servicesMenuOpen, setServicesMenuOpen] = useState(false);
   const [mobileExpandedCategory, setMobileExpandedCategory] = useState<string | null>(null);
+  const [websiteSettings, setWebsiteSettings] = useState<WebsiteSettingsData | null>(null);
+  const [logoImageError, setLogoImageError] = useState(false);
   const servicesNavRef = useRef<HTMLDivElement>(null);
   const megaMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetchPublicSettings().then((data) => {
+      if (data) {
+        setWebsiteSettings(data);
+      }
+    });
+  }, []);
 
   const navLinks = [
     { label: 'Services', sectionId: 'services-section', hasDropdown: true },
@@ -168,22 +180,33 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={handleLogoClick}
             className="flex items-center gap-3 cursor-pointer select-none shrink-0"
           >
-            <div className="w-10 h-10 rounded-lg bg-[#0B132B] flex items-center justify-center text-white font-black text-lg tracking-wider border border-slate-700 shadow-xs">
-              LM
-            </div>
-            <div>
-              <div className="flex items-center tracking-tight">
-                <span className="text-xl font-black text-[#0B132B] font-sans">
-                  LEGOMARK
-                </span>
-                <span className="text-xl font-black text-orange-600 font-sans ml-1">
-                  INDIA
-                </span>
-              </div>
-              <p className="text-[9.5px] uppercase font-bold tracking-wider text-slate-500 -mt-0.5">
-                {COMPANY_PROFILE.positioning}
-              </p>
-            </div>
+            {websiteSettings?.logoUrl && !logoImageError ? (
+              <img
+                src={websiteSettings.logoUrl}
+                alt={websiteSettings.companyName || COMPANY_PROFILE.name}
+                className="h-11 sm:h-12 w-auto max-w-[200px] object-contain"
+                onError={() => setLogoImageError(true)}
+              />
+            ) : (
+              <>
+                <div className="w-10 h-10 rounded-lg bg-[#0B132B] flex items-center justify-center text-white font-black text-lg tracking-wider border border-slate-700 shadow-xs">
+                  LM
+                </div>
+                <div>
+                  <div className="flex items-center tracking-tight">
+                    <span className="text-xl font-black text-[#0B132B] font-sans">
+                      {websiteSettings?.companyName?.split(' ')[0] || 'LEGOMARK'}
+                    </span>
+                    <span className="text-xl font-black text-orange-600 font-sans ml-1">
+                      {websiteSettings?.companyName?.split(' ').slice(1).join(' ') || 'INDIA'}
+                    </span>
+                  </div>
+                  <p className="text-[9.5px] uppercase font-bold tracking-wider text-slate-500 -mt-0.5">
+                    {websiteSettings?.positioning || COMPANY_PROFILE.positioning}
+                  </p>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Center / Horizontal Desktop Navigation Links */}
