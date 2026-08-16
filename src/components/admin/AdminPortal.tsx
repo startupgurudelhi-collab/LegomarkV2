@@ -13,6 +13,7 @@ import { AdminTestimonialsCMS } from './AdminTestimonialsCMS';
 import { AdminMediaLibrary } from './AdminMediaLibrary';
 import { AdminBlogCMS } from './AdminBlogCMS';
 import { AdminWebsiteSettingsCMS } from './AdminWebsiteSettingsCMS';
+import { AdminClientLogosCMS } from './AdminClientLogosCMS';
 import { AdminPlaceholderView } from './AdminPlaceholderView';
 import { Loader2 } from 'lucide-react';
 
@@ -45,6 +46,13 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
   const getCurrentSection = (): AdminNavSection => {
     if (currentPath.includes('/admin/packages')) return 'packages';
     if (
+      currentPath.includes('/admin/client-logos') ||
+      currentPath.includes('/admin/clientlogos') ||
+      currentPath.includes('/admin/logos')
+    ) {
+      return 'client-logos';
+    }
+    if (
       currentPath.includes('/admin/website') ||
       currentPath.includes('/admin/founder') ||
       currentPath.includes('/admin/office')
@@ -68,6 +76,7 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
     const routeMap: Record<AdminNavSection, string> = {
       dashboard: '/admin/dashboard',
       website: '/admin/website',
+      'client-logos': '/admin/client-logos',
       services: '/admin/services',
       packages: '/admin/packages',
       leads: '/admin/leads',
@@ -173,6 +182,7 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
             />
           )}
           {activeSection === 'website' && <AdminWebsiteCMS />}
+          {activeSection === 'client-logos' && <AdminClientLogosCMS />}
           {activeSection === 'services' && <AdminServicesPage />}
           {activeSection === 'packages' && <AdminPackagesPage />}
           {activeSection === 'leads' && <AdminLeadsPage />}

@@ -27,7 +27,7 @@ export const ClientLogos: React.FC = () => {
               <ShieldCheck className="w-3.5 h-3.5" />
               Trusted Enterprise Legal Advisory
             </div>
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 font-sans tracking-tight">
+            <h2 className="text-base sm:text-lg md:text-xl font-bold text-slate-900 font-sans tracking-tight">
               Trusted by 10,000+ Fast-Growing Indian Businesses
             </h2>
           </div>

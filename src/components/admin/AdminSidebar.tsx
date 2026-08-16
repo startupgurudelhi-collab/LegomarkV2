@@ -20,6 +20,7 @@ import { AdminUser } from '../../types/admin';
 export type AdminNavSection =
   | 'dashboard'
   | 'website'
+  | 'client-logos'
   | 'services'
   | 'packages'
   | 'leads'
@@ -69,6 +70,12 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       label: 'Website CMS',
       description: 'Homepage, Profile, Offices',
       icon: Globe,
+    },
+    {
+      id: 'client-logos',
+      label: 'Client Logos',
+      description: 'Marquee & Corporate Emblems',
+      icon: Briefcase,
     },
     {
       id: 'services',

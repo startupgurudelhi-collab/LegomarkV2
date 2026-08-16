@@ -29,6 +29,10 @@ const SECTION_TITLES: Record<AdminNavSection, { title: string; subtitle: string 
     title: 'Website & CMS Management',
     subtitle: 'Homepage content, founder bio, and registered offices',
   },
+  'client-logos': {
+    title: 'Client & Enterprise Logos',
+    subtitle: 'Corporate showcase, marquee ordering, and logo emblems',
+  },
   services: {
     title: 'Services & Practice Areas',
     subtitle: 'Legal, taxation, and corporate compliance services catalog',
