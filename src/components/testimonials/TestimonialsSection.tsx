@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Shield,
   FileCheck2,
@@ -10,6 +10,8 @@ import {
   Play,
   X,
   MessageSquareQuote,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { TestimonialItem } from '../../types/testimonial';
 import { fetchPublicTestimonials } from '../../services/testimonial.service';
@@ -17,6 +19,12 @@ import { fetchPublicTestimonials } from '../../services/testimonial.service';
 export const TestimonialsSection: React.FC = () => {
   const [testimonials, setTestimonials] = useState<TestimonialItem[]>([]);
   const [activeVideoItem, setActiveVideoItem] = useState<TestimonialItem | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeftState, setScrollLeftState] = useState(0);
 
   useEffect(() => {
     fetchPublicTestimonials().then((items) => {
@@ -25,6 +33,58 @@ export const TestimonialsSection: React.FC = () => {
       }
     });
   }, []);
+
+  const updateScrollButtons = () => {
+    if (scrollContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
+      setCanScrollLeft(scrollLeft > 10);
+      setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 10);
+    }
+  };
+
+  useEffect(() => {
+    updateScrollButtons();
+    const el = scrollContainerRef.current;
+    if (!el) return;
+
+    el.addEventListener('scroll', updateScrollButtons, { passive: true });
+    window.addEventListener('resize', updateScrollButtons);
+    return () => {
+      el.removeEventListener('scroll', updateScrollButtons);
+      window.removeEventListener('resize', updateScrollButtons);
+    };
+  }, [testimonials]);
+
+  const handleScroll = (direction: 'left' | 'right') => {
+    if (scrollContainerRef.current) {
+      const { clientWidth } = scrollContainerRef.current;
+      const scrollAmount = direction === 'left' ? -clientWidth * 0.85 : clientWidth * 0.85;
+      scrollContainerRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!scrollContainerRef.current) return;
+    setIsDragging(true);
+    setStartX(e.pageX - scrollContainerRef.current.offsetLeft);
+    setScrollLeftState(scrollContainerRef.current.scrollLeft);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !scrollContainerRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollContainerRef.current.offsetLeft;
+    const walk = (x - startX) * 1.5;
+    scrollContainerRef.current.scrollLeft = scrollLeftState - walk;
+  };
 
   const commitments = [
     {
@@ -50,30 +110,77 @@ export const TestimonialsSection: React.FC = () => {
   ];
 
   return (
-    <section id="testimonials-section" className="py-16 bg-slate-50 border-b border-slate-200">
+    <section id="testimonials-section" className="py-16 bg-slate-50 border-b border-slate-200 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
-        {/* Dynamic Client Testimonials Grid */}
+        {/* Dynamic Client Testimonials Horizontal Carousel */}
         {testimonials.length > 0 && (
-          <div className="space-y-10">
-            <div className="text-center max-w-3xl mx-auto space-y-2.5">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-orange-100 text-orange-800 border border-orange-200">
-                <MessageSquareQuote className="w-3.5 h-3.5 text-orange-600" />
-                Client Testimonials
+          <div className="space-y-8">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+              <div className="text-left max-w-2xl space-y-2.5">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-orange-100 text-orange-800 border border-orange-200">
+                  <MessageSquareQuote className="w-3.5 h-3.5 text-orange-600" />
+                  Client Testimonials
+                </div>
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#0B132B] tracking-tight font-sans">
+                  Trusted by Founders & Enterprise Leaders
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                  Read direct feedback from business owners and founders who rely on LEGOMARK INDIA for statutory structuring, tax compliance, and legal counsel.
+                </p>
               </div>
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#0B132B] tracking-tight font-sans">
-                Trusted by Founders & Enterprise Leaders
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                Read direct feedback from business owners and founders who rely on LEGOMARK INDIA for statutory structuring, tax compliance, and legal counsel.
-              </p>
+
+              {/* Carousel Navigation Buttons */}
+              <div className="flex items-center gap-2.5 self-start md:self-auto shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleScroll('left')}
+                  disabled={!canScrollLeft}
+                  aria-label="Previous testimonials"
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-all cursor-pointer ${
+                    canScrollLeft
+                      ? 'bg-white hover:bg-orange-50 text-slate-800 hover:text-orange-600 border-slate-200 shadow-xs hover:border-orange-200'
+                      : 'bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed opacity-50'
+                  }`}
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleScroll('right')}
+                  disabled={!canScrollRight}
+                  aria-label="Next testimonials"
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-all cursor-pointer ${
+                    canScrollRight
+                      ? 'bg-white hover:bg-orange-50 text-slate-800 hover:text-orange-600 border-slate-200 shadow-xs hover:border-orange-200'
+                      : 'bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed opacity-50'
+                  }`}
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Horizontal Scrollable Track */}
+            <div
+              ref={scrollContainerRef}
+              onMouseDown={handleMouseDown}
+              onMouseLeave={handleMouseLeave}
+              onMouseUp={handleMouseUp}
+              onMouseMove={handleMouseMove}
+              className={`flex gap-6 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-4 pt-1 px-1 -mx-1 select-none scrollbar-thin scrollbar-thumb-slate-200 ${
+                isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'
+              }`}
+              style={{
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none',
+                WebkitOverflowScrolling: 'touch',
+              }}
+            >
               {testimonials.map((item) => (
                 <div
                   key={item.id}
                   id={`testimonial-card-${item.id}`}
-                  className="bg-white border border-slate-200 p-6 sm:p-7 rounded-2xl flex flex-col justify-between hover:border-slate-300 hover:shadow-md transition-all shadow-xs space-y-5"
+                  className="w-[88%] sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] shrink-0 snap-start bg-white border border-slate-200 p-6 sm:p-7 rounded-2xl flex flex-col justify-between hover:border-slate-300 hover:shadow-md transition-all shadow-xs space-y-5"
                 >
                   <div className="space-y-3.5">
                     {/* Stars */}
@@ -91,14 +198,17 @@ export const TestimonialsSection: React.FC = () => {
                     </div>
 
                     {/* Quote */}
-                    <p className="text-xs sm:text-sm text-slate-700 italic leading-relaxed">
+                    <p className="text-xs sm:text-sm text-slate-700 italic leading-relaxed line-clamp-6">
                       "{item.quote}"
                     </p>
 
                     {/* Video Attachment Button */}
                     {item.videoUrl && (
                       <button
-                        onClick={() => setActiveVideoItem(item)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveVideoItem(item);
+                        }}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-700 text-xs font-semibold cursor-pointer transition-colors"
                       >
                         <Play className="w-3.5 h-3.5 fill-orange-600 text-orange-600" />
@@ -115,7 +225,7 @@ export const TestimonialsSection: React.FC = () => {
                           src={item.avatarUrl}
                           alt={item.clientName}
                           referrerPolicy="no-referrer"
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover pointer-events-none"
                         />
                       ) : (
                         <User className="w-5 h-5 text-slate-400" />
@@ -221,3 +331,4 @@ export const TestimonialsSection: React.FC = () => {
     </section>
   );
 };
+
