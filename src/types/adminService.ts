@@ -74,6 +74,7 @@ export interface AdminService {
     processStepCount: number;
     faqCount: number;
     relatedServiceCount: number;
+    packageCount?: number;
   };
   features?: string[];
   highlights?: ServiceHighlightItem[];
@@ -83,6 +84,14 @@ export interface AdminService {
   processSteps?: ServiceProcessStepItem[];
   faqs?: ServiceFaqItem[];
   relatedServiceIds?: string[];
+  packageIds?: string[];
+  assignedPackages?: Array<{
+    packageId: string;
+    displayOrder: number;
+    name?: string;
+    price?: string;
+    isActive?: boolean;
+  }>;
 }
 
 export interface ServiceCompletenessScore {

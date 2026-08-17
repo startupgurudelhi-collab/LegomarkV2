@@ -7,6 +7,8 @@ import {
   ServiceFaqItem,
 } from '../../types/adminService';
 import { adminServiceApi } from '../../services/adminService.service';
+import { fetchAdminPackages } from '../../services/adminPackage.service';
+import { AdminPackage } from '../../types/admin';
 import { ServiceCompletenessBadge, calculateServiceCompleteness } from './ServiceCompleteness';
 import {
   X,
@@ -37,6 +39,7 @@ import {
   Flame,
   Check,
   AlertCircle,
+  Package as PackageIcon,
 } from 'lucide-react';
 
 interface ServiceEditorModalProps {
@@ -51,6 +54,7 @@ interface ServiceEditorModalProps {
 type EditorTab =
   | 'general'
   | 'pricing'
+  | 'packages'
   | 'content'
   | 'requirements'
   | 'process'
@@ -90,6 +94,8 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
+  const [availablePackages, setAvailablePackages] = useState<AdminPackage[]>([]);
+  const [loadingPackages, setLoadingPackages] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState<Partial<AdminService>>({
@@ -125,7 +131,24 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
     processSteps: [],
     faqs: [],
     relatedServiceIds: [],
+    packageIds: [],
   });
+
+  // Load available packages on modal open
+  useEffect(() => {
+    if (!isOpen) return;
+    setLoadingPackages(true);
+    fetchAdminPackages()
+      .then((pkgs) => {
+        setAvailablePackages(pkgs);
+      })
+      .catch((err) => {
+        console.warn('Failed to load packages in ServiceEditorModal:', err);
+      })
+      .finally(() => {
+        setLoadingPackages(false);
+      });
+  }, [isOpen]);
 
   // Load service data if editing
   useEffect(() => {
@@ -147,6 +170,7 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
             processSteps: data.processSteps || [],
             faqs: data.faqs || [],
             relatedServiceIds: data.relatedServiceIds || [],
+            packageIds: data.packageIds || (data.assignedPackages ? data.assignedPackages.map((p) => p.packageId) : []),
           });
           setIsDirty(false);
         })
@@ -183,6 +207,7 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
         aliases: [],
         seoTitle: '',
         metaDescription: '',
+        packageIds: [],
         features: ['Dedicated Legal Specialist', 'Fast turnaround time', 'End-to-end documentation support'],
         highlights: [
           { title: 'Full MCA Compliance', description: 'End-to-end statutory compliance with zero rejection guarantee.', iconName: 'ShieldCheck', displayOrder: 0 },
@@ -348,12 +373,13 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
           {[
             { id: 'general', label: '1. General' },
             { id: 'pricing', label: '2. Pricing & Terms' },
-            { id: 'content', label: '3. Landing Content' },
-            { id: 'requirements', label: '4. Documents' },
-            { id: 'process', label: '5. Process Steps' },
-            { id: 'faq', label: '6. FAQs' },
-            { id: 'related', label: '7. Related' },
-            { id: 'seo', label: '8. SEO' },
+            { id: 'packages', label: `3. Packages (${formData.packageIds?.length || 0})` },
+            { id: 'content', label: '4. Landing Content' },
+            { id: 'requirements', label: '5. Documents' },
+            { id: 'process', label: '6. Process Steps' },
+            { id: 'faq', label: '7. FAQs' },
+            { id: 'related', label: '8. Related' },
+            { id: 'seo', label: '9. SEO' },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -620,7 +646,150 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
                 </div>
               )}
 
-              {/* TAB 3: LANDING PAGE CONTENT */}
+              {/* TAB: ASSIGNED PACKAGES */}
+              {activeTab === 'packages' && (
+                <div className="space-y-6">
+                  {/* Header info banner */}
+                  <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-orange-400">
+                        <PackageIcon className="w-4 h-4" />
+                        <span>Associated Pricing & Retainer Packages ({formData.packageIds?.length || 0} Assigned)</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const allActiveIds = availablePackages.filter((p) => p.isActive).map((p) => p.id);
+                            updateField('packageIds', allActiveIds);
+                          }}
+                          className="px-2.5 py-1 text-[11px] font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 transition"
+                        >
+                          Select All Active
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateField('packageIds', [])}
+                          className="px-2.5 py-1 text-[11px] font-semibold text-slate-400 hover:text-rose-400 bg-slate-800 hover:bg-rose-500/10 rounded border border-slate-700 transition"
+                        >
+                          Clear Selection
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      Select which commercial packages from your Package CMS catalogue apply to this service. Selected packages will render in the comparison tier grid on this service's public landing page.
+                    </p>
+                  </div>
+
+                  {loadingPackages ? (
+                    <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-400">
+                      <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+                      <span className="text-xs">Loading package catalogue...</span>
+                    </div>
+                  ) : availablePackages.length === 0 ? (
+                    <div className="p-8 text-center bg-slate-950 border border-slate-800 rounded-xl space-y-2">
+                      <PackageIcon className="w-8 h-8 text-slate-600 mx-auto" />
+                      <div className="text-sm font-bold text-slate-200">No Packages Found in CMS</div>
+                      <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                        Create packages in the Admin Package CMS first to associate them with this service.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                      {availablePackages.map((pkg) => {
+                        const isSelected = (formData.packageIds || []).includes(pkg.id);
+
+                        const togglePackage = () => {
+                          const current = formData.packageIds || [];
+                          if (isSelected) {
+                            updateField('packageIds', current.filter((id) => id !== pkg.id));
+                          } else {
+                            updateField('packageIds', [...current, pkg.id]);
+                          }
+                        };
+
+                        return (
+                          <div
+                            key={pkg.id}
+                            onClick={togglePackage}
+                            className={`p-4 rounded-xl border cursor-pointer transition-all duration-150 flex flex-col justify-between select-none ${
+                              isSelected
+                                ? 'bg-orange-500/10 border-orange-500/60 ring-1 ring-orange-500/40 shadow-sm'
+                                : 'bg-slate-950/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900/60'
+                            }`}
+                          >
+                            <div className="space-y-2.5">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-2.5">
+                                  <div
+                                    className={`w-5 h-5 rounded flex items-center justify-center transition border ${
+                                      isSelected
+                                        ? 'bg-orange-500 border-orange-500 text-white'
+                                        : 'bg-slate-900 border-slate-700 text-transparent'
+                                    }`}
+                                  >
+                                    <Check className="w-3.5 h-3.5 stroke-[3]" />
+                                  </div>
+                                  <div>
+                                    <h4 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                                      <span>{pkg.name}</span>
+                                      {pkg.badge && (
+                                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                                          {pkg.badge}
+                                        </span>
+                                      )}
+                                    </h4>
+                                    <span className="text-[11px] text-slate-400 font-mono">
+                                      ID: {pkg.id}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="text-right">
+                                  <div className="text-sm font-extrabold text-slate-100">
+                                    ₹{Number(pkg.priceAmount).toLocaleString('en-IN')}
+                                  </div>
+                                  <div className="text-[10px] text-slate-400 uppercase font-semibold">
+                                    {pkg.billingType}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {pkg.tagline && (
+                                <p className="text-xs text-slate-300 line-clamp-2">
+                                  {pkg.tagline}
+                                </p>
+                              )}
+
+                              {pkg.idealFor && (
+                                <div className="text-[11px] text-slate-400">
+                                  <span className="font-semibold text-slate-300">Ideal For: </span>
+                                  <span>{pkg.idealFor}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="pt-3 mt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
+                              <span className="text-slate-400">
+                                {pkg.features?.length || 0} features included
+                              </span>
+                              <span
+                                className={`font-semibold ${
+                                  isSelected ? 'text-orange-400' : 'text-slate-500'
+                                }`}
+                              >
+                                {isSelected ? 'Assigned to Service' : 'Click to Assign'}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 4: LANDING PAGE CONTENT */}
               {activeTab === 'content' && (
                 <div className="space-y-5">
                   <div>

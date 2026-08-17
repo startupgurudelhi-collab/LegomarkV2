@@ -167,6 +167,7 @@ export const createServiceSchema = z.object({
     )
     .optional(),
   relatedServiceIds: z.array(z.string().trim()).optional(),
+  packageIds: z.array(z.string().trim()).optional(),
 });
 
 // Zod Schema for Service Updates (ID is immutable)
@@ -317,6 +318,7 @@ export const updateServiceSchema = z.object({
     )
     .optional(),
   relatedServiceIds: z.array(z.string().trim()).optional(),
+  packageIds: z.array(z.string().trim()).optional(),
 });
 
 // Zod Schema for Status Toggle

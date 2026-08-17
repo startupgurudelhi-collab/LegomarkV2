@@ -105,6 +105,7 @@ export const matrixCellValues = pgTable(
 export const packagesRelations = relations(packages, ({ many }) => ({
   features: many(packageFeatures),
   matrixCells: many(matrixCellValues),
+  servicePackages: many(servicePackages),
 }));
 
 export const packageFeaturesRelations = relations(packageFeatures, ({ one }) => ({
@@ -488,6 +489,35 @@ export const serviceRelatedServices = pgTable(
 );
 
 /**
+ * Service Packages Many-to-Many Relationship Table
+ * Allows assigning multiple packages to a service with custom display ordering
+ */
+export const servicePackages = pgTable(
+  'service_packages',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    serviceId: varchar('service_id', { length: 64 })
+      .references(() => services.id, { onDelete: 'cascade' })
+      .notNull(),
+    packageId: varchar('package_id', { length: 64 })
+      .references(() => packages.id, { onDelete: 'cascade' })
+      .notNull(),
+    displayOrder: integer('display_order').default(0).notNull(),
+    isActive: boolean('is_active').default(true).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    servicePackagesUnique: unique('service_packages_service_pkg_unique').on(
+      table.serviceId,
+      table.packageId
+    ),
+    servicePackagesServiceIdx: index('service_packages_service_id_idx').on(table.serviceId),
+    servicePackagesPackageIdx: index('service_packages_package_id_idx').on(table.packageId),
+  })
+);
+
+/**
  * Drizzle Relations Mapping
  */
 export const serviceCategoriesRelations = relations(serviceCategories, ({ many }) => ({
@@ -507,6 +537,18 @@ export const servicesRelations = relations(services, ({ one, many }) => ({
   processSteps: many(serviceProcessSteps),
   faqs: many(serviceFaqs),
   relatedServices: many(serviceRelatedServices, { relationName: 'serviceToRelated' }),
+  servicePackages: many(servicePackages),
+}));
+
+export const servicePackagesRelations = relations(servicePackages, ({ one }) => ({
+  service: one(services, {
+    fields: [servicePackages.serviceId],
+    references: [services.id],
+  }),
+  package: one(packages, {
+    fields: [servicePackages.packageId],
+    references: [packages.id],
+  }),
 }));
 
 export const serviceFeaturesRelations = relations(serviceFeatures, ({ one }) => ({
@@ -577,6 +619,9 @@ export type NewServiceCategory = typeof serviceCategories.$inferInsert;
 
 export type Service = typeof services.$inferSelect;
 export type NewService = typeof services.$inferInsert;
+
+export type ServicePackage = typeof servicePackages.$inferSelect;
+export type NewServicePackage = typeof servicePackages.$inferInsert;
 
 export type ServiceFeature = typeof serviceFeatures.$inferSelect;
 export type NewServiceFeature = typeof serviceFeatures.$inferInsert;

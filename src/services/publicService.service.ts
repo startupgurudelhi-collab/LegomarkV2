@@ -69,6 +69,19 @@ export interface ClientPublicServiceDetail extends ClientPublicServiceSummary {
     timeline: string;
     iconName: string;
   }>;
+  packages?: Array<{
+    id: string;
+    name: string;
+    tagline: string | null;
+    price: string;
+    priceAmount?: number;
+    billingType?: string;
+    idealFor: string;
+    popular?: boolean;
+    badge?: string | null;
+    features: string[];
+    displayOrder?: number;
+  }>;
   seo: {
     title: string | null;
     metaDescription: string | null;
@@ -356,7 +369,35 @@ export function mapDetailToServiceItem(detail: ClientPublicServiceDetail): Servi
             answer: f.answer,
           }))
         : (fallback?.landingPage?.faqs || []),
+      packages: detail.packages && detail.packages.length > 0
+        ? detail.packages.map((pkg) => ({
+            id: pkg.id,
+            name: pkg.name,
+            tagline: pkg.tagline || '',
+            price: pkg.price,
+            period: pkg.billingType === 'yearly' ? 'year' : pkg.billingType === 'monthly' ? 'month' : undefined,
+            popular: !!pkg.popular,
+            idealFor: pkg.idealFor,
+            features: pkg.features || [],
+            ctaLabel: 'Buy Package',
+            badge: pkg.badge || undefined,
+          }))
+        : fallback?.landingPage?.packages,
     },
+    packages: detail.packages && detail.packages.length > 0
+      ? detail.packages.map((pkg) => ({
+          id: pkg.id,
+          name: pkg.name,
+          tagline: pkg.tagline || '',
+          price: pkg.price,
+          period: pkg.billingType === 'yearly' ? 'year' : pkg.billingType === 'monthly' ? 'month' : undefined,
+          popular: !!pkg.popular,
+          idealFor: pkg.idealFor,
+          features: pkg.features || [],
+          ctaLabel: 'Buy Package',
+          badge: pkg.badge || undefined,
+        }))
+      : fallback?.packages,
   };
 }
 

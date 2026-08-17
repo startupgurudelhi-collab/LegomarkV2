@@ -30,19 +30,21 @@ import {
   FolderOpen,
   Info
 } from 'lucide-react';
-import { ServiceCategoryMeta, ServiceItem } from '../../types/website';
+import { ServiceCategoryMeta, ServiceItem, BuyNowItem } from '../../types/website';
 import { SERVICE_CATEGORIES, SERVICES, getRelatedServices } from '../../data/websiteData';
 import { ClientLogos } from '../logos/ClientLogos';
 import { WhyLegomark } from '../why-us/WhyLegomark';
 import { TestimonialsSection } from '../testimonials/TestimonialsSection';
 import { FounderSection } from '../founder/FounderSection';
+import { ServiceApplicationForm } from './ServiceApplicationForm';
+import { ServicePackages } from './ServicePackages';
 
 interface ServiceLandingPageProps {
   service?: ServiceItem;
   categories?: ServiceCategoryMeta[];
   allServices?: ServiceItem[];
   onOpenConsultation: (serviceName?: string) => void;
-  onOpenBuyNow?: (service: ServiceItem) => void;
+  onOpenBuyNow?: (item: BuyNowItem | ServiceItem) => void;
   onNavigateService: (slug: string) => void;
   onNavigateHome: () => void;
 }
@@ -220,95 +222,60 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
                 </div>
               </div>
 
+              {/* Service Inclusions Checklist */}
+              <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200 space-y-2.5">
+                <div className="text-xs font-bold uppercase tracking-wider text-[#0B132B] flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-orange-600" />
+                    <span>Included in this Service</span>
+                  </span>
+                  <span className="text-[11px] font-extrabold text-orange-600 bg-white px-2 py-0.5 rounded border border-orange-200">
+                    From {service.startingPrice}
+                  </span>
+                </div>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-700">
+                  {service.features.map((feat, idx) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                      <span>{feat}</span>
+                    </li>
+                  ))}
+                </ul>
+                {service.governmentFeeNote && (
+                  <p className="text-[11px] text-slate-500 italic pt-1 border-t border-slate-200/60">
+                    * {service.governmentFeeNote}
+                  </p>
+                )}
+              </div>
+
               {/* Action Buttons */}
-              <div className="flex flex-wrap items-center gap-3.5 pt-2">
-                <button
-                  onClick={() => {
-                    if (onOpenBuyNow) {
-                      onOpenBuyNow(service);
-                    } else {
-                      onOpenConsultation(service.title);
-                    }
-                  }}
-                  className="px-6 py-3.5 bg-orange-600 hover:bg-orange-700 text-white text-xs sm:text-sm font-bold rounded-lg transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
-                >
-                  <span>Buy Now &mdash; {service.startingPrice}</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
+              <div className="flex flex-wrap items-center gap-3.5 pt-1">
+                {onOpenBuyNow && (
+                  <button
+                    onClick={() => onOpenBuyNow(service)}
+                    className="px-6 py-3.5 bg-[#0B132B] hover:bg-slate-800 text-white text-xs sm:text-sm font-bold rounded-lg transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
+                  >
+                    <span>Instant Checkout &mdash; {service.startingPrice}</span>
+                    <ArrowRight className="w-4 h-4 text-orange-400" />
+                  </button>
+                )}
                 <button
                   onClick={() => onOpenConsultation(service.title)}
                   className="px-5 py-3.5 bg-white hover:bg-slate-50 text-slate-800 text-xs sm:text-sm font-bold rounded-lg border border-slate-300 transition-colors flex items-center gap-2 cursor-pointer"
                 >
                   <PhoneCall className="w-4 h-4 text-orange-600" />
-                  <span>Request Consultation</span>
+                  <span>Request Phone Consultation</span>
                 </button>
               </div>
             </div>
 
-            {/* Right Column: Service Highlights & Pricing Card */}
+            {/* Right Column: Service Application Form */}
             <div className="lg:col-span-5">
-              <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-6">
-                {/* Price Display */}
-                <div className="border-b border-slate-100 pb-5">
-                  <div className="text-xs font-bold uppercase tracking-wider text-slate-600">
-                    Professional Fee Structure
-                  </div>
-                  <div className="mt-2 flex items-baseline gap-2">
-                    <span className="text-xs text-slate-600">Starting from</span>
-                    <span className="text-2xl sm:text-3xl font-extrabold text-[#0B132B]">
-                      {service.startingPrice}
-                    </span>
-                  </div>
-                  {service.governmentFeeNote && (
-                    <div className="mt-1 text-[11px] text-slate-600 italic">
-                      {service.governmentFeeNote}
-                    </div>
-                  )}
-                </div>
-
-                {/* Key Inclusions Checklist */}
-                <div className="space-y-3">
-                  <div className="text-xs font-bold uppercase tracking-wider text-[#0B132B] flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-orange-600" />
-                    <span>Included in this Service</span>
-                  </div>
-                  <ul className="space-y-2 text-xs text-slate-700">
-                    {service.features.map((feat, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                        <span>{feat}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {/* CTA inside card */}
-                <div className="pt-2 space-y-2">
-                  <button
-                    onClick={() => {
-                      if (onOpenBuyNow) {
-                        onOpenBuyNow(service);
-                      } else {
-                        onOpenConsultation(service.title);
-                      }
-                    }}
-                    className="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white text-xs sm:text-sm font-bold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-xs cursor-pointer"
-                  >
-                    <span>Buy Now &mdash; {service.startingPrice}</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => onOpenConsultation(service.title)}
-                    className="w-full py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-800 text-xs font-semibold rounded-lg border border-slate-200 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <PhoneCall className="w-3.5 h-3.5 text-orange-600" />
-                    <span>Request Free Consultation</span>
-                  </button>
-                  <p className="mt-1 text-[11px] text-center text-slate-500">
-                    Confidential &bull; Practicing CA/CS Assistance
-                  </p>
-                </div>
-              </div>
+              <ServiceApplicationForm
+                service={service}
+                onOpenBuyNow={onOpenBuyNow}
+                onOpenConsultation={onOpenConsultation}
+              />
             </div>
           </div>
         </div>
@@ -353,6 +320,16 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
             </div>
           )}
         </section>
+
+        {/* Section: Multiple Packages per Service */}
+        {(service.packages || service.landingPage?.packages) && (
+          <ServicePackages
+            packages={service.packages || service.landingPage?.packages}
+            service={service}
+            onOpenBuyNow={onOpenBuyNow}
+            onOpenConsultation={onOpenConsultation}
+          />
+        )}
 
         {/* Section: What's Included (Deliverables) & Documents Required (2-Col Grid) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

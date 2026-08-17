@@ -10,10 +10,13 @@ import {
   serviceProcessSteps,
   serviceFaqs,
   serviceRelatedServices,
+  servicePackages,
+  packages as packagesTable,
+  packageFeatures as packageFeaturesTable,
 } from '../../db/schema/index';
 import { eq, and, asc, inArray } from 'drizzle-orm';
 import { logger } from '../utils/logger';
-import { SERVICES, SERVICE_CATEGORIES, getServiceBySlug, getRelatedServices } from '../../src/data/websiteData';
+import { SERVICES, SERVICE_CATEGORIES, PACKAGES, getServiceBySlug, getRelatedServices } from '../../src/data/websiteData';
 
 export interface PublicCategoryItem {
   id: string;
@@ -41,6 +44,21 @@ export interface PublicServiceSummary {
   iconName: string;
   displayOrder: number;
   features: string[];
+}
+
+export interface PublicServicePackage {
+  id: string;
+  name: string;
+  tagline: string | null;
+  price: string;
+  priceAmount: number;
+  currency: string;
+  billingType: string;
+  idealFor: string;
+  popular: boolean;
+  badge: string | null;
+  features: string[];
+  displayOrder: number;
 }
 
 export interface PublicServiceDetail extends PublicServiceSummary {
@@ -77,6 +95,7 @@ export interface PublicServiceDetail extends PublicServiceSummary {
     timeline: string;
     iconName: string;
   }>;
+  packages: PublicServicePackage[];
   seo: {
     title: string | null;
     metaDescription: string | null;
@@ -390,6 +409,20 @@ export class ServiceRepository {
           timeline: r.timeline,
           iconName: r.iconName,
         })),
+        packages: PACKAGES.map((pkg, pIdx) => ({
+          id: pkg.id,
+          name: pkg.name,
+          tagline: pkg.tagline || null,
+          price: pkg.price,
+          priceAmount: parseFloat(pkg.price.replace(/[^\d.]/g, '')) || 0,
+          currency: 'INR',
+          billingType: pkg.period?.includes('year') ? 'yearly' : pkg.period?.includes('mo') ? 'monthly' : 'one_time',
+          idealFor: pkg.idealFor,
+          popular: !!pkg.popular,
+          badge: pkg.badge || null,
+          features: pkg.features || [],
+          displayOrder: pIdx,
+        })),
         seo: {
           title: `${s.title} | Corporate Legal & Tax Advisory | LEGOMARK INDIA`,
           metaDescription: s.shortDesc,
@@ -422,6 +455,7 @@ export class ServiceRepository {
         stepsList,
         faqsList,
         relatedMappings,
+        assignedPkgRows,
       ] = await Promise.all([
         db
           .select()
@@ -463,7 +497,71 @@ export class ServiceRepository {
           .from(serviceRelatedServices)
           .where(eq(serviceRelatedServices.serviceId, serviceId))
           .orderBy(asc(serviceRelatedServices.displayOrder)),
+        db
+          .select({
+            servicePackage: servicePackages,
+            pkg: packagesTable,
+          })
+          .from(servicePackages)
+          .innerJoin(packagesTable, eq(servicePackages.packageId, packagesTable.id))
+          .where(
+            and(
+              eq(servicePackages.serviceId, serviceId),
+              eq(servicePackages.isActive, true),
+              eq(packagesTable.isActive, true)
+            )
+          )
+          .orderBy(asc(servicePackages.displayOrder)),
       ]);
+
+      // Resolve package features
+      let resolvedPackages: PublicServicePackage[] = [];
+      if (assignedPkgRows.length > 0) {
+        const pkgIds = assignedPkgRows.map((r) => r.pkg.id);
+        const pkgFeatRows = await db
+          .select()
+          .from(packageFeaturesTable)
+          .where(inArray(packageFeaturesTable.packageId, pkgIds))
+          .orderBy(asc(packageFeaturesTable.displayOrder));
+
+        const featMap = new Map<string, string[]>();
+        for (const f of pkgFeatRows) {
+          const list = featMap.get(f.packageId) || [];
+          list.push(f.featureText);
+          featMap.set(f.packageId, list);
+        }
+
+        resolvedPackages = assignedPkgRows.map((r) => ({
+          id: r.pkg.id,
+          name: r.pkg.name,
+          tagline: r.pkg.tagline,
+          price: r.pkg.priceDisplayOverride || `₹${Number(r.pkg.priceAmount).toLocaleString('en-IN')}`,
+          priceAmount: Number(r.pkg.priceAmount) || 0,
+          currency: r.pkg.currency,
+          billingType: r.pkg.billingType,
+          idealFor: r.pkg.idealFor,
+          popular: r.pkg.popular,
+          badge: r.pkg.badge,
+          features: featMap.get(r.pkg.id) || [],
+          displayOrder: r.servicePackage.displayOrder,
+        }));
+      } else {
+        // Fallback: If no custom packages mapped to this service yet, provide canonical active packages
+        resolvedPackages = PACKAGES.map((pkg, pIdx) => ({
+          id: pkg.id,
+          name: pkg.name,
+          tagline: pkg.tagline || null,
+          price: pkg.price,
+          priceAmount: parseFloat(pkg.price.replace(/[^\d.]/g, '')) || 0,
+          currency: 'INR',
+          billingType: pkg.period?.includes('year') ? 'yearly' : pkg.period?.includes('mo') ? 'monthly' : 'one_time',
+          idealFor: pkg.idealFor,
+          popular: !!pkg.popular,
+          badge: pkg.badge || null,
+          features: pkg.features || [],
+          displayOrder: pIdx,
+        }));
+      }
 
       // Resolve related services
       let resolvedRelatedServices: Array<{
@@ -540,6 +638,7 @@ export class ServiceRepository {
           displayOrder: faq.displayOrder,
         })),
         relatedServices: resolvedRelatedServices,
+        packages: resolvedPackages,
         seo: {
           title: s.seoTitle || `${s.title} | Corporate Legal & Tax Advisory | LEGOMARK INDIA`,
           metaDescription: s.metaDescription || s.shortDesc,

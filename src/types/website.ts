@@ -79,6 +79,7 @@ export interface ServiceLandingPageData {
   process: ServiceProcessStep[];
   faqs: ServiceFAQ[];
   tagline?: string;
+  packages?: PackageTier[];
 }
 
 export interface ServiceItem {
@@ -98,6 +99,7 @@ export interface ServiceItem {
   badge?: string;
   aliases?: string[];
   landingPage?: ServiceLandingPageData;
+  packages?: PackageTier[];
 }
 
 export interface PackageTier {

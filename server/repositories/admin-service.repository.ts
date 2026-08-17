@@ -10,6 +10,8 @@ import {
   serviceProcessSteps,
   serviceFaqs,
   serviceRelatedServices,
+  servicePackages,
+  packages as packagesTable,
 } from '../../db/schema/index';
 import { eq, asc, inArray, count, sql } from 'drizzle-orm';
 import { logger } from '../utils/logger';
@@ -60,6 +62,7 @@ export interface AdminServiceItem {
     processStepCount: number;
     faqCount: number;
     relatedServiceCount: number;
+    packageCount?: number;
   };
   features?: string[];
   highlights?: Array<{
@@ -87,6 +90,14 @@ export interface AdminServiceItem {
     isActive?: boolean;
   }>;
   relatedServiceIds?: string[];
+  packageIds?: string[];
+  assignedPackages?: Array<{
+    packageId: string;
+    displayOrder: number;
+    name?: string;
+    price?: string;
+    isActive?: boolean;
+  }>;
 }
 
 export interface CreateServiceInput {
@@ -137,6 +148,7 @@ export interface CreateServiceInput {
     isActive?: boolean;
   }>;
   relatedServiceIds?: string[];
+  packageIds?: string[];
 }
 
 export interface UpdateServiceInput {
@@ -186,6 +198,7 @@ export interface UpdateServiceInput {
     isActive?: boolean;
   }>;
   relatedServiceIds?: string[];
+  packageIds?: string[];
 }
 
 export interface ReorderServiceItem {
@@ -536,6 +549,7 @@ export class AdminServiceRepository {
         procRows,
         faqRows,
         relRows,
+        pkgRows,
       ] = await Promise.all([
         db.select().from(serviceFeatures).where(eq(serviceFeatures.serviceId, id)).orderBy(asc(serviceFeatures.displayOrder)),
         db.select().from(serviceHighlights).where(eq(serviceHighlights.serviceId, id)).orderBy(asc(serviceHighlights.displayOrder)),
@@ -545,6 +559,7 @@ export class AdminServiceRepository {
         db.select().from(serviceProcessSteps).where(eq(serviceProcessSteps.serviceId, id)).orderBy(asc(serviceProcessSteps.displayOrder)),
         db.select().from(serviceFaqs).where(eq(serviceFaqs.serviceId, id)).orderBy(asc(serviceFaqs.displayOrder)),
         db.select().from(serviceRelatedServices).where(eq(serviceRelatedServices.serviceId, id)).orderBy(asc(serviceRelatedServices.displayOrder)),
+        db.select().from(servicePackages).where(eq(servicePackages.serviceId, id)).orderBy(asc(servicePackages.displayOrder)),
       ]);
 
       return {
@@ -585,6 +600,7 @@ export class AdminServiceRepository {
           processStepCount: procRows.length,
           faqCount: faqRows.length,
           relatedServiceCount: relRows.length,
+          packageCount: pkgRows.length,
         },
         features: featRows.map((f) => f.featureText),
         highlights: hlRows.map((h) => ({
@@ -612,6 +628,12 @@ export class AdminServiceRepository {
           isActive: f.isActive,
         })),
         relatedServiceIds: relRows.map((r) => r.relatedServiceId),
+        packageIds: pkgRows.map((p) => p.packageId),
+        assignedPackages: pkgRows.map((p) => ({
+          packageId: p.packageId,
+          displayOrder: p.displayOrder,
+          isActive: p.isActive,
+        })),
       };
     } catch (error) {
       logger.error(`Error in AdminServiceRepository.findById for ${id}`, 'AdminServiceRepo', error);
@@ -793,6 +815,17 @@ export class AdminServiceRepository {
       );
     }
 
+    if (input.packageIds && input.packageIds.length > 0) {
+      await db.insert(servicePackages).values(
+        input.packageIds.map((pkgId, i) => ({
+          serviceId: inserted.id,
+          packageId: pkgId,
+          displayOrder: i,
+          isActive: true,
+        }))
+      );
+    }
+
     const full = await this.findById(inserted.id);
     if (!full) {
       throw new Error(`Failed to retrieve newly created service '${inserted.id}'`);
@@ -946,6 +979,20 @@ export class AdminServiceRepository {
             serviceId: id,
             relatedServiceId: relId,
             displayOrder: i,
+          }))
+        );
+      }
+    }
+
+    if (input.packageIds !== undefined) {
+      await db.delete(servicePackages).where(eq(servicePackages.serviceId, id));
+      if (input.packageIds.length > 0) {
+        await db.insert(servicePackages).values(
+          input.packageIds.map((pkgId, i) => ({
+            serviceId: id,
+            packageId: pkgId,
+            displayOrder: i,
+            isActive: true,
           }))
         );
       }
