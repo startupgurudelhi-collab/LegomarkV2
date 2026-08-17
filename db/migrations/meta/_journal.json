@@ -58,11 +58,20 @@
       "tag": "0007_blogs_and_settings",
       "breakpoints": true
     },
-    {
+    
+      "idx": 8,
+          {
       "idx": 8,
       "version": "7",
       "when": 1786742000000,
       "tag": "0008_client_logos_and_brand_logo",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1786745000000,
+      "tag": "0009_service_packages",
       "breakpoints": true
     }
   ]
