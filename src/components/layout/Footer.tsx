@@ -271,7 +271,7 @@ export const Footer: React.FC<FooterProps> = ({
         {/* Disclaimer & Bottom Bar */}
         <div className="mt-12 pt-8 border-t border-slate-800 space-y-4">
           <p className="text-[11px] text-slate-400 leading-relaxed max-w-4xl">
-            <strong className="text-slate-300">Legal Disclaimer:</strong> LEGOMARK INDIA provides technology-enabled corporate legal, taxation, and business compliance advisory services. Information provided on this website is for informational purposes and should not be construed as formal legal or statutory advice without specific case consultation.
+            <strong className="text-slate-300">Website Disclaimer:</strong> LEGOMARK INDIA is a privately operated platform and is not affiliated with, endorsed by, or connected with any government department or authority. Our forms and services are provided for information and assistance purposes and are not official government registration or application forms. We assist clients with business registration, taxation, compliance, licensing and related services based on their requirements. Fees charged through this website are service/professional assistance fees; applicable government fees, if any, are separate. Government rules, fees and procedures may change, and users are advised to verify official requirements where necessary.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-400">
