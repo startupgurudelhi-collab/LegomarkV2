@@ -36,6 +36,7 @@ import { SERVICE_CATEGORIES, SERVICES, getRelatedServices } from '../../data/web
 interface ServiceLandingPageProps {
   service?: ServiceItem;
   onOpenConsultation: (serviceName?: string) => void;
+  onOpenBuyNow?: (service: ServiceItem) => void;
   onNavigateService: (slug: string) => void;
   onNavigateHome: () => void;
 }
@@ -43,6 +44,7 @@ interface ServiceLandingPageProps {
 export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
   service,
   onOpenConsultation,
+  onOpenBuyNow,
   onNavigateService,
   onNavigateHome,
 }) => {
@@ -233,10 +235,16 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
               {/* Action Buttons */}
               <div className="flex flex-wrap items-center gap-3.5 pt-2">
                 <button
-                  onClick={() => onOpenConsultation(service.title)}
-                  className="px-6 py-3.5 bg-[#0B132B] hover:bg-orange-600 text-white text-xs sm:text-sm font-bold rounded-lg transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
+                  onClick={() => {
+                    if (onOpenBuyNow) {
+                      onOpenBuyNow(service);
+                    } else {
+                      onOpenConsultation(service.title);
+                    }
+                  }}
+                  className="px-6 py-3.5 bg-orange-600 hover:bg-orange-700 text-white text-xs sm:text-sm font-bold rounded-lg transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
                 >
-                  <span>Book Consultation for {service.title}</span>
+                  <span>Buy Now &mdash; {service.startingPrice}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
                 <button
@@ -244,7 +252,7 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
                   className="px-5 py-3.5 bg-white hover:bg-slate-50 text-slate-800 text-xs sm:text-sm font-bold rounded-lg border border-slate-300 transition-colors flex items-center gap-2 cursor-pointer"
                 >
                   <PhoneCall className="w-4 h-4 text-orange-600" />
-                  <span>Talk to an Expert</span>
+                  <span>Request Consultation</span>
                 </button>
               </div>
             </div>
@@ -287,16 +295,29 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
                 </div>
 
                 {/* CTA inside card */}
-                <div className="pt-2">
+                <div className="pt-2 space-y-2">
                   <button
-                    onClick={() => onOpenConsultation(service.title)}
+                    onClick={() => {
+                      if (onOpenBuyNow) {
+                        onOpenBuyNow(service);
+                      } else {
+                        onOpenConsultation(service.title);
+                      }
+                    }}
                     className="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white text-xs sm:text-sm font-bold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-xs cursor-pointer"
                   >
-                    <span>Get Started with {service.title}</span>
+                    <span>Buy Now &mdash; {service.startingPrice}</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
-                  <p className="mt-2 text-[11px] text-center text-slate-600">
-                    Confidential &bull; No Obligation Initial Assessment
+                  <button
+                    onClick={() => onOpenConsultation(service.title)}
+                    className="w-full py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-800 text-xs font-semibold rounded-lg border border-slate-200 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <PhoneCall className="w-3.5 h-3.5 text-orange-600" />
+                    <span>Request Free Consultation</span>
+                  </button>
+                  <p className="mt-1 text-[11px] text-center text-slate-500">
+                    Confidential &bull; Practicing CA/CS Assistance
                   </p>
                 </div>
               </div>
@@ -558,11 +579,24 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
 
           <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
             <button
-              onClick={() => onOpenConsultation(service.title)}
+              onClick={() => {
+                if (onOpenBuyNow) {
+                  onOpenBuyNow(service);
+                } else {
+                  onOpenConsultation(service.title);
+                }
+              }}
               className="px-6 py-3.5 bg-orange-600 hover:bg-orange-700 text-white text-xs sm:text-sm font-bold rounded-lg transition-colors flex items-center gap-2 shadow-sm cursor-pointer"
             >
-              <span>Book Consultation for {service.title}</span>
+              <span>Buy Now &mdash; {service.startingPrice}</span>
               <ArrowRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => onOpenConsultation(service.title)}
+              className="px-5 py-3.5 bg-white hover:bg-slate-100 text-slate-900 text-xs sm:text-sm font-bold rounded-lg transition-colors flex items-center gap-2 cursor-pointer shadow-xs"
+            >
+              <PhoneCall className="w-4 h-4 text-orange-600" />
+              <span>Request Consultation</span>
             </button>
             <button
               onClick={onNavigateHome}

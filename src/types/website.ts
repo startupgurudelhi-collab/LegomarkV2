@@ -147,3 +147,16 @@ export interface ClientLogo {
   industry: string;
   location: string;
 }
+
+export interface BuyNowItem {
+  id?: string;
+  name: string;
+  title?: string;
+  slug?: string;
+  priceDisplay: string;
+  amount?: number;
+  itemType: 'service' | 'package';
+  category?: string;
+  governmentFeeNote?: string;
+  features?: string[];
+}

@@ -21,12 +21,14 @@ import settingsRoutes from './settings.routes';
 import adminSettingsRoutes from './admin-settings.routes';
 import clientLogoRoutes from './client-logo.routes';
 import adminClientLogoRoutes from './admin-client-logo.routes';
+import paymentRoutes from './payment.routes';
 
 const apiRouter = Router();
 
 // Mount sub-routes under /api
 apiRouter.use('/', healthRoutes);
 apiRouter.use('/auth', authRoutes);
+apiRouter.use('/payment', paymentRoutes);
 apiRouter.use('/packages', packageRoutes);
 apiRouter.use('/services', serviceRoutes);
 apiRouter.use('/testimonials', testimonialRoutes);

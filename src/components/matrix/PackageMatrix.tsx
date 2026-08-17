@@ -5,9 +5,13 @@ import { PACKAGE_MATRIX as STATIC_PACKAGE_MATRIX, PACKAGES as STATIC_PACKAGES } 
 
 interface PackageMatrixProps {
   onOpenConsultation: (packageName?: string) => void;
+  onOpenBuyNowPackage?: (pkg: { name: string; price: string; id: string }) => void;
 }
 
-export const PackageMatrix: React.FC<PackageMatrixProps> = ({ onOpenConsultation }) => {
+export const PackageMatrix: React.FC<PackageMatrixProps> = ({
+  onOpenConsultation,
+  onOpenBuyNowPackage,
+}) => {
   // Initialize with fallback static structure to prevent layout flicker
   const [matrixData, setMatrixData] = useState<PublicMatrixData>(() => {
     const defaultCategories: string[] = [];
@@ -203,17 +207,33 @@ export const PackageMatrix: React.FC<PackageMatrixProps> = ({ onOpenConsultation
                   {packages.map((pkg) => (
                     <td
                       key={pkg.id}
-                      className={`p-3 text-center ${pkg.popular ? 'bg-orange-50/60' : ''}`}
+                      className={`p-3 text-center space-y-1.5 ${pkg.popular ? 'bg-orange-50/60' : ''}`}
                     >
                       <button
-                        onClick={() => onOpenConsultation(pkg.name)}
+                        onClick={() => {
+                          if (onOpenBuyNowPackage) {
+                            onOpenBuyNowPackage({
+                              id: pkg.id,
+                              name: pkg.name,
+                              price: pkg.formattedPrice || pkg.priceDisplayOverride || 'Custom',
+                            });
+                          } else {
+                            onOpenConsultation(pkg.name);
+                          }
+                        }}
                         className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors cursor-pointer w-full shadow-xs ${
                           pkg.popular
                             ? 'text-white bg-orange-600 hover:bg-orange-700'
-                            : 'text-[#0B132B] bg-white border border-slate-300 hover:border-slate-400'
+                            : 'text-white bg-[#0B132B] hover:bg-slate-800'
                         }`}
                       >
-                        {pkg.ctaLabel}
+                        Buy Now
+                      </button>
+                      <button
+                        onClick={() => onOpenConsultation(pkg.name)}
+                        className="px-2 py-1 text-[11px] font-semibold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 rounded-md transition-colors cursor-pointer w-full"
+                      >
+                        Consultation
                       </button>
                     </td>
                   ))}

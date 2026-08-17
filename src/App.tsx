@@ -18,16 +18,20 @@ import { BlogDetailPage } from './components/blog/BlogDetailPage';
 import { ConsultationCTA } from './components/cta/ConsultationCTA';
 import { Footer } from './components/layout/Footer';
 import { ConsultationModal } from './components/common/ConsultationModal';
+import { BuyNowModal } from './components/payment/BuyNowModal';
 import { DiagnosticsPanel } from './components/DiagnosticsPanel';
 import { ServiceLandingPage } from './components/services/ServiceLandingPage';
 import { AdminPortal } from './components/admin/AdminPortal';
 import { getServiceBySlug } from './data/websiteData';
 import { X } from 'lucide-react';
 import { useHealthReport } from './services/useHealthReport';
+import { BuyNowItem, PackageTier, ServiceItem } from './types/website';
 
 export default function App() {
   const [isConsultationOpen, setIsConsultationOpen] = useState(false);
   const [consultationService, setConsultationService] = useState('Private Limited Company Registration');
+  const [isBuyNowOpen, setIsBuyNowOpen] = useState(false);
+  const [buyNowItem, setBuyNowItem] = useState<BuyNowItem | null>(null);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
 
   const [currentPath, setCurrentPath] = useState<string>(() => {
@@ -100,6 +104,38 @@ export default function App() {
     }
     setIsConsultationOpen(true);
   };
+
+  const handleOpenBuyNow = useCallback(
+    (
+      item:
+        | BuyNowItem
+        | ServiceItem
+        | PackageTier
+        | { name: string; priceDisplay?: string; price?: string; startingPrice?: string; id?: string; slug?: string }
+    ) => {
+      const priceDisplay =
+        (item as any).priceDisplay ||
+        (item as any).price ||
+        (item as any).startingPrice ||
+        '₹0';
+      const name = (item as any).name || (item as any).title || 'Corporate Service';
+      const itemType: 'service' | 'package' =
+        (item as any).itemType || ((item as any).price ? 'package' : 'service');
+
+      setBuyNowItem({
+        id: item.id,
+        name,
+        title: (item as any).title || name,
+        slug: (item as any).slug,
+        priceDisplay,
+        itemType,
+        governmentFeeNote: (item as any).governmentFeeNote,
+        features: (item as any).features,
+      });
+      setIsBuyNowOpen(true);
+    },
+    []
+  );
 
   const handleNavigateService = useCallback((slug: string) => {
     setActiveServiceSlug(slug);
@@ -212,6 +248,7 @@ export default function App() {
         <ServiceLandingPage
           service={currentServiceItem}
           onOpenConsultation={handleOpenConsultation}
+          onOpenBuyNow={handleOpenBuyNow}
           onNavigateService={handleNavigateService}
           onNavigateHome={handleNavigateHome}
         />
@@ -232,21 +269,31 @@ export default function App() {
           {/* Services Overview & Category Tabs */}
           <ServicesSection
             onOpenConsultation={handleOpenConsultation}
+            onOpenBuyNow={handleOpenBuyNow}
             onNavigateService={handleNavigateService}
           />
 
           {/* Deep Category Spotlights (Incorporation, Tax/ROC, Trademark) */}
           <div className="bg-slate-50 border-b border-slate-200 py-6">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <CategorySpotlights onOpenConsultation={handleOpenConsultation} />
+              <CategorySpotlights
+                onOpenConsultation={handleOpenConsultation}
+                onOpenBuyNow={handleOpenBuyNow}
+              />
             </div>
           </div>
 
           {/* Packages & Pricing Area */}
-          <PackagesSection onOpenConsultation={handleOpenConsultation} />
+          <PackagesSection
+            onOpenConsultation={handleOpenConsultation}
+            onOpenBuyNowPackage={handleOpenBuyNow}
+          />
 
           {/* Package Matrix Presentation */}
-          <PackageMatrix onOpenConsultation={handleOpenConsultation} />
+          <PackageMatrix
+            onOpenConsultation={handleOpenConsultation}
+            onOpenBuyNowPackage={handleOpenBuyNow}
+          />
 
           {/* Why LEGOMARK Advantage */}
           <WhyLegomark />
@@ -290,6 +337,13 @@ export default function App() {
         isOpen={isConsultationOpen}
         onClose={() => setIsConsultationOpen(false)}
         initialService={consultationService}
+      />
+
+      {/* Buy Now & Payment Modal Dialog */}
+      <BuyNowModal
+        isOpen={isBuyNowOpen}
+        onClose={() => setIsBuyNowOpen(false)}
+        item={buyNowItem}
       />
 
       {/* Diagnostic Overlay */}

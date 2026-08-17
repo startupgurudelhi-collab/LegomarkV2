@@ -30,11 +30,13 @@ import {
 
 interface ServicesSectionProps {
   onOpenConsultation: (serviceName?: string) => void;
+  onOpenBuyNow?: (service: ServiceItem) => void;
   onNavigateService?: (slug: string) => void;
 }
 
 export const ServicesSection: React.FC<ServicesSectionProps> = ({
   onOpenConsultation,
+  onOpenBuyNow,
   onNavigateService,
 }) => {
   const [activeCategory, setActiveCategory] = useState<ServiceCategory>('company-registration');
@@ -194,26 +196,41 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <a
-                    href={`/services/${service.slug}`}
-                    onClick={(e) => {
-                      if (onNavigateService && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0) {
-                        e.preventDefault();
-                        onNavigateService(service.slug);
+                <div className="space-y-2">
+                  <button
+                    onClick={() => {
+                      if (onOpenBuyNow) {
+                        onOpenBuyNow(service);
+                      } else {
+                        onOpenConsultation(service.title);
                       }
                     }}
-                    className="py-2.5 px-3 bg-slate-50 hover:bg-slate-100 text-slate-800 text-xs font-bold rounded-lg border border-slate-200 transition-colors flex items-center justify-center gap-1 cursor-pointer text-center"
+                    className="w-full py-2.5 px-3 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                   >
-                    <span>View Details</span>
-                  </a>
-                  <button
-                    onClick={() => onOpenConsultation(service.title)}
-                    className="py-2.5 px-3 bg-[#0B132B] hover:bg-orange-600 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer shadow-xs"
-                  >
-                    <span>Book Now</span>
-                    <ArrowRight className="w-3 h-3" />
+                    <span>Buy Now &mdash; {service.startingPrice}</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </button>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => onOpenConsultation(service.title)}
+                      className="py-2 px-2.5 bg-slate-50 hover:bg-slate-100 text-slate-800 text-xs font-semibold rounded-lg border border-slate-200 transition-colors flex items-center justify-center gap-1 cursor-pointer text-center"
+                    >
+                      <span>Consultation</span>
+                    </button>
+                    <a
+                      href={`/services/${service.slug}`}
+                      onClick={(e) => {
+                        if (onNavigateService && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0) {
+                          e.preventDefault();
+                          onNavigateService(service.slug);
+                        }
+                      }}
+                      className="py-2 px-2.5 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 text-xs font-semibold rounded-lg border border-slate-200 transition-colors flex items-center justify-center gap-1 cursor-pointer text-center"
+                    >
+                      <span>View Details</span>
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>

@@ -1,11 +1,22 @@
 import React from 'react';
 import { Building2, Receipt, Sparkles, CheckCircle, ArrowRight } from 'lucide-react';
+import { getServiceBySlug, SERVICES } from '../../data/websiteData';
+import { BuyNowItem } from '../../types/website';
 
 interface CategorySpotlightsProps {
   onOpenConsultation: (serviceName?: string) => void;
+  onOpenBuyNow?: (item: BuyNowItem | { name: string; priceDisplay: string; itemType: 'service' }) => void;
 }
 
-export const CategorySpotlights: React.FC<CategorySpotlightsProps> = ({ onOpenConsultation }) => {
+export const CategorySpotlights: React.FC<CategorySpotlightsProps> = ({
+  onOpenConsultation,
+  onOpenBuyNow,
+}) => {
+  // Authoritative single-source-of-truth service records from catalog
+  const pvtLtdService = getServiceBySlug('private-limited-company-registration') || SERVICES[0];
+  const annualComplianceService = getServiceBySlug('annual-compliance') || SERVICES.find(s => s.slug === 'annual-compliance') || SERVICES[0];
+  const trademarkService = getServiceBySlug('trademark-registration') || SERVICES.find(s => s.slug === 'trademark-registration') || SERVICES[0];
+
   return (
     <div className="space-y-12 py-10">
       {/* Spotlight 1: Company Registration In-Depth */}
@@ -40,13 +51,33 @@ export const CategorySpotlights: React.FC<CategorySpotlightsProps> = ({ onOpenCo
                 <span>Certificate of Incorporation (COI)</span>
               </div>
             </div>
-            <div className="pt-2">
+            <div className="flex flex-wrap items-center gap-2.5 pt-2">
               <button
-                onClick={() => onOpenConsultation('Private Limited Company Registration')}
-                className="px-5 py-2.5 bg-[#0B132B] hover:bg-orange-600 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-2 cursor-pointer shadow-xs"
+                onClick={() => {
+                  if (onOpenBuyNow) {
+                    onOpenBuyNow({
+                      id: pvtLtdService.id,
+                      slug: pvtLtdService.slug,
+                      name: pvtLtdService.title,
+                      priceDisplay: pvtLtdService.startingPrice,
+                      itemType: 'service',
+                      governmentFeeNote: pvtLtdService.governmentFeeNote,
+                      features: pvtLtdService.features,
+                    });
+                  } else {
+                    onOpenConsultation(pvtLtdService.title);
+                  }
+                }}
+                className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-2 cursor-pointer shadow-xs"
               >
-                <span>Register Private Limited Company</span>
+                <span>Buy Now &mdash; {pvtLtdService.startingPrice}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => onOpenConsultation(pvtLtdService.title)}
+                className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold rounded-lg border border-slate-300 transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>Request Consultation</span>
               </button>
             </div>
           </div>
@@ -115,13 +146,33 @@ export const CategorySpotlights: React.FC<CategorySpotlightsProps> = ({ onOpenCo
                 <span>Monthly GST Returns (GSTR-1 & 3B)</span>
               </div>
             </div>
-            <div className="pt-2">
+            <div className="flex flex-wrap items-center gap-2.5 pt-2">
               <button
-                onClick={() => onOpenConsultation('Annual ROC Compliance')}
-                className="px-5 py-2.5 bg-[#0B132B] hover:bg-orange-600 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-2 cursor-pointer shadow-xs"
+                onClick={() => {
+                  if (onOpenBuyNow) {
+                    onOpenBuyNow({
+                      id: annualComplianceService.id,
+                      slug: annualComplianceService.slug,
+                      name: annualComplianceService.title,
+                      priceDisplay: annualComplianceService.startingPrice,
+                      itemType: 'service',
+                      governmentFeeNote: annualComplianceService.governmentFeeNote,
+                      features: annualComplianceService.features,
+                    });
+                  } else {
+                    onOpenConsultation(annualComplianceService.title);
+                  }
+                }}
+                className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-2 cursor-pointer shadow-xs"
               >
-                <span>Explore Annual Compliance</span>
+                <span>Buy Now &mdash; {annualComplianceService.startingPrice}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => onOpenConsultation(annualComplianceService.title)}
+                className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold rounded-lg border border-slate-300 transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>Request Consultation</span>
               </button>
             </div>
           </div>
@@ -181,13 +232,33 @@ export const CategorySpotlights: React.FC<CategorySpotlightsProps> = ({ onOpenCo
                 <span>Section 9 / 11 Objection Rebuttal</span>
               </div>
             </div>
-            <div className="pt-2">
+            <div className="flex flex-wrap items-center gap-2.5 pt-2">
               <button
-                onClick={() => onOpenConsultation('Trademark Registration')}
-                className="px-5 py-2.5 bg-[#0B132B] hover:bg-orange-600 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-2 cursor-pointer shadow-xs"
+                onClick={() => {
+                  if (onOpenBuyNow) {
+                    onOpenBuyNow({
+                      id: trademarkService.id,
+                      slug: trademarkService.slug,
+                      name: trademarkService.title,
+                      priceDisplay: trademarkService.startingPrice,
+                      itemType: 'service',
+                      governmentFeeNote: trademarkService.governmentFeeNote,
+                      features: trademarkService.features,
+                    });
+                  } else {
+                    onOpenConsultation(trademarkService.title);
+                  }
+                }}
+                className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-2 cursor-pointer shadow-xs"
               >
-                <span>Protect Your Brand (™)</span>
+                <span>Buy Now &mdash; {trademarkService.startingPrice}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => onOpenConsultation(trademarkService.title)}
+                className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold rounded-lg border border-slate-300 transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>Request Consultation</span>
               </button>
             </div>
           </div>

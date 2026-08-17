@@ -6,9 +6,13 @@ import { PACKAGES as STATIC_FALLBACK_PACKAGES } from '../../data/websiteData';
 
 interface PackagesSectionProps {
   onOpenConsultation: (packageName?: string) => void;
+  onOpenBuyNowPackage?: (pkg: PackageTier) => void;
 }
 
-export const PackagesSection: React.FC<PackagesSectionProps> = ({ onOpenConsultation }) => {
+export const PackagesSection: React.FC<PackagesSectionProps> = ({
+  onOpenConsultation,
+  onOpenBuyNowPackage,
+}) => {
   const [packages, setPackages] = useState<PackageTier[]>(STATIC_FALLBACK_PACKAGES);
 
   useEffect(() => {
@@ -106,18 +110,30 @@ export const PackagesSection: React.FC<PackagesSectionProps> = ({ onOpenConsulta
                 </div>
               </div>
 
-              {/* Action Button */}
-              <div className="mt-8 pt-4 border-t border-slate-100">
+              {/* Action Buttons */}
+              <div className="mt-8 pt-4 border-t border-slate-100 space-y-2">
                 <button
-                  onClick={() => onOpenConsultation(pkg.name)}
+                  onClick={() => {
+                    if (onOpenBuyNowPackage) {
+                      onOpenBuyNowPackage(pkg);
+                    } else {
+                      onOpenConsultation(pkg.name);
+                    }
+                  }}
                   className={`w-full py-2.5 px-4 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs ${
                     pkg.popular
                       ? 'bg-orange-600 hover:bg-orange-700 text-white'
                       : 'bg-[#0B132B] hover:bg-slate-800 text-white'
                   }`}
                 >
-                  <span>{pkg.ctaLabel}</span>
+                  <span>Buy Now &mdash; {pkg.price}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => onOpenConsultation(pkg.name)}
+                  className="w-full py-2 px-3 bg-slate-50 hover:bg-slate-100 text-slate-800 text-xs font-semibold rounded-lg border border-slate-200 transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                >
+                  <span>Request Consultation</span>
                 </button>
               </div>
             </div>
