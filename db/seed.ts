@@ -16,6 +16,7 @@ import {
   serviceProcessSteps,
   serviceFaqs,
   serviceRelatedServices,
+  servicePackages,
 } from './schema/index';
 import { PACKAGES, PACKAGE_MATRIX, COMPANY_PROFILE, SERVICE_CATEGORIES, SERVICES, getRelatedServices } from '../src/data/websiteData';
 import { logger } from '../server/utils/logger';
@@ -474,7 +475,49 @@ export async function seedPackagesDatabase() {
       }
     }
 
-    // 8. Verification & Statistics Query
+    // 8. Seed Initial Sensible Service Packages (Idempotent: Only for services that have 0 associations)
+    logger.info('Checking & seeding initial service package associations...', 'Seed');
+    const INITIAL_SERVICE_PACKAGE_MAP: Record<string, string[]> = {
+      'pvt-ltd': ['starter', 'growth', 'enterprise'],
+      'private-limited-company': ['starter', 'growth', 'enterprise'],
+      'llp': ['starter', 'growth'],
+      'opc': ['starter', 'growth'],
+      'section-8': ['starter', 'growth'],
+      'trademark-filing': ['starter', 'growth'],
+      'trademark-objection': ['starter', 'growth'],
+      'trademark-hearing': ['starter', 'growth'],
+      'trademark-renewal': ['starter', 'growth'],
+      'gst-reg': ['starter', 'growth'],
+      'gst-returns': ['starter', 'growth'],
+      'income-tax': ['starter', 'growth'],
+      'tds-returns': ['starter', 'growth'],
+      'roc-annual': ['growth', 'enterprise'],
+      'dir-kyc': ['growth', 'enterprise'],
+      'fssai': ['starter', 'growth'],
+      'msme': ['starter', 'growth'],
+    };
+
+    for (const s of SERVICES) {
+      const targetPkgIds = INITIAL_SERVICE_PACKAGE_MAP[s.id];
+      if (targetPkgIds && targetPkgIds.length > 0) {
+        const existing = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(servicePackages)
+          .where(eq(servicePackages.serviceId, s.id));
+
+        if (Number(existing[0]?.count || 0) === 0) {
+          const pkgInserts = targetPkgIds.map((pkgId, idx) => ({
+            serviceId: s.id,
+            packageId: pkgId,
+            displayOrder: idx,
+            isActive: true,
+          }));
+          await db.insert(servicePackages).values(pkgInserts);
+        }
+      }
+    }
+
+    // 9. Verification & Statistics Query
     const totalPackages = await db.select({ count: sql<number>`count(*)` }).from(packages);
     const totalFeatures = await db.select({ count: sql<number>`count(*)` }).from(packageFeatures);
     const totalMatrixRows = await db.select({ count: sql<number>`count(*)` }).from(matrixRows);
@@ -491,6 +534,7 @@ export async function seedPackagesDatabase() {
     const totalServiceSteps = await db.select({ count: sql<number>`count(*)` }).from(serviceProcessSteps);
     const totalServiceFaqs = await db.select({ count: sql<number>`count(*)` }).from(serviceFaqs);
     const totalServiceRelated = await db.select({ count: sql<number>`count(*)` }).from(serviceRelatedServices);
+    const totalServicePkgs = await db.select({ count: sql<number>`count(*)` }).from(servicePackages);
 
     const stats = {
       packages: Number(totalPackages[0]?.count || 0),
@@ -509,6 +553,7 @@ export async function seedPackagesDatabase() {
       serviceProcessSteps: Number(totalServiceSteps[0]?.count || 0),
       serviceFaqs: Number(totalServiceFaqs[0]?.count || 0),
       serviceRelatedServices: Number(totalServiceRelated[0]?.count || 0),
+      servicePackages: Number(totalServicePkgs[0]?.count || 0),
     };
 
     logger.info('CMS database seed completed successfully with complete Service CMS.', 'Seed', stats);

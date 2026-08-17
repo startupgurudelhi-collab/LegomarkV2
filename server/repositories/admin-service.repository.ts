@@ -559,7 +559,10 @@ export class AdminServiceRepository {
         db.select().from(serviceProcessSteps).where(eq(serviceProcessSteps.serviceId, id)).orderBy(asc(serviceProcessSteps.displayOrder)),
         db.select().from(serviceFaqs).where(eq(serviceFaqs.serviceId, id)).orderBy(asc(serviceFaqs.displayOrder)),
         db.select().from(serviceRelatedServices).where(eq(serviceRelatedServices.serviceId, id)).orderBy(asc(serviceRelatedServices.displayOrder)),
-        db.select().from(servicePackages).where(eq(servicePackages.serviceId, id)).orderBy(asc(servicePackages.displayOrder)),
+        db.select().from(servicePackages).where(eq(servicePackages.serviceId, id)).orderBy(asc(servicePackages.displayOrder)).catch((err) => {
+          logger.warn(`Could not query servicePackages for admin service ${id}: ${err?.message || err}`);
+          return [];
+        }),
       ]);
 
       return {

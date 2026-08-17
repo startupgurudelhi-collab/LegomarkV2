@@ -9,6 +9,7 @@ import {
 import { adminServiceApi } from '../../services/adminService.service';
 import { fetchAdminPackages } from '../../services/adminPackage.service';
 import { AdminPackage } from '../../types/admin';
+import { PACKAGES } from '../../data/websiteData';
 import { ServiceCompletenessBadge, calculateServiceCompleteness } from './ServiceCompleteness';
 import {
   X,
@@ -140,10 +141,52 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
     setLoadingPackages(true);
     fetchAdminPackages()
       .then((pkgs) => {
-        setAvailablePackages(pkgs);
+        if (pkgs && pkgs.length > 0) {
+          setAvailablePackages(pkgs);
+        } else {
+          // Fallback to canonical packages if DB returned empty
+          setAvailablePackages(
+            PACKAGES.map((p, idx) => ({
+              id: p.id,
+              name: p.name,
+              tagline: p.tagline || null,
+              priceAmount: p.price.replace(/[^\d.]/g, '') || '0',
+              currency: 'INR',
+              billingType: (p.period?.includes('year') ? 'yearly' : p.period?.includes('mo') ? 'monthly' : 'one_time') as any,
+              priceDisplayOverride: p.price,
+              idealFor: p.idealFor || '',
+              popular: !!p.popular,
+              badge: p.badge || null,
+              isActive: true,
+              displayOrder: idx,
+              features: (p.features || []).map((f, i) => ({ id: `f-${i}`, featureText: f, displayOrder: i })),
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            }))
+          );
+        }
       })
       .catch((err) => {
-        console.warn('Failed to load packages in ServiceEditorModal:', err);
+        console.warn('Failed to load packages in ServiceEditorModal, using canonical fallback:', err);
+        setAvailablePackages(
+          PACKAGES.map((p, idx) => ({
+            id: p.id,
+            name: p.name,
+            tagline: p.tagline || null,
+            priceAmount: p.price.replace(/[^\d.]/g, '') || '0',
+            currency: 'INR',
+            billingType: (p.period?.includes('year') ? 'yearly' : p.period?.includes('mo') ? 'monthly' : 'one_time') as any,
+            priceDisplayOverride: p.price,
+            idealFor: p.idealFor || '',
+            popular: !!p.popular,
+            badge: p.badge || null,
+            isActive: true,
+            displayOrder: idx,
+            features: (p.features || []).map((f, i) => ({ id: `f-${i}`, featureText: f, displayOrder: i })),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }))
+        );
       })
       .finally(() => {
         setLoadingPackages(false);

@@ -511,12 +511,16 @@ export class ServiceRepository {
               eq(packagesTable.isActive, true)
             )
           )
-          .orderBy(asc(servicePackages.displayOrder)),
+          .orderBy(asc(servicePackages.displayOrder))
+          .catch((err) => {
+            logger.warn(`Could not query servicePackages for service ${serviceId}: ${err?.message || err}`);
+            return [];
+          }),
       ]);
 
       // Resolve package features
       let resolvedPackages: PublicServicePackage[] = [];
-      if (assignedPkgRows.length > 0) {
+      if (assignedPkgRows && assignedPkgRows.length > 0) {
         const pkgIds = assignedPkgRows.map((r) => r.pkg.id);
         const pkgFeatRows = await db
           .select()
@@ -546,21 +550,8 @@ export class ServiceRepository {
           displayOrder: r.servicePackage.displayOrder,
         }));
       } else {
-        // Fallback: If no custom packages mapped to this service yet, provide canonical active packages
-        resolvedPackages = PACKAGES.map((pkg, pIdx) => ({
-          id: pkg.id,
-          name: pkg.name,
-          tagline: pkg.tagline || null,
-          price: pkg.price,
-          priceAmount: parseFloat(pkg.price.replace(/[^\d.]/g, '')) || 0,
-          currency: 'INR',
-          billingType: pkg.period?.includes('year') ? 'yearly' : pkg.period?.includes('mo') ? 'monthly' : 'one_time',
-          idealFor: pkg.idealFor,
-          popular: !!pkg.popular,
-          badge: pkg.badge || null,
-          features: pkg.features || [],
-          displayOrder: pIdx,
-        }));
+        // If no packages are assigned to this service, return empty list (do not auto-inject all packages)
+        resolvedPackages = [];
       }
 
       // Resolve related services
