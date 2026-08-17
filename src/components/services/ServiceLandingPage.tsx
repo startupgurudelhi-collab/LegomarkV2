@@ -32,6 +32,10 @@ import {
 } from 'lucide-react';
 import { ServiceItem } from '../../types/website';
 import { SERVICE_CATEGORIES, SERVICES, getRelatedServices } from '../../data/websiteData';
+import { ClientLogos } from '../logos/ClientLogos';
+import { WhyLegomark } from '../why-us/WhyLegomark';
+import { TestimonialsSection } from '../testimonials/TestimonialsSection';
+import { FounderSection } from '../founder/FounderSection';
 
 interface ServiceLandingPageProps {
   service?: ServiceItem;
@@ -435,7 +439,23 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
             </div>
           </section>
         )}
+      </div>
 
+      {/* 4. Cross-Platform Trust, Social Proof & Authority Sections */}
+      {/* 1. Client / Company Logo Showcase */}
+      <ClientLogos />
+
+      {/* 2. Why Businesses Choose LEGOMARK */}
+      <WhyLegomark />
+
+      {/* 3. Client Testimonials */}
+      <TestimonialsSection />
+
+      {/* 4. Leadership & Executive Authority */}
+      <FounderSection onOpenConsultation={onOpenConsultation} />
+
+      {/* 5. FAQ, Related Services & Conversion Area */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
         {/* Section: Frequently Asked Questions */}
         {landingData?.faqs && landingData.faqs.length > 0 && (
           <section className="bg-white rounded-xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
