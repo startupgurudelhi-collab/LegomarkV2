@@ -153,34 +153,7 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
   const relatedServices = getRelatedServices(service);
 
   return (
-    <main className="min-h-screen bg-slate-50 pt-24 sm:pt-28 pb-20">
-      {/* 1. Breadcrumb Bar */}
-      <div className="border-b border-slate-200 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <nav className="flex items-center gap-2 text-xs text-slate-600 overflow-x-auto whitespace-nowrap">
-            <button
-              onClick={onNavigateHome}
-              className="hover:text-orange-600 font-medium transition-colors cursor-pointer"
-            >
-              Home
-            </button>
-            <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <button
-              onClick={onNavigateHome}
-              className="hover:text-orange-600 font-medium transition-colors cursor-pointer"
-            >
-              Services
-            </button>
-            <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <span className="text-slate-500 font-medium">{categoryObj?.name || 'Practices'}</span>
-            <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <span className="text-[#0B132B] font-bold truncate max-w-[200px] sm:max-w-none">
-              {service.title}
-            </span>
-          </nav>
-        </div>
-      </div>
-
+    <main className="min-h-screen bg-slate-50 pb-20">
       {/* 2. Hero Section */}
       <section className="bg-white border-b border-slate-200 py-10 sm:py-14">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

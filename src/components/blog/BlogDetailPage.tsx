@@ -146,37 +146,7 @@ export const BlogDetailPage: React.FC<BlogDetailPageProps> = ({
 
   return (
     <div className="bg-slate-50 min-h-screen">
-      {/* 1. Breadcrumbs Strip */}
-      <div className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between text-xs text-slate-500">
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={onNavigateHome}
-              className="hover:text-orange-600 font-medium transition-colors cursor-pointer"
-            >
-              Home
-            </button>
-            <span>/</span>
-            <button
-              onClick={onNavigateResources}
-              className="hover:text-orange-600 font-medium transition-colors cursor-pointer"
-            >
-              Resources
-            </button>
-            <span>/</span>
-            <span className="text-slate-900 font-bold truncate max-w-[200px] sm:max-w-xs">{article.title}</span>
-          </div>
-          <button
-            onClick={onNavigateResources}
-            className="hidden sm:inline-flex items-center gap-1 text-xs font-bold text-orange-600 hover:text-orange-700 cursor-pointer"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>All Guides</span>
-          </button>
-        </div>
-      </div>
-
-      {/* 2. Article Header Container */}
+      {/* Article Header Container */}
       <header className="bg-[#0B132B] text-white py-12 sm:py-16 border-b border-slate-800 relative">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2.5 mb-4">
