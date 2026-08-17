@@ -128,7 +128,7 @@ export const OfficeSection: React.FC<OfficeSectionProps> = ({ onOpenConsultation
             <div className="lg:col-span-5 flex flex-col items-center lg:items-end">
               <div className="w-full max-w-md lg:max-w-none bg-[#0B132B] text-white rounded-2xl border border-slate-700 shadow-xl overflow-hidden flex flex-col">
                 {/* Top Section: Substantial Office Premises Photo (Crisp, High-Resolution Frame) */}
-                <div className="relative w-full aspect-[16/10] sm:aspect-[16/10] lg:aspect-[4/3] min-h-[280px] sm:min-h-[340px] max-h-[420px] bg-slate-900 overflow-hidden shrink-0 border-b border-slate-800 group">
+                <div className="relative w-full aspect-[4/3] sm:aspect-[4/3] lg:aspect-[1/1] min-h-[340px] sm:min-h-[400px] lg:min-h-[440px] max-h-[520px] bg-slate-900 overflow-hidden shrink-0 border-b border-slate-800 group">
                   {officeData.premisesPhotoUrl ? (
                     <img
                       src={officeData.premisesPhotoUrl}
@@ -178,12 +178,6 @@ export const OfficeSection: React.FC<OfficeSectionProps> = ({ onOpenConsultation
                     <p className="text-xs text-orange-400 font-semibold">
                       {officeData.city} – {officeData.pincode}
                     </p>
-                  </div>
-
-                  {/* Address */}
-                  <div className="flex items-start gap-2.5 text-xs text-slate-300">
-                    <MapPin className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
-                    <span className="leading-relaxed">{officeData.fullAddress}</span>
                   </div>
 
                   {/* Quick Key Metrics: Hours & Direct Contact */}
