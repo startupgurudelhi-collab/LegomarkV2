@@ -26,9 +26,9 @@ export const OfficeSection: React.FC<OfficeSectionProps> = ({ onOpenConsultation
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Clean White Rounded Container matching Leadership section */}
         <div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-12 shadow-xs">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-            {/* Left Column: Office Information */}
-            <div className="lg:col-span-7 space-y-6 text-left">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-12 items-start">
+            {/* Left Column: Office Information (50%) */}
+            <div className="space-y-6 text-left">
               {/* Orange Label */}
               <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-orange-50 text-orange-700 border border-orange-200">
                 <Building2 className="w-3.5 h-3.5" />
@@ -60,7 +60,7 @@ export const OfficeSection: React.FC<OfficeSectionProps> = ({ onOpenConsultation
                 ))}
               </div>
 
-              {/* Office Contact Info Box */}
+              {/* Office Contact Info Box with Complete Registered Address */}
               <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl space-y-3.5 max-w-xl text-xs sm:text-sm shadow-2xs">
                 <div className="flex items-start gap-2.5 text-slate-800 font-semibold">
                   <MapPin className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
@@ -124,11 +124,11 @@ export const OfficeSection: React.FC<OfficeSectionProps> = ({ onOpenConsultation
               </div>
             </div>
 
-            {/* Right Column: Combined Office Photo + Office Information Card */}
-            <div className="lg:col-span-5 flex flex-col items-center lg:items-end">
-              <div className="w-full max-w-md lg:max-w-none bg-[#0B132B] text-white rounded-2xl border border-slate-700 shadow-xl overflow-hidden flex flex-col">
-                {/* Top Section: Substantial Office Premises Photo (Crisp, High-Resolution Frame) */}
-                <div className="relative w-full aspect-[4/3] sm:aspect-[4/3] lg:aspect-[1/1] min-h-[340px] sm:min-h-[400px] lg:min-h-[440px] max-h-[520px] bg-slate-900 overflow-hidden shrink-0 border-b border-slate-800 group">
+            {/* Right Column: Prominent Office Photo & Compact Summary Card (50%) */}
+            <div className="flex flex-col items-center lg:items-stretch w-full">
+              <div className="w-full max-w-lg lg:max-w-none bg-[#0B132B] text-white rounded-2xl border border-slate-700 shadow-xl overflow-hidden flex flex-col">
+                {/* Office Photo (Main Visual Focus, ~65-70% visual area) */}
+                <div className="relative w-full aspect-[4/3] sm:aspect-[16/10] lg:aspect-[4/3] min-h-[360px] sm:min-h-[420px] lg:min-h-[460px] max-h-[560px] bg-slate-900 overflow-hidden shrink-0 border-b border-slate-800 group">
                   {officeData.premisesPhotoUrl ? (
                     <img
                       src={officeData.premisesPhotoUrl}
@@ -168,11 +168,11 @@ export const OfficeSection: React.FC<OfficeSectionProps> = ({ onOpenConsultation
                   </div>
                 </div>
 
-                {/* Bottom Section: Quick Office Summary */}
-                <div className="p-6 sm:p-7 flex-1 flex flex-col justify-between space-y-4 text-left">
+                {/* Bottom Section: Compact Office Summary */}
+                <div className="p-5 sm:p-6 space-y-3.5 text-left bg-[#0B132B]">
                   {/* Office Name & Location */}
-                  <div className="space-y-1">
-                    <h4 className="text-base sm:text-lg font-bold text-white tracking-tight">
+                  <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1">
+                    <h4 className="text-base font-bold text-white tracking-tight">
                       {officeData.name}
                     </h4>
                     <p className="text-xs text-orange-400 font-semibold">
@@ -181,7 +181,7 @@ export const OfficeSection: React.FC<OfficeSectionProps> = ({ onOpenConsultation
                   </div>
 
                   {/* Quick Key Metrics: Hours & Direct Contact */}
-                  <div className="pt-2 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-[11px]">
+                  <div className="pt-2.5 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
                     <div className="flex items-center gap-2 text-slate-300">
                       <Clock className="w-3.5 h-3.5 text-orange-500 shrink-0" />
                       <div>
@@ -204,13 +204,13 @@ export const OfficeSection: React.FC<OfficeSectionProps> = ({ onOpenConsultation
                   </div>
 
                   {/* Website Reference */}
-                  <div className="flex items-center gap-2 text-[11px] text-slate-400 pt-0.5">
+                  <div className="flex items-center gap-2 text-[11px] text-slate-400">
                     <Globe className="w-3.5 h-3.5 text-orange-500 shrink-0" />
                     <span>{officeData.websites.join(' | ')}</span>
                   </div>
 
                   {/* Action: View on Map / Get Directions */}
-                  <div className="pt-2">
+                  <div className="pt-1">
                     <a
                       href={
                         officeData.mapEmbedUrl ||
@@ -220,7 +220,7 @@ export const OfficeSection: React.FC<OfficeSectionProps> = ({ onOpenConsultation
                       }
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center gap-2 w-full px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-600/80 text-slate-200 hover:text-white text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-sm hover:shadow-md"
+                      className="inline-flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-600/80 text-slate-200 hover:text-white text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-sm hover:shadow-md"
                     >
                       <MapPin className="w-3.5 h-3.5 text-orange-400" />
                       <span>View on Map / Get Directions</span>
