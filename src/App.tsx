@@ -25,9 +25,11 @@ import { AdminPortal } from './components/admin/AdminPortal';
 import { getServiceBySlug } from './data/websiteData';
 import { X } from 'lucide-react';
 import { useHealthReport } from './services/useHealthReport';
+import { usePublicServicesData, usePublicServiceDetail } from './services/publicService.service';
 import { BuyNowItem, PackageTier, ServiceItem } from './types/website';
 
 export default function App() {
+  const { categories: publicCategories, services: publicServices } = usePublicServicesData();
   const [isConsultationOpen, setIsConsultationOpen] = useState(false);
   const [consultationService, setConsultationService] = useState('Private Limited Company Registration');
   const [isBuyNowOpen, setIsBuyNowOpen] = useState(false);
@@ -215,7 +217,10 @@ export default function App() {
     );
   }
 
-  const currentServiceItem = activeServiceSlug ? getServiceBySlug(activeServiceSlug) : undefined;
+  const { service: currentServiceDetail } = usePublicServiceDetail(activeServiceSlug);
+  const currentServiceItem = activeServiceSlug
+    ? (currentServiceDetail || getServiceBySlug(activeServiceSlug))
+    : undefined;
   const isResourcesLanding = currentPath === '/resources' || currentPath === '/blog';
 
   return (
@@ -227,6 +232,8 @@ export default function App() {
         onNavigateService={handleNavigateService}
         onNavigateHome={handleNavigateHome}
         onNavigatePath={handleNavigatePath}
+        categories={publicCategories}
+        services={publicServices}
       />
 
       {/* 2. Page Content: Dedicated Article Page OR Resources Landing Page OR Service Landing Page OR Homepage */}
@@ -247,6 +254,8 @@ export default function App() {
       ) : activeServiceSlug !== null ? (
         <ServiceLandingPage
           service={currentServiceItem}
+          categories={publicCategories}
+          allServices={publicServices}
           onOpenConsultation={handleOpenConsultation}
           onOpenBuyNow={handleOpenBuyNow}
           onNavigateService={handleNavigateService}
@@ -271,6 +280,8 @@ export default function App() {
             onOpenConsultation={handleOpenConsultation}
             onOpenBuyNow={handleOpenBuyNow}
             onNavigateService={handleNavigateService}
+            categories={publicCategories}
+            services={publicServices}
           />
 
           {/* Deep Category Spotlights (Incorporation, Tax/ROC, Trademark) */}
@@ -279,6 +290,7 @@ export default function App() {
               <CategorySpotlights
                 onOpenConsultation={handleOpenConsultation}
                 onOpenBuyNow={handleOpenBuyNow}
+                services={publicServices}
               />
             </div>
           </div>

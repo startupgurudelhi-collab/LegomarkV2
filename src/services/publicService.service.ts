@@ -1,10 +1,11 @@
+import { useState, useEffect, useCallback } from 'react';
 import {
   SERVICE_CATEGORIES,
   SERVICES,
   getServiceBySlug,
   getRelatedServices,
 } from '../data/websiteData';
-import { ServiceCategoryMeta, ServiceItem } from '../types/website';
+import { ServiceCategory, ServiceCategoryMeta, ServiceItem } from '../types/website';
 
 export interface ClientPublicCategoryItem {
   id: string;
@@ -291,3 +292,207 @@ export async function fetchPublicServiceBySlug(
     return getStaticFallbackServiceBySlug(slug);
   }
 }
+
+/**
+ * Maps a summary service into the canonical ServiceItem interface
+ */
+export function mapSummaryToServiceItem(summary: ClientPublicServiceSummary): ServiceItem {
+  const fallback = getServiceBySlug(summary.slug);
+  return {
+    id: summary.id,
+    slug: summary.slug,
+    category: summary.category as ServiceCategory,
+    title: summary.title,
+    shortDesc: summary.shortDesc,
+    fullDesc: summary.fullDesc,
+    startingPrice: summary.startingPrice,
+    pricingType: summary.pricingType as 'fixed' | 'recurring' | 'custom',
+    governmentFeeNote: summary.governmentFeeNote || undefined,
+    timeline: summary.timeline,
+    popular: summary.popular,
+    badge: summary.badge || undefined,
+    iconName: summary.iconName,
+    features: summary.features,
+    landingPage: fallback?.landingPage,
+  };
+}
+
+/**
+ * Maps a full detail payload from the database into the canonical ServiceItem interface
+ */
+export function mapDetailToServiceItem(detail: ClientPublicServiceDetail): ServiceItem {
+  const fallback = getServiceBySlug(detail.slug);
+  return {
+    id: detail.id,
+    slug: detail.slug,
+    category: detail.category as ServiceCategory,
+    title: detail.title,
+    shortDesc: detail.shortDesc,
+    fullDesc: detail.fullDesc,
+    startingPrice: detail.startingPrice,
+    pricingType: detail.pricingType as 'fixed' | 'recurring' | 'custom',
+    governmentFeeNote: detail.governmentFeeNote || undefined,
+    timeline: detail.timeline,
+    popular: detail.popular,
+    badge: detail.badge || undefined,
+    iconName: detail.iconName,
+    features: detail.features,
+    landingPage: {
+      headline: detail.headline || fallback?.landingPage?.headline,
+      overview: detail.overview || fallback?.landingPage?.overview || detail.fullDesc,
+      benefits: detail.benefits && detail.benefits.length > 0 ? detail.benefits : (fallback?.landingPage?.benefits || []),
+      deliverables: detail.deliverables && detail.deliverables.length > 0 ? detail.deliverables : (fallback?.landingPage?.deliverables || []),
+      documents: detail.documents && detail.documents.length > 0 ? detail.documents : (fallback?.landingPage?.documents || []),
+      process: detail.processSteps && detail.processSteps.length > 0
+        ? detail.processSteps.map((p) => ({
+            step: p.step,
+            title: p.title,
+            description: p.description,
+          }))
+        : (fallback?.landingPage?.process || []),
+      faqs: detail.faqs && detail.faqs.length > 0
+        ? detail.faqs.map((f) => ({
+            question: f.question,
+            answer: f.answer,
+          }))
+        : (fallback?.landingPage?.faqs || []),
+    },
+  };
+}
+
+/**
+ * Maps category metadata with dynamically counted active services
+ */
+export function mapCategoryToMeta(
+  cat: ClientPublicCategoryItem,
+  serviceCount?: number
+): ServiceCategoryMeta {
+  return {
+    id: cat.id as ServiceCategory,
+    name: cat.name,
+    shortLabel: cat.shortLabel,
+    count: serviceCount !== undefined ? `${serviceCount}` : (cat.count || '0'),
+    iconName: cat.iconName,
+    description: cat.description || '',
+  };
+}
+
+/**
+ * Global hook to fetch and keep public categories & services synchronized with the database
+ */
+export function usePublicServicesData() {
+  const [categories, setCategories] = useState<ServiceCategoryMeta[]>(() => SERVICE_CATEGORIES);
+  const [services, setServices] = useState<ServiceItem[]>(() => SERVICES);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadData() {
+      try {
+        const [catsRes, servsRes] = await Promise.all([
+          fetchPublicCategories(),
+          fetchPublicServices(),
+        ]);
+        if (!isMounted) return;
+
+        if (servsRes && servsRes.length > 0) {
+          const mappedServices = servsRes.map(mapSummaryToServiceItem);
+          setServices(mappedServices);
+
+          if (catsRes && catsRes.length > 0) {
+            const mappedCategories = catsRes.map((c) => {
+              const count = servsRes.filter((s) => s.category === c.id).length;
+              return mapCategoryToMeta(c, count);
+            });
+            setCategories(mappedCategories);
+          }
+        }
+      } catch (err) {
+        console.warn('Could not refresh public services from database API, using static fallback:', err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    loadData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const getServiceBySlugDyn = useCallback(
+    (slug: string): ServiceItem | undefined => {
+      const found = services.find((s) => s.slug === slug);
+      if (found) return found;
+      return getServiceBySlug(slug);
+    },
+    [services]
+  );
+
+  const getRelatedServicesDyn = useCallback(
+    (currentService: ServiceItem): ServiceItem[] => {
+      const related = services.filter(
+        (s) => s.slug !== currentService.slug && s.category === currentService.category
+      );
+      if (related.length >= 3) return related.slice(0, 3);
+      const other = services.filter(
+        (s) => s.slug !== currentService.slug && s.category !== currentService.category
+      );
+      const combined = [...related, ...other];
+      if (combined.length >= 3) return combined.slice(0, 3);
+      return getRelatedServices(currentService) || [];
+    },
+    [services]
+  );
+
+  return {
+    categories,
+    services,
+    loading,
+    getServiceBySlug: getServiceBySlugDyn,
+    getRelatedServices: getRelatedServicesDyn,
+  };
+}
+
+/**
+ * Hook to fetch a full single service with all CMS child entities (FAQs, deliverables, process steps, etc.)
+ */
+export function usePublicServiceDetail(slug: string | null) {
+  const [service, setService] = useState<ServiceItem | undefined>(() => {
+    if (!slug) return undefined;
+    return getServiceBySlug(slug);
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!slug) {
+      setService(undefined);
+      setLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+    const fallback = getServiceBySlug(slug);
+    setService(fallback);
+
+    async function loadDetail() {
+      try {
+        const detail = await fetchPublicServiceBySlug(slug!);
+        if (!isMounted || !detail) return;
+        setService(mapDetailToServiceItem(detail));
+      } catch (err) {
+        console.warn(`Could not refresh service detail '${slug}' from database, keeping fallback:`, err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    loadDetail();
+    return () => {
+      isMounted = false;
+    };
+  }, [slug]);
+
+  return { service, loading };
+}
+

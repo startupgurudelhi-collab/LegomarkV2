@@ -1,21 +1,23 @@
 import React from 'react';
 import { Building2, Receipt, Sparkles, CheckCircle, ArrowRight } from 'lucide-react';
 import { getServiceBySlug, SERVICES } from '../../data/websiteData';
-import { BuyNowItem } from '../../types/website';
+import { BuyNowItem, ServiceItem } from '../../types/website';
 
 interface CategorySpotlightsProps {
   onOpenConsultation: (serviceName?: string) => void;
   onOpenBuyNow?: (item: BuyNowItem | { name: string; priceDisplay: string; itemType: 'service' }) => void;
+  services?: ServiceItem[];
 }
 
 export const CategorySpotlights: React.FC<CategorySpotlightsProps> = ({
   onOpenConsultation,
   onOpenBuyNow,
+  services = SERVICES,
 }) => {
   // Authoritative single-source-of-truth service records from catalog
-  const pvtLtdService = getServiceBySlug('private-limited-company-registration') || SERVICES[0];
-  const annualComplianceService = getServiceBySlug('annual-compliance') || SERVICES.find(s => s.slug === 'annual-compliance') || SERVICES[0];
-  const trademarkService = getServiceBySlug('trademark-registration') || SERVICES.find(s => s.slug === 'trademark-registration') || SERVICES[0];
+  const pvtLtdService = services.find(s => s.slug === 'private-limited-company-registration') || getServiceBySlug('private-limited-company-registration') || services[0];
+  const annualComplianceService = services.find(s => s.slug === 'annual-compliance') || getServiceBySlug('annual-compliance') || services[0];
+  const trademarkService = services.find(s => s.slug === 'trademark-registration') || getServiceBySlug('trademark-registration') || services[0];
 
   return (
     <div className="space-y-12 py-10">

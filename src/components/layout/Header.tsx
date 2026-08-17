@@ -4,6 +4,7 @@ import { COMPANY_PROFILE, SERVICE_CATEGORIES, SERVICES } from '../../data/websit
 import { ServicesMegaMenu } from './ServicesMegaMenu';
 import { fetchPublicSettings } from '../../services/settings.service';
 import { WebsiteSettingsData } from '../../types/settings';
+import { ServiceCategoryMeta, ServiceItem } from '../../types/website';
 
 interface HeaderProps {
   onOpenConsultation: (serviceName?: string) => void;
@@ -11,6 +12,8 @@ interface HeaderProps {
   onNavigateService?: (slug: string) => void;
   onNavigateHome?: () => void;
   onNavigatePath?: (path: string) => void;
+  categories?: ServiceCategoryMeta[];
+  services?: ServiceItem[];
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -19,6 +22,8 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigateService,
   onNavigateHome,
   onNavigatePath,
+  categories = SERVICE_CATEGORIES,
+  services = SERVICES,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [servicesMenuOpen, setServicesMenuOpen] = useState(false);
@@ -327,6 +332,8 @@ export const Header: React.FC<HeaderProps> = ({
             onSelectService={handleServiceSelect}
             onNavigateService={handleServiceNav}
             onNavigateSection={handleNavClick}
+            categories={categories}
+            services={services}
           />
         </div>
 
@@ -413,8 +420,8 @@ export const Header: React.FC<HeaderProps> = ({
                     {/* Mobile Services Accordion */}
                     {mobileExpandedCategory === 'services' && (
                       <div className="pl-3 pr-1 py-2 space-y-2.5 animate-in fade-in duration-150">
-                        {SERVICE_CATEGORIES.map((category) => {
-                          const categoryServices = SERVICES.filter((s) => s.category === category.id);
+                        {categories.map((category) => {
+                          const categoryServices = services.filter((s) => s.category === category.id);
                           return (
                             <div key={category.id} className="border-l-2 border-orange-500 pl-2.5 py-0.5">
                               <div className="flex items-center gap-1.5 text-[11px] font-black uppercase text-slate-800 mb-1">

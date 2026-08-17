@@ -12,6 +12,7 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import { SERVICE_CATEGORIES, SERVICES } from '../../data/websiteData';
+import { ServiceCategoryMeta, ServiceItem } from '../../types/website';
 
 interface ServicesMegaMenuProps {
   isOpen: boolean;
@@ -19,6 +20,8 @@ interface ServicesMegaMenuProps {
   onSelectService?: (serviceTitle: string) => void;
   onNavigateService?: (slug: string) => void;
   onNavigateSection: (sectionId: string) => void;
+  categories?: ServiceCategoryMeta[];
+  services?: ServiceItem[];
 }
 
 export const ServicesMegaMenu: React.FC<ServicesMegaMenuProps> = ({
@@ -27,6 +30,8 @@ export const ServicesMegaMenu: React.FC<ServicesMegaMenuProps> = ({
   onSelectService,
   onNavigateService,
   onNavigateSection,
+  categories = SERVICE_CATEGORIES,
+  services = SERVICES,
 }) => {
   if (!isOpen) return null;
 
@@ -104,8 +109,8 @@ export const ServicesMegaMenu: React.FC<ServicesMegaMenuProps> = ({
 
       {/* 6-Category Dynamic Multi-Column Grid */}
       <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-white max-h-[75vh] overflow-y-auto">
-        {SERVICE_CATEGORIES.map((category) => {
-          const categoryServices = SERVICES.filter((s) => s.category === category.id);
+        {categories.map((category) => {
+          const categoryServices = services.filter((s) => s.category === category.id);
 
           return (
             <div

@@ -30,7 +30,7 @@ import {
   FolderOpen,
   Info
 } from 'lucide-react';
-import { ServiceItem } from '../../types/website';
+import { ServiceCategoryMeta, ServiceItem } from '../../types/website';
 import { SERVICE_CATEGORIES, SERVICES, getRelatedServices } from '../../data/websiteData';
 import { ClientLogos } from '../logos/ClientLogos';
 import { WhyLegomark } from '../why-us/WhyLegomark';
@@ -39,6 +39,8 @@ import { FounderSection } from '../founder/FounderSection';
 
 interface ServiceLandingPageProps {
   service?: ServiceItem;
+  categories?: ServiceCategoryMeta[];
+  allServices?: ServiceItem[];
   onOpenConsultation: (serviceName?: string) => void;
   onOpenBuyNow?: (service: ServiceItem) => void;
   onNavigateService: (slug: string) => void;
@@ -47,6 +49,8 @@ interface ServiceLandingPageProps {
 
 export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
   service,
+  categories = SERVICE_CATEGORIES,
+  allServices = SERVICES,
   onOpenConsultation,
   onOpenBuyNow,
   onNavigateService,
@@ -135,7 +139,7 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
               Explore Our Canonical Legal & Compliance Services
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {SERVICES.map((s) => (
+              {allServices.map((s) => (
                 <button
                   key={s.id}
                   onClick={() => onNavigateService(s.slug)}
@@ -152,9 +156,16 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
     );
   }
 
-  const categoryObj = SERVICE_CATEGORIES.find((c) => c.id === service.category);
+  const categoryObj = categories.find((c) => c.id === service.category) || SERVICE_CATEGORIES.find((c) => c.id === service.category);
   const landingData = service.landingPage;
-  const relatedServices = getRelatedServices(service);
+  const sameCategoryRelated = allServices.filter(
+    (s) => s.slug !== service.slug && s.category === service.category
+  );
+  const otherCategoryRelated = allServices.filter(
+    (s) => s.slug !== service.slug && s.category !== service.category
+  );
+  const dynamicRelated = [...sameCategoryRelated, ...otherCategoryRelated].slice(0, 3);
+  const relatedServices = dynamicRelated.length > 0 ? dynamicRelated : getRelatedServices(service);
 
   return (
     <main className="min-h-screen bg-slate-50 pb-20">

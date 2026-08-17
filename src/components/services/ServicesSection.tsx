@@ -3,7 +3,7 @@ import {
   SERVICES,
   SERVICE_CATEGORIES,
 } from '../../data/websiteData';
-import { ServiceCategory, ServiceItem } from '../../types/website';
+import { ServiceCategory, ServiceCategoryMeta, ServiceItem } from '../../types/website';
 import {
   Building2,
   Scale,
@@ -32,12 +32,16 @@ interface ServicesSectionProps {
   onOpenConsultation: (serviceName?: string) => void;
   onOpenBuyNow?: (service: ServiceItem) => void;
   onNavigateService?: (slug: string) => void;
+  categories?: ServiceCategoryMeta[];
+  services?: ServiceItem[];
 }
 
 export const ServicesSection: React.FC<ServicesSectionProps> = ({
   onOpenConsultation,
   onOpenBuyNow,
   onNavigateService,
+  categories = SERVICE_CATEGORIES,
+  services = SERVICES,
 }) => {
   const [activeCategory, setActiveCategory] = useState<ServiceCategory>('company-registration');
 
@@ -83,7 +87,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
     }
   };
 
-  const filteredServices = SERVICES.filter((s) => s.category === activeCategory);
+  const filteredServices = services.filter((s) => s.category === activeCategory);
 
   return (
     <section id="services-section" className="py-16 bg-slate-50 border-b border-slate-200">
@@ -103,7 +107,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
 
         {/* Category Navigation Tabs */}
         <div className="flex flex-wrap justify-center gap-2 p-1 bg-white rounded-xl max-w-3xl mx-auto border border-slate-200 shadow-xs">
-          {SERVICE_CATEGORIES.map((cat) => (
+          {categories.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setActiveCategory(cat.id as ServiceCategory)}
