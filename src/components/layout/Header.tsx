@@ -189,6 +189,7 @@ export const Header: React.FC<HeaderProps> = ({
                 alt={websiteSettings.companyName || COMPANY_PROFILE.name}
                 className="h-11 sm:h-12 w-auto max-w-[200px] object-contain"
                 onError={() => setLogoImageError(true)}
+                referrerPolicy="no-referrer"
               />
             ) : (
               <>
