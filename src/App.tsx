@@ -70,6 +70,7 @@ export default function App() {
   });
 
   const { health, loading, lastChecked, refreshHealth } = useHealthReport();
+  const { service: currentServiceDetail } = usePublicServiceDetail(activeServiceSlug);
 
   // Listen to browser popstate (back/forward)
   useEffect(() => {
@@ -217,7 +218,6 @@ export default function App() {
     );
   }
 
-  const { service: currentServiceDetail } = usePublicServiceDetail(activeServiceSlug);
   const currentServiceItem = activeServiceSlug
     ? (currentServiceDetail || getServiceBySlug(activeServiceSlug))
     : undefined;

@@ -31,7 +31,12 @@ export async function loginAdmin(email: string, password: string): Promise<Admin
     body: JSON.stringify({ email, password }),
   });
 
-  const data: LoginResponse = await response.json();
+  let data: LoginResponse;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error('Invalid server response format. Please try again.');
+  }
 
   if (!response.ok || !data.success || !data.data?.user) {
     throw new Error(data.error || 'Authentication failed. Please check your email and password.');
@@ -57,7 +62,13 @@ export async function getCurrentAdminUser(): Promise<AdminUser | null> {
       return null;
     }
 
-    const data: MeResponse = await response.json();
+    let data: MeResponse;
+    try {
+      data = await response.json();
+    } catch {
+      return null;
+    }
+
     if (!response.ok || !data.success || !data.data?.user) {
       return null;
     }

@@ -5,10 +5,11 @@ import { Database, Server, RefreshCw, CheckCircle2, AlertTriangle, Code2 } from 
 interface DiagnosticsPanelProps {
   health: SystemHealthReport | null;
   loading: boolean;
+  lastChecked?: string;
   onRefresh: () => void;
 }
 
-export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({ health, loading, onRefresh }) => {
+export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({ health, loading, lastChecked, onRefresh }) => {
   const [showRawJson, setShowRawJson] = useState(false);
 
   return (

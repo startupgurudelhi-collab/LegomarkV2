@@ -15,6 +15,7 @@ import { AdminBlogCMS } from './AdminBlogCMS';
 import { AdminWebsiteSettingsCMS } from './AdminWebsiteSettingsCMS';
 import { AdminClientLogosCMS } from './AdminClientLogosCMS';
 import { AdminPlaceholderView } from './AdminPlaceholderView';
+import { AdminErrorBoundary } from './AdminErrorBoundary';
 import { Loader2 } from 'lucide-react';
 
 interface AdminPortalInnerProps {
@@ -211,8 +212,10 @@ export const AdminPortal: React.FC<{ initialPath: string; onNavigateHome: () => 
   onNavigateHome,
 }) => {
   return (
-    <AdminAuthProvider>
-      <AdminPortalInner initialPath={initialPath} onNavigateHome={onNavigateHome} />
-    </AdminAuthProvider>
+    <AdminErrorBoundary onNavigateHome={onNavigateHome}>
+      <AdminAuthProvider>
+        <AdminPortalInner initialPath={initialPath} onNavigateHome={onNavigateHome} />
+      </AdminAuthProvider>
+    </AdminErrorBoundary>
   );
 };
