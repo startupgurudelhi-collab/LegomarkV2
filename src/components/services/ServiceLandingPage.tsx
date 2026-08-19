@@ -28,10 +28,12 @@ import {
   Lock,
   Layers,
   FolderOpen,
-  Info
+  Info,
+  Check
 } from 'lucide-react';
-import { ServiceCategoryMeta, ServiceItem, BuyNowItem } from '../../types/website';
+import { ServiceCategoryMeta, ServiceItem, BuyNowItem, PackageTier } from '../../types/website';
 import { SERVICE_CATEGORIES, SERVICES, getRelatedServices } from '../../data/websiteData';
+import { getServicePackages } from '../../utils/servicePackages';
 import { ClientLogos } from '../logos/ClientLogos';
 import { WhyLegomark } from '../why-us/WhyLegomark';
 import { TestimonialsSection } from '../testimonials/TestimonialsSection';
@@ -59,6 +61,55 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
   onNavigateHome,
 }) => {
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
+
+  // Available packages for this specific service
+  const packages = getServicePackages(service);
+  const defaultPkg = packages.find((p) => p.popular) || packages[0] || null;
+  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(defaultPkg?.id || null);
+
+  // Sync selected package when service changes
+  useEffect(() => {
+    const pkgs = getServicePackages(service);
+    const defaultP = pkgs.find((p) => p.popular) || pkgs[0] || null;
+    setSelectedPackageId(defaultP?.id || null);
+  }, [service?.id, service?.slug]);
+
+  const selectedPackage = packages.find((p) => p.id === selectedPackageId) || defaultPkg;
+
+  // Handler to initiate Buy Now with selected package or service
+  const handleProceedBuyNow = () => {
+    if (!onOpenBuyNow) return;
+    if (selectedPackage && service) {
+      onOpenBuyNow({
+        id: selectedPackage.id,
+        name: `${service.title} - ${selectedPackage.name}`,
+        title: `${service.title} (${selectedPackage.name})`,
+        slug: service.slug,
+        priceDisplay: selectedPackage.price,
+        itemType: 'package',
+        category: service.category,
+        governmentFeeNote: service.governmentFeeNote,
+        features: selectedPackage.features,
+      });
+    } else if (service) {
+      onOpenBuyNow(service);
+    }
+  };
+
+  const handleConsultation = () => {
+    if (!service) return;
+    const label = selectedPackage
+      ? `${service.title} - ${selectedPackage.name}`
+      : service.title;
+    onOpenConsultation(label);
+  };
+
+  const scrollToPackages = () => {
+    const el = document.getElementById('service-packages-section');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   // Update page title & meta for SEO
   useEffect(() => {
@@ -205,7 +256,7 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
               </div>
 
               {/* Key Value Badges */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                 <div className="flex items-start gap-2.5 p-3 rounded-lg bg-slate-50 border border-slate-200">
                   <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                   <div>
@@ -222,19 +273,69 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
                 </div>
               </div>
 
+              {/* Package Selector Pills in Hero (if multiple packages available) */}
+              {packages && packages.length > 1 && (
+                <div className="p-3.5 rounded-xl bg-orange-50/60 border border-orange-200/80 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      <Layers className="w-3.5 h-3.5 text-orange-600" />
+                      <span>Available Package Options:</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={scrollToPackages}
+                      className="text-[11px] font-bold text-orange-600 hover:text-orange-700 underline cursor-pointer"
+                    >
+                      Compare Deliverables &darr;
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {packages.map((pkg) => {
+                      const isSelected = selectedPackage?.id === pkg.id;
+                      return (
+                        <button
+                          key={pkg.id}
+                          type="button"
+                          onClick={() => setSelectedPackageId(pkg.id)}
+                          className={`p-2.5 rounded-lg text-left transition-all cursor-pointer border flex flex-col justify-between ${
+                            isSelected
+                              ? 'bg-white border-orange-500 ring-2 ring-orange-500/20 shadow-sm'
+                              : 'bg-white/80 border-slate-200 hover:border-orange-300 hover:bg-white'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-[11px] font-bold text-[#0B132B] truncate">
+                              {pkg.name.replace(' Package', '')}
+                            </span>
+                            {isSelected && (
+                              <Check className="w-3 h-3 text-orange-600 stroke-[3] shrink-0" />
+                            )}
+                          </div>
+                          <div className="text-xs font-extrabold text-orange-600 pt-1">
+                            {pkg.price}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Service Inclusions Checklist */}
               <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200 space-y-2.5">
                 <div className="text-xs font-bold uppercase tracking-wider text-[#0B132B] flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
                     <CheckCircle2 className="w-4 h-4 text-orange-600" />
-                    <span>Included in this Service</span>
+                    <span>
+                      {selectedPackage ? `Included in ${selectedPackage.name}` : 'Included in this Service'}
+                    </span>
                   </span>
                   <span className="text-[11px] font-extrabold text-orange-600 bg-white px-2 py-0.5 rounded border border-orange-200">
-                    From {service.startingPrice}
+                    {selectedPackage ? selectedPackage.price : `From ${service.startingPrice}`}
                   </span>
                 </div>
                 <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-700">
-                  {service.features.map((feat, idx) => (
+                  {(selectedPackage?.features || service.features).map((feat, idx) => (
                     <li key={idx} className="flex items-start gap-2">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
                       <span>{feat}</span>
@@ -252,15 +353,17 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
               <div className="flex flex-wrap items-center gap-3.5 pt-1">
                 {onOpenBuyNow && (
                   <button
-                    onClick={() => onOpenBuyNow(service)}
+                    onClick={handleProceedBuyNow}
                     className="px-6 py-3.5 bg-[#0B132B] hover:bg-slate-800 text-white text-xs sm:text-sm font-bold rounded-lg transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
                   >
-                    <span>Instant Checkout &mdash; {service.startingPrice}</span>
+                    <span>
+                      Instant Checkout &mdash; {selectedPackage ? selectedPackage.price : service.startingPrice}
+                    </span>
                     <ArrowRight className="w-4 h-4 text-orange-400" />
                   </button>
                 )}
                 <button
-                  onClick={() => onOpenConsultation(service.title)}
+                  onClick={handleConsultation}
                   className="px-5 py-3.5 bg-white hover:bg-slate-50 text-slate-800 text-xs sm:text-sm font-bold rounded-lg border border-slate-300 transition-colors flex items-center gap-2 cursor-pointer"
                 >
                   <PhoneCall className="w-4 h-4 text-orange-600" />
@@ -273,6 +376,9 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
             <div className="lg:col-span-5">
               <ServiceApplicationForm
                 service={service}
+                packages={packages}
+                selectedPackage={selectedPackage}
+                onSelectPackage={(pkg) => setSelectedPackageId(pkg.id)}
                 onOpenBuyNow={onOpenBuyNow}
                 onOpenConsultation={onOpenConsultation}
               />
@@ -322,10 +428,12 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
         </section>
 
         {/* Section: Multiple Packages per Service */}
-        {(service.packages || service.landingPage?.packages) && (
+        {packages && packages.length > 0 && (
           <ServicePackages
-            packages={service.packages || service.landingPage?.packages}
+            packages={packages}
             service={service}
+            selectedPackageId={selectedPackage?.id}
+            onSelectPackage={(pkg) => setSelectedPackageId(pkg.id)}
             onOpenBuyNow={onOpenBuyNow}
             onOpenConsultation={onOpenConsultation}
           />
@@ -346,7 +454,7 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
               Every deliverable is verified by our corporate secretarial and legal drafting team.
             </p>
             <ul className="space-y-3 pt-2">
-              {(landingData?.deliverables || service.features).map((item, idx) => (
+              {(selectedPackage?.features || landingData?.deliverables || service.features).map((item, idx) => (
                 <li key={idx} className="flex items-start gap-3 text-xs sm:text-sm text-slate-700">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                   <span>{item}</span>
@@ -560,20 +668,16 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
 
           <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
             <button
-              onClick={() => {
-                if (onOpenBuyNow) {
-                  onOpenBuyNow(service);
-                } else {
-                  onOpenConsultation(service.title);
-                }
-              }}
+              onClick={handleProceedBuyNow}
               className="px-6 py-3.5 bg-orange-600 hover:bg-orange-700 text-white text-xs sm:text-sm font-bold rounded-lg transition-colors flex items-center gap-2 shadow-sm cursor-pointer"
             >
-              <span>Buy Now &mdash; {service.startingPrice}</span>
+              <span>
+                Instant Checkout &mdash; {selectedPackage ? selectedPackage.price : service.startingPrice}
+              </span>
               <ArrowRight className="w-4 h-4" />
             </button>
             <button
-              onClick={() => onOpenConsultation(service.title)}
+              onClick={handleConsultation}
               className="px-5 py-3.5 bg-white hover:bg-slate-100 text-slate-900 text-xs sm:text-sm font-bold rounded-lg transition-colors flex items-center gap-2 cursor-pointer shadow-xs"
             >
               <PhoneCall className="w-4 h-4 text-orange-600" />

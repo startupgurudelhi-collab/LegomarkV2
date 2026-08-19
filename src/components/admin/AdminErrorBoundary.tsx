@@ -1,4 +1,4 @@
-import React, { ReactNode, ErrorInfo } from 'react';
+import React, { Component, ReactNode, ErrorInfo } from 'react';
 import { AlertTriangle, RotateCcw, ArrowLeft } from 'lucide-react';
 
 interface AdminErrorBoundaryProps {
@@ -11,7 +11,7 @@ interface AdminErrorBoundaryState {
   error: Error | null;
 }
 
-export class AdminErrorBoundary extends React.Component<
+export class AdminErrorBoundary extends Component<
   AdminErrorBoundaryProps,
   AdminErrorBoundaryState
 > {

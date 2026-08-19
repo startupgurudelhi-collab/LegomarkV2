@@ -12,19 +12,27 @@ import {
   Lock,
   ArrowRight,
   Sparkles,
-  AlertCircle
+  AlertCircle,
+  Layers,
+  Check
 } from 'lucide-react';
-import { ServiceItem } from '../../types/website';
+import { ServiceItem, PackageTier, BuyNowItem } from '../../types/website';
 import { submitPublicConsultation } from '../../services/lead.service';
 
 interface ServiceApplicationFormProps {
   service: ServiceItem;
-  onOpenBuyNow?: (service: ServiceItem) => void;
+  packages?: PackageTier[];
+  selectedPackage?: PackageTier | null;
+  onSelectPackage?: (pkg: PackageTier) => void;
+  onOpenBuyNow?: (item: BuyNowItem | ServiceItem) => void;
   onOpenConsultation?: (serviceName?: string) => void;
 }
 
 export const ServiceApplicationForm: React.FC<ServiceApplicationFormProps> = ({
   service,
+  packages,
+  selectedPackage,
+  onSelectPackage,
   onOpenBuyNow,
   onOpenConsultation,
 }) => {
@@ -37,6 +45,9 @@ export const ServiceApplicationForm: React.FC<ServiceApplicationFormProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const activePriceDisplay = selectedPackage ? selectedPackage.price : service.startingPrice;
+  const activePackageName = selectedPackage ? selectedPackage.name : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,6 +70,10 @@ export const ServiceApplicationForm: React.FC<ServiceApplicationFormProps> = ({
       return;
     }
 
+    const serviceTitleWithPackage = activePackageName
+      ? `${service.title} (${activePackageName} - ${activePriceDisplay})`
+      : service.title;
+
     try {
       setSubmitting(true);
       await submitPublicConsultation({
@@ -67,9 +82,11 @@ export const ServiceApplicationForm: React.FC<ServiceApplicationFormProps> = ({
         phone: cleanPhone.slice(-10),
         city: city.trim() || undefined,
         serviceId: service.id || service.slug,
-        selectedService: service.title,
+        selectedService: serviceTitleWithPackage,
         serviceInterested: service.title,
-        message: message.trim() || `Service application initiated for ${service.title}`,
+        message:
+          message.trim() ||
+          `Service application initiated for ${serviceTitleWithPackage}`,
         source: 'service_landing_page_application_form',
       });
       setSubmitted(true);
@@ -88,6 +105,25 @@ export const ServiceApplicationForm: React.FC<ServiceApplicationFormProps> = ({
     setCity('');
     setMessage('');
     setError(null);
+  };
+
+  const handleCheckoutClick = () => {
+    if (!onOpenBuyNow) return;
+    if (selectedPackage) {
+      onOpenBuyNow({
+        id: selectedPackage.id,
+        name: `${service.title} - ${selectedPackage.name}`,
+        title: `${service.title} (${selectedPackage.name})`,
+        slug: service.slug,
+        priceDisplay: selectedPackage.price,
+        itemType: 'package',
+        category: service.category,
+        governmentFeeNote: service.governmentFeeNote,
+        features: selectedPackage.features,
+      });
+    } else {
+      onOpenBuyNow(service);
+    }
   };
 
   return (
@@ -109,7 +145,11 @@ export const ServiceApplicationForm: React.FC<ServiceApplicationFormProps> = ({
               Thank You, {fullName.split(' ')[0]}!
             </h3>
             <p className="text-xs text-slate-600 leading-relaxed max-w-sm mx-auto">
-              Your inquiry for <strong className="text-slate-800">{service.title}</strong> has been assigned to our senior legal advisory team.
+              Your application for <strong className="text-slate-800">{service.title}</strong>{' '}
+              {activePackageName && (
+                <span className="text-orange-700 font-semibold">({activePackageName})</span>
+              )}{' '}
+              has been received.
             </p>
           </div>
 
@@ -118,6 +158,14 @@ export const ServiceApplicationForm: React.FC<ServiceApplicationFormProps> = ({
               <span>Service:</span>
               <span className="font-semibold text-slate-900">{service.title}</span>
             </div>
+            {activePackageName && (
+              <div className="flex items-center justify-between text-slate-600">
+                <span>Selected Package:</span>
+                <span className="font-bold text-orange-600">
+                  {activePackageName} ({activePriceDisplay})
+                </span>
+              </div>
+            )}
             <div className="flex items-center justify-between text-slate-600">
               <span>Estimated Response:</span>
               <span className="font-semibold text-emerald-700">Within 30 Minutes</span>
@@ -132,10 +180,10 @@ export const ServiceApplicationForm: React.FC<ServiceApplicationFormProps> = ({
             {onOpenBuyNow && (
               <button
                 type="button"
-                onClick={() => onOpenBuyNow(service)}
+                onClick={handleCheckoutClick}
                 className="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-xs cursor-pointer"
               >
-                <span>Proceed to Instant Checkout &mdash; {service.startingPrice}</span>
+                <span>Proceed to Instant Checkout &mdash; {activePriceDisplay}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             )}
@@ -173,6 +221,48 @@ export const ServiceApplicationForm: React.FC<ServiceApplicationFormProps> = ({
             <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs flex items-start gap-2 animate-in fade-in">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <span>{error}</span>
+            </div>
+          )}
+
+          {/* Package Selector Tab (if packages available) */}
+          {packages && packages.length > 1 && (
+            <div className="space-y-1.5 pt-0.5">
+              <div className="flex items-center justify-between text-xs">
+                <label className="font-bold text-slate-700 flex items-center gap-1">
+                  <Layers className="w-3.5 h-3.5 text-orange-600" />
+                  <span>Choose Package Tier:</span>
+                </label>
+                {selectedPackage && (
+                  <span className="text-[11px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded border border-orange-200">
+                    {selectedPackage.price}
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100/90 rounded-xl border border-slate-200/80">
+                {packages.map((pkg) => {
+                  const isSelected = selectedPackage?.id === pkg.id;
+                  return (
+                    <button
+                      key={pkg.id}
+                      type="button"
+                      onClick={() => onSelectPackage && onSelectPackage(pkg)}
+                      className={`py-2 px-1 rounded-lg text-center transition-all cursor-pointer flex flex-col items-center justify-center ${
+                        isSelected
+                          ? 'bg-white text-orange-700 font-bold shadow-xs border border-orange-300 ring-1 ring-orange-500/20'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-medium'
+                      }`}
+                    >
+                      <span className="text-[11px] leading-tight truncate w-full px-1 font-semibold">
+                        {pkg.name.replace(' Package', '')}
+                      </span>
+                      <span className={`text-xs font-extrabold ${isSelected ? 'text-orange-600' : 'text-slate-800'}`}>
+                        {pkg.price}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
 
@@ -262,7 +352,7 @@ export const ServiceApplicationForm: React.FC<ServiceApplicationFormProps> = ({
                 rows={2}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="Share any special timelines, director counts, or questions..."
+                placeholder="Share any special timelines, partner count, or questions..."
                 className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/10 transition resize-none"
               />
             </div>
@@ -283,7 +373,9 @@ export const ServiceApplicationForm: React.FC<ServiceApplicationFormProps> = ({
               ) : (
                 <>
                   <Send className="w-4 h-4" />
-                  <span>Submit Service Application</span>
+                  <span>
+                    Submit Application {activePackageName ? `(${activePackageName})` : ''}
+                  </span>
                 </>
               )}
             </button>
@@ -291,13 +383,13 @@ export const ServiceApplicationForm: React.FC<ServiceApplicationFormProps> = ({
             {/* Quick Buy Now Option */}
             {onOpenBuyNow && (
               <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                <span className="text-slate-500 font-medium">Prefer direct checkout?</span>
+                <span className="text-slate-500 font-medium">Ready to start?</span>
                 <button
                   type="button"
-                  onClick={() => onOpenBuyNow(service)}
+                  onClick={handleCheckoutClick}
                   className="font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1 hover:underline cursor-pointer"
                 >
-                  <span>Buy Now from {service.startingPrice}</span>
+                  <span>Instant Checkout &mdash; {activePriceDisplay}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -320,3 +412,4 @@ export const ServiceApplicationForm: React.FC<ServiceApplicationFormProps> = ({
     </div>
   );
 };
+
