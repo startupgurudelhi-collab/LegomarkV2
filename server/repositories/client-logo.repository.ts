@@ -112,15 +112,18 @@ class ClientLogoRepository {
     const dbStatus = await pingDatabase();
     const now = new Date();
 
-    const currentMaxOrder = this.inMemoryStore.length > 0
-      ? Math.max(...this.inMemoryStore.map((l) => l.displayOrder))
-      : 0;
-
-    const displayOrder = dto.displayOrder ?? currentMaxOrder + 1;
-
     if (dbStatus.connected) {
       try {
         const db = getDatabase();
+        let displayOrder = dto.displayOrder;
+        if (displayOrder === undefined || displayOrder === null) {
+          const rows = await db
+            .select({ displayOrder: clientLogos.displayOrder })
+            .from(clientLogos);
+          const maxOrder = rows.length > 0 ? Math.max(...rows.map((r) => r.displayOrder)) : 0;
+          displayOrder = maxOrder + 1;
+        }
+
         const inserted = await db
           .insert(clientLogos)
           .values({
@@ -144,13 +147,18 @@ class ClientLogoRepository {
       }
     }
 
+    const currentMaxOrder = this.inMemoryStore.length > 0
+      ? Math.max(...this.inMemoryStore.map((l) => l.displayOrder))
+      : 0;
+    const fallbackDisplayOrder = dto.displayOrder ?? currentMaxOrder + 1;
+
     const newLogo: ClientLogo = {
       id: `logo-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name: dto.name.trim(),
       logoUrl: dto.logoUrl.trim(),
       category: dto.category?.trim() || 'General Corporate',
       isActive: dto.isActive !== undefined ? dto.isActive : true,
-      displayOrder,
+      displayOrder: fallbackDisplayOrder,
       createdAt: now,
       updatedAt: now,
       updatedBy: authorUser,
@@ -220,8 +228,10 @@ class ClientLogoRepository {
       try {
         const db = getDatabase();
         await db.delete(clientLogos).where(eq(clientLogos.id, id as any));
+        return true;
       } catch (err) {
         logger.error(`Error deleting client logo ${id} from DB`, 'ClientLogoRepo', err);
+        return false;
       }
     }
 
@@ -250,6 +260,12 @@ class ClientLogoRepository {
             })
             .where(eq(clientLogos.id, targetId as any));
         }
+
+        const refreshed = await db
+          .select()
+          .from(clientLogos)
+          .orderBy(asc(clientLogos.displayOrder));
+        return refreshed;
       } catch (err) {
         logger.error('Error reordering client logos in DB', 'ClientLogoRepo', err);
       }

@@ -16,6 +16,10 @@ import {
   EyeOff,
   Layers,
   Sparkles,
+  FolderOpen,
+  UploadCloud,
+  Search,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { MediaUploadDropzone } from './MediaUploadDropzone';
 import { ClientLogoData, CreateClientLogoInput, UpdateClientLogoInput } from '../../types/clientLogo';
@@ -26,6 +30,7 @@ import {
   deleteAdminClientLogo,
   reorderAdminClientLogos,
 } from '../../services/clientLogo.service';
+import { fetchMediaAssets, MediaAsset } from '../../services/adminMedia.service';
 
 export const AdminClientLogosCMS: React.FC = () => {
   const [logos, setLogos] = useState<ClientLogoData[]>([]);
@@ -37,6 +42,10 @@ export const AdminClientLogosCMS: React.FC = () => {
   // Editor Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditingExisting, setIsEditingExisting] = useState(false);
+  const [logoSourceTab, setLogoSourceTab] = useState<'library' | 'upload'>('library');
+  const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([]);
+  const [isLoadingMedia, setIsLoadingMedia] = useState(false);
+  const [assetSearchQuery, setAssetSearchQuery] = useState('');
   const [editingItem, setEditingItem] = useState<{
     id?: string;
     name: string;
@@ -61,6 +70,18 @@ export const AdminClientLogosCMS: React.FC = () => {
     setTimeout(() => setSuccessToast(null), 3500);
   };
 
+  const loadMediaAssets = async () => {
+    setIsLoadingMedia(true);
+    try {
+      const assets = await fetchMediaAssets();
+      setMediaAssets(assets);
+    } catch {
+      // Non-blocking for modal
+    } finally {
+      setIsLoadingMedia(false);
+    }
+  };
+
   const loadLogos = async () => {
     setIsLoading(true);
     setError(null);
@@ -80,6 +101,8 @@ export const AdminClientLogosCMS: React.FC = () => {
 
   const handleOpenAdd = () => {
     setIsEditingExisting(false);
+    setLogoSourceTab('library');
+    setAssetSearchQuery('');
     setEditingItem({
       name: '',
       logoUrl: '',
@@ -88,10 +111,13 @@ export const AdminClientLogosCMS: React.FC = () => {
       displayOrder: logos.length + 1,
     });
     setIsModalOpen(true);
+    loadMediaAssets();
   };
 
   const handleOpenEdit = (item: ClientLogoData) => {
     setIsEditingExisting(true);
+    setLogoSourceTab('library');
+    setAssetSearchQuery('');
     setEditingItem({
       id: item.id,
       name: item.name,
@@ -101,6 +127,7 @@ export const AdminClientLogosCMS: React.FC = () => {
       displayOrder: item.displayOrder,
     });
     setIsModalOpen(true);
+    loadMediaAssets();
   };
 
   const handleSaveModal = async (e: React.FormEvent) => {
@@ -463,18 +490,216 @@ export const AdminClientLogosCMS: React.FC = () => {
                 </div>
               </div>
 
-              {/* Native Media Upload Dropzone */}
-              <div className="pt-1">
-                <MediaUploadDropzone
-                  label="Client Corporate Logo Emblem"
-                  helperText="Upload official company logo (PNG, SVG, WEBP with transparent background recommended). Size limit: 5MB."
-                  category="logos"
-                  accept="image"
-                  maxSizeMB={5}
-                  currentValue={editingItem.logoUrl}
-                  onUploaded={(url) => setEditingItem({ ...editingItem, logoUrl: url })}
-                  onRemove={() => setEditingItem({ ...editingItem, logoUrl: '' })}
-                />
+              {/* Logo Selection Mode Tabs */}
+              <div className="space-y-3 pt-1">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-slate-300">
+                    Client Corporate Logo Emblem <span className="text-rose-400">*</span>
+                  </label>
+                  <span className="text-[11px] text-slate-400">
+                    {mediaAssets.filter((a) => a.category === 'logos' || a.url.includes('/logos/')).length} existing logo assets available
+                  </span>
+                </div>
+
+                {/* Tab Switcher */}
+                <div className="flex p-1 bg-slate-950 border border-slate-800 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setLogoSourceTab('library')}
+                    className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                      logoSourceTab === 'library'
+                        ? 'bg-orange-500 text-white shadow-xs'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <FolderOpen className="w-3.5 h-3.5" />
+                    <span>Select Existing Logo</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLogoSourceTab('upload')}
+                    className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                      logoSourceTab === 'upload'
+                        ? 'bg-orange-500 text-white shadow-xs'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <UploadCloud className="w-3.5 h-3.5" />
+                    <span>Upload New Logo</span>
+                  </button>
+                </div>
+
+                {/* Currently Selected Logo Preview Banner */}
+                {editingItem.logoUrl && (
+                  <div className="p-3 bg-slate-950/90 border border-slate-800 rounded-xl flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-14 h-14 bg-white rounded-lg p-1 flex items-center justify-center overflow-hidden shrink-0 border border-slate-700">
+                        <img
+                          src={editingItem.logoUrl}
+                          alt="Selected client logo preview"
+                          className="max-h-full max-w-full object-contain"
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 text-emerald-400 text-xs font-semibold">
+                          <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                          <span>Active Logo URL Selected</span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 truncate max-w-xs font-mono mt-0.5">
+                          {editingItem.logoUrl}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditingItem({ ...editingItem, logoUrl: '' })}
+                      className="px-2.5 py-1 text-[11px] font-semibold text-rose-400 hover:text-rose-300 bg-rose-950/30 hover:bg-rose-950/60 border border-rose-800/40 rounded-lg transition-colors shrink-0"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                )}
+
+                {/* TAB 1: Select Existing Logo from Library */}
+                {logoSourceTab === 'library' && (
+                  <div className="space-y-3 p-3.5 bg-slate-950/60 border border-slate-800/80 rounded-xl">
+                    {/* Search & Refresh Bar */}
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                        <input
+                          type="text"
+                          value={assetSearchQuery}
+                          onChange={(e) => setAssetSearchQuery(e.target.value)}
+                          placeholder="Search existing logo files by filename..."
+                          className="w-full pl-8 pr-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-hidden focus:border-orange-500"
+                        />
+                        {assetSearchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setAssetSearchQuery('')}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => loadMediaAssets()}
+                        disabled={isLoadingMedia}
+                        className="p-1.5 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors"
+                        title="Refresh existing assets"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isLoadingMedia ? 'animate-spin text-orange-400' : ''}`} />
+                      </button>
+                    </div>
+
+                    {/* Asset Grid */}
+                    {isLoadingMedia ? (
+                      <div className="py-8 text-center">
+                        <RefreshCw className="w-5 h-5 text-orange-400 animate-spin mx-auto mb-2" />
+                        <p className="text-xs text-slate-400">Loading existing logo assets...</p>
+                      </div>
+                    ) : (() => {
+                        const logoAssets = mediaAssets.filter(
+                          (a) => a.category === 'logos' || a.url.includes('/logos/')
+                        );
+                        const displayedAssets = assetSearchQuery.trim()
+                          ? logoAssets.filter(
+                              (a) =>
+                                a.name.toLowerCase().includes(assetSearchQuery.toLowerCase()) ||
+                                a.url.toLowerCase().includes(assetSearchQuery.toLowerCase())
+                            )
+                          : logoAssets;
+
+                        if (displayedAssets.length === 0) {
+                          return (
+                            <div className="py-6 text-center text-slate-500 space-y-2">
+                              <ImageIcon className="w-6 h-6 mx-auto opacity-40" />
+                              <p className="text-xs">
+                                {logoAssets.length === 0
+                                  ? 'No existing logo assets found in /app/data/uploads/logos.'
+                                  : 'No matching logos found for this search.'}
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => setLogoSourceTab('upload')}
+                                className="text-xs font-semibold text-orange-400 hover:text-orange-300 underline"
+                              >
+                                Switch to Upload New Logo
+                              </button>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="max-h-48 overflow-y-auto pr-1 grid grid-cols-3 sm:grid-cols-4 gap-2">
+                            {displayedAssets.map((asset) => {
+                              const isSelected = editingItem.logoUrl === asset.url;
+                              return (
+                                <button
+                                  key={asset.id || asset.url}
+                                  type="button"
+                                  onClick={() =>
+                                    setEditingItem({
+                                      ...editingItem,
+                                      logoUrl: asset.url,
+                                      // If client name is empty, conveniently pre-populate with clean filename
+                                      name: editingItem.name
+                                        ? editingItem.name
+                                        : asset.name
+                                            .replace(/\.[^/.]+$/, '')
+                                            .replace(/[-_]/g, ' ')
+                                            .replace(/\b\w/g, (l) => l.toUpperCase()),
+                                    })
+                                  }
+                                  className={`p-2 rounded-xl border text-left transition-all flex flex-col items-center justify-between gap-1.5 group relative ${
+                                    isSelected
+                                      ? 'bg-orange-500/10 border-orange-500 ring-1 ring-orange-500'
+                                      : 'bg-slate-900 border-slate-800 hover:border-slate-700 hover:bg-slate-850'
+                                  }`}
+                                  title={asset.name}
+                                >
+                                  {isSelected && (
+                                    <div className="absolute top-1.5 right-1.5 w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center text-white">
+                                      <CheckCircle2 className="w-3 h-3" />
+                                    </div>
+                                  )}
+                                  <div className="w-full h-12 bg-white rounded-lg p-1 flex items-center justify-center overflow-hidden border border-slate-700/60">
+                                    <img
+                                      src={asset.url}
+                                      alt={asset.name}
+                                      className="max-h-full max-w-full object-contain"
+                                      referrerPolicy="no-referrer"
+                                    />
+                                  </div>
+                                  <span className="text-[10px] text-slate-300 truncate w-full text-center font-medium block">
+                                    {asset.name}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                  </div>
+                )}
+
+                {/* TAB 2: Upload New Logo */}
+                {logoSourceTab === 'upload' && (
+                  <MediaUploadDropzone
+                    label=""
+                    helperText="Upload official company logo (PNG, SVG, WEBP recommended). Size limit: 5MB."
+                    category="logos"
+                    accept="image"
+                    maxSizeMB={5}
+                    currentValue={editingItem.logoUrl}
+                    onUploaded={(url) => setEditingItem({ ...editingItem, logoUrl: url })}
+                    onRemove={() => setEditingItem({ ...editingItem, logoUrl: '' })}
+                  />
+                )}
               </div>
 
               <div className="pt-4 border-t border-slate-800 flex items-center justify-end gap-2.5">
