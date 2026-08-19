@@ -273,54 +273,6 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
                 </div>
               </div>
 
-              {/* Package Selector Pills in Hero (if multiple packages available) */}
-              {packages && packages.length > 1 && (
-                <div className="p-3.5 rounded-xl bg-orange-50/60 border border-orange-200/80 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                      <Layers className="w-3.5 h-3.5 text-orange-600" />
-                      <span>Available Package Options:</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={scrollToPackages}
-                      className="text-[11px] font-bold text-orange-600 hover:text-orange-700 underline cursor-pointer"
-                    >
-                      Compare Deliverables &darr;
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {packages.map((pkg) => {
-                      const isSelected = selectedPackage?.id === pkg.id;
-                      return (
-                        <button
-                          key={pkg.id}
-                          type="button"
-                          onClick={() => setSelectedPackageId(pkg.id)}
-                          className={`p-2.5 rounded-lg text-left transition-all cursor-pointer border flex flex-col justify-between ${
-                            isSelected
-                              ? 'bg-white border-orange-500 ring-2 ring-orange-500/20 shadow-sm'
-                              : 'bg-white/80 border-slate-200 hover:border-orange-300 hover:bg-white'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-1">
-                            <span className="text-[11px] font-bold text-[#0B132B] truncate">
-                              {pkg.name.replace(' Package', '')}
-                            </span>
-                            {isSelected && (
-                              <Check className="w-3 h-3 text-orange-600 stroke-[3] shrink-0" />
-                            )}
-                          </div>
-                          <div className="text-xs font-extrabold text-orange-600 pt-1">
-                            {pkg.price}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
               {/* Service Inclusions Checklist */}
               <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200 space-y-2.5">
                 <div className="text-xs font-bold uppercase tracking-wider text-[#0B132B] flex items-center justify-between">
@@ -389,7 +341,19 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
 
       {/* 3. Main Detailed Content Body */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
-        {/* Section: Service Overview & Regulatory Context */}
+        {/* Section: 3 Main Package Cards (Basic / Standard / Premium) */}
+        {packages && packages.length > 0 && (
+          <ServicePackages
+            packages={packages}
+            service={service}
+            selectedPackageId={selectedPackage?.id}
+            onSelectPackage={(pkg) => setSelectedPackageId(pkg.id)}
+            onOpenBuyNow={onOpenBuyNow}
+            onOpenConsultation={onOpenConsultation}
+          />
+        )}
+
+        {/* Section: Service Overview & Regulatory Context / Package Overview */}
         <section className="bg-white rounded-xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-4">
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-orange-600">
             <Info className="w-4 h-4" />
@@ -426,18 +390,6 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
             </div>
           )}
         </section>
-
-        {/* Section: Multiple Packages per Service */}
-        {packages && packages.length > 0 && (
-          <ServicePackages
-            packages={packages}
-            service={service}
-            selectedPackageId={selectedPackage?.id}
-            onSelectPackage={(pkg) => setSelectedPackageId(pkg.id)}
-            onOpenBuyNow={onOpenBuyNow}
-            onOpenConsultation={onOpenConsultation}
-          />
-        )}
 
         {/* Section: What's Included (Deliverables) & Documents Required (2-Col Grid) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

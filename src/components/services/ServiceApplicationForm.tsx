@@ -224,48 +224,6 @@ export const ServiceApplicationForm: React.FC<ServiceApplicationFormProps> = ({
             </div>
           )}
 
-          {/* Package Selector Tab (if packages available) */}
-          {packages && packages.length > 1 && (
-            <div className="space-y-1.5 pt-0.5">
-              <div className="flex items-center justify-between text-xs">
-                <label className="font-bold text-slate-700 flex items-center gap-1">
-                  <Layers className="w-3.5 h-3.5 text-orange-600" />
-                  <span>Choose Package Tier:</span>
-                </label>
-                {selectedPackage && (
-                  <span className="text-[11px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded border border-orange-200">
-                    {selectedPackage.price}
-                  </span>
-                )}
-              </div>
-
-              <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100/90 rounded-xl border border-slate-200/80">
-                {packages.map((pkg) => {
-                  const isSelected = selectedPackage?.id === pkg.id;
-                  return (
-                    <button
-                      key={pkg.id}
-                      type="button"
-                      onClick={() => onSelectPackage && onSelectPackage(pkg)}
-                      className={`py-2 px-1 rounded-lg text-center transition-all cursor-pointer flex flex-col items-center justify-center ${
-                        isSelected
-                          ? 'bg-white text-orange-700 font-bold shadow-xs border border-orange-300 ring-1 ring-orange-500/20'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-medium'
-                      }`}
-                    >
-                      <span className="text-[11px] leading-tight truncate w-full px-1 font-semibold">
-                        {pkg.name.replace(' Package', '')}
-                      </span>
-                      <span className={`text-xs font-extrabold ${isSelected ? 'text-orange-600' : 'text-slate-800'}`}>
-                        {pkg.price}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
           {/* Form Fields */}
           <div className="space-y-3">
             {/* Full Name */}
