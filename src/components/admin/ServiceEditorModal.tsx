@@ -11,6 +11,7 @@ import { fetchAdminPackages } from '../../services/adminPackage.service';
 import { AdminPackage } from '../../types/admin';
 import { PACKAGES } from '../../data/websiteData';
 import { ServiceCompletenessBadge, calculateServiceCompleteness } from './ServiceCompleteness';
+import { RichTextEditor } from './RichTextEditor';
 import {
   X,
   Save,
@@ -851,15 +852,15 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-1">
-                        Detailed Strategic Overview (Narrative)
+                      <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center justify-between">
+                        <span>Detailed Strategic Overview (Narrative & Visual Content)</span>
+                        <span className="text-[11px] text-slate-500 font-normal">Headings, Lists, Quotes, Links & Native Inline Media</span>
                       </label>
-                      <textarea
-                        rows={3}
+                      <RichTextEditor
                         value={formData.overview || ''}
-                        onChange={(e) => updateField('overview', e.target.value)}
-                        placeholder="Detailed narrative describing the significance, legal structure, and advantages of this service..."
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-600 focus:outline-hidden focus:border-orange-500 leading-relaxed"
+                        onChange={(newContent) => updateField('overview', newContent)}
+                        placeholder="Write detailed strategic narrative with headings (#, ##), bullet points (*), quotations (>), and inline media illustrations..."
+                        minHeight="280px"
                       />
                     </div>
                   </div>
