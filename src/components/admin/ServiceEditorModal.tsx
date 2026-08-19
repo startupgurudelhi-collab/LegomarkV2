@@ -834,186 +834,454 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
 
               {/* TAB 4: LANDING PAGE CONTENT */}
               {activeTab === 'content' && (
-                <div className="space-y-5">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                      Landing Page Headline
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.headline || ''}
-                      onChange={(e) => updateField('headline', e.target.value)}
-                      placeholder="e.g. Seamless MCA-Compliant Company Incorporation in India"
-                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-orange-500"
-                    />
+                <div className="space-y-6">
+                  {/* Headline & Overview */}
+                  <div className="space-y-4 p-4 bg-slate-950/70 border border-slate-800 rounded-xl">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">
+                        Landing Page Headline
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.headline || ''}
+                        onChange={(e) => updateField('headline', e.target.value)}
+                        placeholder="e.g. Seamless MCA-Compliant Company Incorporation in India"
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-600 focus:outline-hidden focus:border-orange-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">
+                        Detailed Strategic Overview (Narrative)
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={formData.overview || ''}
+                        onChange={(e) => updateField('overview', e.target.value)}
+                        placeholder="Detailed narrative describing the significance, legal structure, and advantages of this service..."
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-600 focus:outline-hidden focus:border-orange-500 leading-relaxed"
+                      />
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                      Detailed Strategic Overview (Narrative)
-                    </label>
-                    <textarea
-                      rows={4}
-                      value={formData.overview || ''}
-                      onChange={(e) => updateField('overview', e.target.value)}
-                      placeholder="Detailed narrative describing the significance, legal structure, and advantages of this service..."
-                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-orange-500 leading-relaxed"
-                    />
-                  </div>
-
-                  {/* Highlights Builder */}
-                  <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
+                  {/* 1. Key Value Highlights (Repeatable with Title, Description, Icon, Reorder, Delete) */}
+                  <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-200">
-                        Key Value Highlights ({formData.highlights?.length || 0})
-                      </span>
+                      <div>
+                        <span className="text-xs font-bold text-slate-200">
+                          1. Key Value Highlights ({formData.highlights?.length || 0})
+                        </span>
+                        <p className="text-[11px] text-slate-400">
+                          High-impact strategic value cards displayed prominently on the service landing page.
+                        </p>
+                      </div>
                       <button
                         type="button"
                         onClick={() => {
                           const list = formData.highlights || [];
                           updateField('highlights', [
                             ...list,
-                            { title: 'New Highlight', description: 'Highlight description here', iconName: 'ShieldCheck', displayOrder: list.length },
+                            {
+                              title: '',
+                              description: '',
+                              iconName: 'ShieldCheck',
+                              displayOrder: list.length,
+                            },
                           ]);
                         }}
-                        className="px-2.5 py-1 rounded bg-orange-500/10 border border-orange-500/30 text-orange-400 hover:bg-orange-500/20 text-xs font-semibold flex items-center gap-1 transition"
+                        className="px-3 py-1.5 rounded-lg bg-orange-600/20 text-orange-400 border border-orange-500/30 hover:bg-orange-600/30 text-xs font-semibold flex items-center gap-1.5 transition shrink-0"
                       >
-                        <Plus className="w-3.5 h-3.5" /> Add Highlight
+                        <Plus className="w-3.5 h-3.5" /> Add Highlight Card
                       </button>
                     </div>
 
-                    <div className="space-y-2">
-                      {(formData.highlights || []).map((hl, idx) => (
-                        <div key={idx} className="p-3 bg-slate-900 border border-slate-800 rounded-lg flex items-start gap-3">
-                          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <input
-                              type="text"
-                              value={hl.title}
-                              onChange={(e) => {
-                                const list = [...(formData.highlights || [])];
-                                list[idx] = { ...list[idx], title: e.target.value };
-                                updateField('highlights', list);
-                              }}
-                              placeholder="Highlight Title"
-                              className="bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:border-orange-500"
-                            />
-                            <input
-                              type="text"
-                              value={hl.description}
-                              onChange={(e) => {
-                                const list = [...(formData.highlights || [])];
-                                list[idx] = { ...list[idx], description: e.target.value };
-                                updateField('highlights', list);
-                              }}
-                              placeholder="Highlight Description"
-                              className="bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:border-orange-500"
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const list = (formData.highlights || []).filter((_, i) => i !== idx);
-                              updateField('highlights', list);
-                            }}
-                            className="p-1.5 rounded hover:bg-rose-500/10 text-slate-500 hover:text-rose-400 transition"
+                    {(!formData.highlights || formData.highlights.length === 0) ? (
+                      <div className="p-4 text-center bg-slate-900/40 border border-dashed border-slate-800 rounded-lg text-slate-500 text-xs">
+                        No highlight cards added yet. Click &ldquo;Add Highlight Card&rdquo; above.
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5">
+                        {formData.highlights.map((hl, idx) => (
+                          <div
+                            key={idx}
+                            className="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-2 group"
                           >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[10px] font-mono text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                                Highlight #{idx + 1}
+                              </span>
+                              <div className="flex items-center space-x-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (idx === 0) return;
+                                    const list = [...(formData.highlights || [])];
+                                    const temp = list[idx - 1];
+                                    list[idx - 1] = list[idx];
+                                    list[idx] = temp;
+                                    updateField('highlights', list);
+                                  }}
+                                  disabled={idx === 0}
+                                  className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-20 disabled:hover:bg-transparent"
+                                  title="Move highlight up"
+                                >
+                                  <ArrowUp className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (idx === (formData.highlights || []).length - 1) return;
+                                    const list = [...(formData.highlights || [])];
+                                    const temp = list[idx + 1];
+                                    list[idx + 1] = list[idx];
+                                    list[idx] = temp;
+                                    updateField('highlights', list);
+                                  }}
+                                  disabled={idx === (formData.highlights || []).length - 1}
+                                  className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-20 disabled:hover:bg-transparent"
+                                  title="Move highlight down"
+                                >
+                                  <ArrowDown className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const list = (formData.highlights || []).filter((_, i) => i !== idx);
+                                    updateField('highlights', list);
+                                  }}
+                                  className="p-1 rounded text-slate-400 hover:text-rose-400 hover:bg-rose-500/10"
+                                  title="Delete highlight"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                              <input
+                                type="text"
+                                value={hl.title}
+                                onChange={(e) => {
+                                  const list = [...(formData.highlights || [])];
+                                  list[idx] = { ...list[idx], title: e.target.value };
+                                  updateField('highlights', list);
+                                }}
+                                placeholder="Highlight Title (e.g. Zero MCA Rejections)"
+                                className="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 placeholder-slate-600 focus:outline-hidden focus:border-orange-500"
+                              />
+                              <input
+                                type="text"
+                                value={hl.description}
+                                onChange={(e) => {
+                                  const list = [...(formData.highlights || [])];
+                                  list[idx] = { ...list[idx], description: e.target.value };
+                                  updateField('highlights', list);
+                                }}
+                                placeholder="Highlight Description (e.g. 100% compliant drafting)"
+                                className="sm:col-span-2 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 placeholder-slate-600 focus:outline-hidden focus:border-orange-500"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Summary Features Bullets */}
-                  <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
+                  {/* 2. Summary Features / Quick Bullets (Repeatable) */}
+                  <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-200">
-                        Summary Features / Quick Bullets ({formData.features?.length || 0})
-                      </span>
+                      <div>
+                        <span className="text-xs font-bold text-slate-200">
+                          2. Summary Features / Quick Bullets ({formData.features?.length || 0})
+                        </span>
+                        <p className="text-[11px] text-slate-400">
+                          Primary inclusions displayed on service catalogue cards and header summary bullets.
+                        </p>
+                      </div>
                       <button
                         type="button"
                         onClick={() => {
                           const list = formData.features || [];
-                          updateField('features', [...list, 'New inclusion item']);
+                          updateField('features', [...list, '']);
                         }}
-                        className="px-2.5 py-1 rounded bg-orange-500/10 border border-orange-500/30 text-orange-400 hover:bg-orange-500/20 text-xs font-semibold flex items-center gap-1 transition"
+                        className="px-3 py-1.5 rounded-lg bg-orange-600/20 text-orange-400 border border-orange-500/30 hover:bg-orange-600/30 text-xs font-semibold flex items-center gap-1.5 transition shrink-0"
                       >
-                        <Plus className="w-3.5 h-3.5" /> Add Bullet
+                        <Plus className="w-3.5 h-3.5" /> Add Bullet Item
                       </button>
                     </div>
 
-                    <div className="space-y-1.5">
-                      {(formData.features || []).map((feat, idx) => (
-                        <div key={idx} className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={feat}
-                            onChange={(e) => {
-                              const list = [...(formData.features || [])];
-                              list[idx] = e.target.value;
-                              updateField('features', list);
-                            }}
-                            className="flex-1 bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:border-orange-500"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const list = (formData.features || []).filter((_, i) => i !== idx);
-                              updateField('features', list);
-                            }}
-                            className="p-1 text-slate-500 hover:text-rose-400"
+                    {(!formData.features || formData.features.length === 0) ? (
+                      <div className="p-4 text-center bg-slate-900/40 border border-dashed border-slate-800 rounded-lg text-slate-500 text-xs">
+                        No features added yet. Click &ldquo;Add Bullet Item&rdquo; above.
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {formData.features.map((feat, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center space-x-2 p-2 bg-slate-900 border border-slate-800 rounded-lg group"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                            <span className="w-6 text-center text-[10px] font-mono text-slate-500">
+                              {idx + 1}
+                            </span>
+                            <input
+                              type="text"
+                              value={feat}
+                              onChange={(e) => {
+                                const list = [...(formData.features || [])];
+                                list[idx] = e.target.value;
+                                updateField('features', list);
+                              }}
+                              placeholder="e.g., Dedicated Senior Legal Specialist & CS Assignment"
+                              className="flex-1 px-2.5 py-1.5 text-xs bg-slate-950 border border-slate-700 rounded-md text-slate-100 placeholder-slate-600 focus:outline-hidden focus:border-orange-500"
+                            />
+                            <div className="flex items-center space-x-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (idx === 0) return;
+                                  const list = [...(formData.features || [])];
+                                  const temp = list[idx - 1];
+                                  list[idx - 1] = list[idx];
+                                  list[idx] = temp;
+                                  updateField('features', list);
+                                }}
+                                disabled={idx === 0}
+                                className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-20 disabled:hover:bg-transparent"
+                                title="Move bullet up"
+                              >
+                                <ArrowUp className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (idx === (formData.features || []).length - 1) return;
+                                  const list = [...(formData.features || [])];
+                                  const temp = list[idx + 1];
+                                  list[idx + 1] = list[idx];
+                                  list[idx] = temp;
+                                  updateField('features', list);
+                                }}
+                                disabled={idx === (formData.features || []).length - 1}
+                                className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-20 disabled:hover:bg-transparent"
+                                title="Move bullet down"
+                              >
+                                <ArrowDown className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const list = (formData.features || []).filter((_, i) => i !== idx);
+                                  updateField('features', list);
+                                }}
+                                className="p-1 rounded text-slate-400 hover:text-rose-400 hover:bg-rose-500/10"
+                                title="Delete bullet"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Deliverables */}
-                  <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
+                  {/* 3. Tangible Deliverables (Repeatable) */}
+                  <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-200">
-                        Tangible Deliverables ({formData.deliverables?.length || 0})
-                      </span>
+                      <div>
+                        <span className="text-xs font-bold text-slate-200">
+                          3. Tangible Deliverables ({formData.deliverables?.length || 0})
+                        </span>
+                        <p className="text-[11px] text-slate-400">
+                          Physical or digital legal deliverables handed over upon completion.
+                        </p>
+                      </div>
                       <button
                         type="button"
                         onClick={() => {
                           const list = formData.deliverables || [];
-                          updateField('deliverables', [...list, 'Official Registration Dossier']);
+                          updateField('deliverables', [...list, '']);
                         }}
-                        className="px-2.5 py-1 rounded bg-orange-500/10 border border-orange-500/30 text-orange-400 hover:bg-orange-500/20 text-xs font-semibold flex items-center gap-1 transition"
+                        className="px-3 py-1.5 rounded-lg bg-orange-600/20 text-orange-400 border border-orange-500/30 hover:bg-orange-600/30 text-xs font-semibold flex items-center gap-1.5 transition shrink-0"
                       >
                         <Plus className="w-3.5 h-3.5" /> Add Deliverable
                       </button>
                     </div>
 
-                    <div className="space-y-1.5">
-                      {(formData.deliverables || []).map((deliv, idx) => (
-                        <div key={idx} className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={deliv}
-                            onChange={(e) => {
-                              const list = [...(formData.deliverables || [])];
-                              list[idx] = e.target.value;
-                              updateField('deliverables', list);
-                            }}
-                            className="flex-1 bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:border-orange-500"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const list = (formData.deliverables || []).filter((_, i) => i !== idx);
-                              updateField('deliverables', list);
-                            }}
-                            className="p-1 text-slate-500 hover:text-rose-400"
+                    {(!formData.deliverables || formData.deliverables.length === 0) ? (
+                      <div className="p-4 text-center bg-slate-900/40 border border-dashed border-slate-800 rounded-lg text-slate-500 text-xs">
+                        No deliverables added yet. Click &ldquo;Add Deliverable&rdquo; above.
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {formData.deliverables.map((deliv, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center space-x-2 p-2 bg-slate-900 border border-slate-800 rounded-lg group"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ))}
+                            <span className="w-6 text-center text-[10px] font-mono text-slate-500">
+                              {idx + 1}
+                            </span>
+                            <input
+                              type="text"
+                              value={deliv}
+                              onChange={(e) => {
+                                const list = [...(formData.deliverables || [])];
+                                list[idx] = e.target.value;
+                                updateField('deliverables', list);
+                              }}
+                              placeholder="e.g., Certificate of Incorporation (COI) & Master Document Dossier"
+                              className="flex-1 px-2.5 py-1.5 text-xs bg-slate-950 border border-slate-700 rounded-md text-slate-100 placeholder-slate-600 focus:outline-hidden focus:border-orange-500"
+                            />
+                            <div className="flex items-center space-x-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (idx === 0) return;
+                                  const list = [...(formData.deliverables || [])];
+                                  const temp = list[idx - 1];
+                                  list[idx - 1] = list[idx];
+                                  list[idx] = temp;
+                                  updateField('deliverables', list);
+                                }}
+                                disabled={idx === 0}
+                                className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-20 disabled:hover:bg-transparent"
+                                title="Move deliverable up"
+                              >
+                                <ArrowUp className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (idx === (formData.deliverables || []).length - 1) return;
+                                  const list = [...(formData.deliverables || [])];
+                                  const temp = list[idx + 1];
+                                  list[idx + 1] = list[idx];
+                                  list[idx] = temp;
+                                  updateField('deliverables', list);
+                                }}
+                                disabled={idx === (formData.deliverables || []).length - 1}
+                                className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-20 disabled:hover:bg-transparent"
+                                title="Move deliverable down"
+                              >
+                                <ArrowDown className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const list = (formData.deliverables || []).filter((_, i) => i !== idx);
+                                  updateField('deliverables', list);
+                                }}
+                                className="p-1 rounded text-slate-400 hover:text-rose-400 hover:bg-rose-500/10"
+                                title="Delete deliverable"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 4. Strategic Benefits & Advantages (Repeatable) */}
+                  <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-xs font-bold text-slate-200">
+                          4. Strategic Benefits & Key Advantages ({formData.benefits?.length || 0})
+                        </span>
+                        <p className="text-[11px] text-slate-400">
+                          Commercial and statutory benefits of choosing LEGOMARK INDIA for this service.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const list = formData.benefits || [];
+                          updateField('benefits', [...list, '']);
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-orange-600/20 text-orange-400 border border-orange-500/30 hover:bg-orange-600/30 text-xs font-semibold flex items-center gap-1.5 transition shrink-0"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> Add Benefit Item
+                      </button>
                     </div>
+
+                    {(!formData.benefits || formData.benefits.length === 0) ? (
+                      <div className="p-4 text-center bg-slate-900/40 border border-dashed border-slate-800 rounded-lg text-slate-500 text-xs">
+                        No benefits added yet. Click &ldquo;Add Benefit Item&rdquo; above.
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {formData.benefits.map((ben, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center space-x-2 p-2 bg-slate-900 border border-slate-800 rounded-lg group"
+                          >
+                            <span className="w-6 text-center text-[10px] font-mono text-slate-500">
+                              {idx + 1}
+                            </span>
+                            <input
+                              type="text"
+                              value={ben}
+                              onChange={(e) => {
+                                const list = [...(formData.benefits || [])];
+                                list[idx] = e.target.value;
+                                updateField('benefits', list);
+                              }}
+                              placeholder="e.g., Statutory immunity, complete MCA compliance, & zero penalty risk"
+                              className="flex-1 px-2.5 py-1.5 text-xs bg-slate-950 border border-slate-700 rounded-md text-slate-100 placeholder-slate-600 focus:outline-hidden focus:border-orange-500"
+                            />
+                            <div className="flex items-center space-x-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (idx === 0) return;
+                                  const list = [...(formData.benefits || [])];
+                                  const temp = list[idx - 1];
+                                  list[idx - 1] = list[idx];
+                                  list[idx] = temp;
+                                  updateField('benefits', list);
+                                }}
+                                disabled={idx === 0}
+                                className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-20 disabled:hover:bg-transparent"
+                                title="Move benefit up"
+                              >
+                                <ArrowUp className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (idx === (formData.benefits || []).length - 1) return;
+                                  const list = [...(formData.benefits || [])];
+                                  const temp = list[idx + 1];
+                                  list[idx + 1] = list[idx];
+                                  list[idx] = temp;
+                                  updateField('benefits', list);
+                                }}
+                                disabled={idx === (formData.benefits || []).length - 1}
+                                className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-20 disabled:hover:bg-transparent"
+                                title="Move benefit down"
+                              >
+                                <ArrowDown className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const list = (formData.benefits || []).filter((_, i) => i !== idx);
+                                  updateField('benefits', list);
+                                }}
+                                className="p-1 rounded text-slate-400 hover:text-rose-400 hover:bg-rose-500/10"
+                                title="Delete benefit"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
