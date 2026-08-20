@@ -181,31 +181,31 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Logo on the Left */}
           <div
             onClick={handleLogoClick}
-            className="flex items-center gap-3 cursor-pointer select-none shrink-0"
+            className="flex items-center gap-3.5 cursor-pointer select-none shrink-0"
           >
             {websiteSettings?.logoUrl && !logoImageError ? (
               <img
                 src={websiteSettings.logoUrl}
                 alt={websiteSettings.companyName || COMPANY_PROFILE.name}
-                className="h-[54px] sm:h-[60px] w-auto max-w-[250px] object-contain"
+                className="h-[72px] sm:h-[76px] w-auto max-w-[320px] object-contain object-left scale-110 sm:scale-115 origin-left"
                 onError={() => setLogoImageError(true)}
                 referrerPolicy="no-referrer"
               />
             ) : (
               <>
-                <div className="w-12 h-12 rounded-lg bg-[#0B132B] flex items-center justify-center text-white font-black text-xl tracking-wider border border-slate-700 shadow-xs">
+                <div className="w-14 h-14 rounded-xl bg-[#0B132B] flex items-center justify-center text-white font-black text-2xl tracking-wider border border-slate-700 shadow-sm shrink-0">
                   LM
                 </div>
                 <div>
                   <div className="flex items-center tracking-tight">
-                    <span className="text-2xl font-black text-[#0B132B] font-sans">
+                    <span className="text-2xl sm:text-[28px] font-black text-[#0B132B] font-sans leading-none">
                       {websiteSettings?.companyName?.split(' ')[0] || 'LEGOMARK'}
                     </span>
-                    <span className="text-2xl font-black text-orange-600 font-sans ml-1">
+                    <span className="text-2xl sm:text-[28px] font-black text-orange-600 font-sans ml-1.5 leading-none">
                       {websiteSettings?.companyName?.split(' ').slice(1).join(' ') || 'INDIA'}
                     </span>
                   </div>
-                  <p className="text-[11px] uppercase font-bold tracking-wider text-slate-500 -mt-0.5">
+                  <p className="text-[10.5px] sm:text-[11.5px] uppercase font-extrabold tracking-wider text-slate-500 mt-1">
                     {websiteSettings?.positioning || COMPANY_PROFILE.positioning}
                   </p>
                 </div>
