@@ -260,7 +260,7 @@ export class PaymentController {
 
       const { resolvedName, resolvedAmount, itemType: resolvedType } = authoritativeItem;
 
-      if (resolvedAmount <= 0) {
+      if (typeof resolvedAmount !== 'number' || isNaN(resolvedAmount) || resolvedAmount <= 0) {
         res.status(400).json({
           success: false,
           error: 'This service requires a custom quotation. Please request a consultation.',
@@ -268,11 +268,67 @@ export class PaymentController {
         return;
       }
 
-      const keyId = process.env.RAZORPAY_KEY_ID || 'rzp_test_legomarkindia';
-      const orderId = `order_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      const keyId = process.env.RAZORPAY_KEY_ID;
+      const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+      if (!keyId || !keySecret) {
+        logger.warn('Payment order creation rejected: Razorpay credentials not configured in environment', 'PaymentController');
+        res.status(503).json({
+          success: false,
+          error: 'Online payment gateway is temporarily unavailable. Please request a consultation to proceed with this service.',
+        });
+        return;
+      }
+
+      // Convert authoritative amount to paise (1 INR = 100 paise)
+      const payableAmountInPaise = Math.round(Number(resolvedAmount) * 100);
+
+      if (isNaN(payableAmountInPaise) || payableAmountInPaise <= 0) {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid service amount for online payment.',
+        });
+        return;
+      }
+
+      const receipt = `rcpt_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 7)}`;
+      const authHeader = 'Basic ' + Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+
+      // Create authentic Order on Razorpay
+      const rzpResponse = await fetch('https://api.razorpay.com/v1/orders', {
+        method: 'POST',
+        headers: {
+          'Authorization': authHeader,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: payableAmountInPaise,
+          currency: 'INR',
+          receipt,
+          notes: {
+            itemName: resolvedName.substring(0, 40),
+            itemType: resolvedType,
+            customerName: (customerName || 'Client').substring(0, 40),
+            customerPhone: (customerPhone || 'N/A').substring(0, 15),
+          },
+        }),
+      });
+
+      if (!rzpResponse.ok) {
+        const errorText = await rzpResponse.text().catch(() => '');
+        logger.error(`Razorpay Orders API error (${rzpResponse.status}): ${errorText}`, 'PaymentController');
+        res.status(502).json({
+          success: false,
+          error: 'Unable to initiate order with Razorpay payment gateway. Please try again or request a consultation.',
+        });
+        return;
+      }
+
+      const rzpOrderData = (await rzpResponse.json()) as { id: string; amount: number; currency: string };
+      const orderId = rzpOrderData.id;
 
       logger.info(
-        `Authoritative payment order created: [${resolvedName}] (${resolvedType}) - Server-Verified Amount: ₹${resolvedAmount} for ${customerName || 'Client'}`,
+        `Authoritative Razorpay payment order created: ${orderId} for [${resolvedName}] (${resolvedType}) - Server-Verified Amount: ₹${resolvedAmount} (${payableAmountInPaise} paise) for ${customerName || 'Client'}`,
         'PaymentController'
       );
 
@@ -280,7 +336,7 @@ export class PaymentController {
         success: true,
         orderId,
         keyId,
-        amount: resolvedAmount, // Authoritative price only
+        amount: payableAmountInPaise, // Returned in paise (e.g. 699900) as required by Razorpay
         currency: 'INR',
         itemName: resolvedName,
         itemType: resolvedType,

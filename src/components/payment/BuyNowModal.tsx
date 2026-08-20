@@ -11,19 +11,12 @@ import {
   Loader2,
   AlertCircle,
   ArrowRight,
-  Receipt,
   FileCheck,
   Lock,
 } from 'lucide-react';
 import { BuyNowItem } from '../../types/website';
 import { parsePriceToNumber, formatINR } from '../../utils/pricing';
-import {
-  loadRazorpayScript,
-  createPaymentOrder,
-  verifyPayment,
-  fetchPaymentConfig,
-} from '../../services/payment.service';
-import { COMPANY_PROFILE } from '../../data/websiteData';
+import { loadRazorpayScript } from '../../services/payment.service';
 
 interface BuyNowModalProps {
   isOpen: boolean;
@@ -78,56 +71,86 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({ isOpen, onClose, item 
         throw new Error('Unable to connect to the secure Razorpay payment gateway. Please check your network connection.');
       }
 
-      // 2. Request order / configuration from backend
-      const orderData = await createPaymentOrder({
-        itemName: item.name || item.title || 'Corporate Service',
-        itemType: item.itemType,
-        itemId: item.id,
-        slug: item.slug,
-        amount: rawAmount,
-        customerName: fullName.trim(),
-        customerEmail: email.trim() || undefined,
-        customerPhone: phone.trim(),
-        city: city.trim() || undefined,
+      // 2. Request real order from backend
+      const res = await fetch('/api/payment/create-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          itemName: item.name || item.title || 'Corporate Service',
+          itemType: item.itemType,
+          itemId: item.id,
+          slug: item.slug,
+          customerName: fullName.trim(),
+          customerEmail: email.trim() || undefined,
+          customerPhone: phone.trim(),
+          city: city.trim() || undefined,
+        }),
       });
 
-      const config = await fetchPaymentConfig();
-      const activeKeyId = orderData.keyId || config.keyId || 'rzp_test_legomarkindia';
+      const orderData = await res.json().catch(() => ({}));
 
-      // 3. Configure Razorpay checkout options
+      if (!res.ok || !orderData.success || !orderData.orderId || !orderData.keyId) {
+        throw new Error(
+          orderData.error ||
+          'Online payment gateway is temporarily unavailable. Please click "Request Consultation" or contact our desk directly.'
+        );
+      }
+
+      // 3. Configure Razorpay checkout options with real server-verified details
+      // orderData.amount is returned in paise (e.g. 699900 for ₹6,999)
+      const payablePaise = typeof orderData.amount === 'number' && orderData.amount > 0
+        ? orderData.amount
+        : Math.round(rawAmount * 100);
+
       const options = {
-        key: activeKeyId,
-        amount: Math.round((orderData.amount || rawAmount) * 100), // amount in paise
-        currency: 'INR',
+        key: orderData.keyId,
+        amount: payablePaise,
+        currency: orderData.currency || 'INR',
         name: 'LEGOMARK INDIA',
-        description: `Fee: ${item.name || item.title}`,
-        image: '/assets/brand/logo.png',
-        order_id: orderData.orderId && orderData.orderId.startsWith('order_') && !orderData.orderId.includes('Math')
-          ? orderData.orderId
-          : undefined,
+        description: `Fee: ${orderData.itemName || item.name || item.title}`,
+        image: typeof window !== 'undefined' ? `${window.location.origin}/assets/brand/logo.png` : undefined,
+        order_id: orderData.orderId,
         handler: async (response: any) => {
           try {
             setIsProcessing(true);
-            const verified = await verifyPayment({
-              razorpayPaymentId: response.razorpay_payment_id || `pay_${Date.now()}`,
-              razorpayOrderId: response.razorpay_order_id,
-              razorpaySignature: response.razorpay_signature,
-              itemName: item.name || item.title || 'Corporate Service',
-              itemType: item.itemType,
-              itemId: item.id,
-              slug: item.slug,
-              amount: orderData.amount || rawAmount,
-              customerName: fullName.trim(),
-              customerEmail: email.trim() || undefined,
-              customerPhone: phone.trim(),
-              city: city.trim() || undefined,
+            setErrorMessage(null);
+
+            const verifyRes = await fetch('/api/payment/verify', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpayOrderId: response.razorpay_order_id,
+                razorpaySignature: response.razorpay_signature,
+                itemName: orderData.itemName || item.name || item.title,
+                itemType: orderData.itemType || item.itemType,
+                itemId: item.id,
+                slug: item.slug,
+                customerName: fullName.trim(),
+                customerEmail: email.trim() || undefined,
+                customerPhone: phone.trim(),
+                city: city.trim() || undefined,
+              }),
             });
 
+            const verifyData = await verifyRes.json().catch(() => ({}));
+
+            if (!verifyRes.ok || !verifyData.success) {
+              throw new Error(
+                verifyData.error ||
+                'Payment signature verification failed on the server. If your account was debited, please contact our support team with your payment reference.'
+              );
+            }
+
             setPaymentSuccess({
-              paymentId: verified.paymentId || response.razorpay_payment_id || `PAY_${Date.now()}`,
+              paymentId: verifyData.paymentId || response.razorpay_payment_id,
               orderId: response.razorpay_order_id,
-              amount: orderData.amount || rawAmount,
-              itemName: item.name || item.title || 'Corporate Service',
+              amount: verifyData.amount || (typeof orderData.amount === 'number' ? orderData.amount / 100 : rawAmount),
+              itemName: verifyData.itemName || orderData.itemName || item.name || item.title,
               date: new Date().toLocaleDateString('en-IN', {
                 year: 'numeric',
                 month: 'short',
@@ -137,13 +160,8 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({ isOpen, onClose, item 
               }),
             });
           } catch (err: any) {
-            console.error('Payment confirmation error:', err);
-            setPaymentSuccess({
-              paymentId: response.razorpay_payment_id || `PAY_${Date.now()}`,
-              amount: orderData.amount || rawAmount,
-              itemName: item.name || item.title || 'Corporate Service',
-              date: new Date().toLocaleDateString('en-IN'),
-            });
+            console.error('Payment verification error:', err);
+            setErrorMessage(err.message || 'Payment verification encountered an issue. Please contact support.');
           } finally {
             setIsProcessing(false);
           }
@@ -173,7 +191,7 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({ isOpen, onClose, item 
         rzp.on('payment.failed', (response: any) => {
           setIsProcessing(false);
           setErrorMessage(
-            response.error?.description || 'Payment was unsuccessful or cancelled. Please try again.'
+            response.error?.description || 'Payment was declined or cancelled. Please try again with a different payment method.'
           );
         });
         rzp.open();

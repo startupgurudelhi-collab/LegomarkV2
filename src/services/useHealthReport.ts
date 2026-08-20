@@ -22,8 +22,6 @@ export function useHealthReport() {
 
   useEffect(() => {
     refreshHealth();
-    const interval = setInterval(refreshHealth, 30000);
-    return () => clearInterval(interval);
   }, [refreshHealth]);
 
   return { health, loading, lastChecked, refreshHealth };
