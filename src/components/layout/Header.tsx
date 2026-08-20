@@ -187,25 +187,25 @@ export const Header: React.FC<HeaderProps> = ({
               <img
                 src={websiteSettings.logoUrl}
                 alt={websiteSettings.companyName || COMPANY_PROFILE.name}
-                className="h-11 sm:h-12 w-auto max-w-[200px] object-contain"
+                className="h-[54px] sm:h-[60px] w-auto max-w-[250px] object-contain"
                 onError={() => setLogoImageError(true)}
                 referrerPolicy="no-referrer"
               />
             ) : (
               <>
-                <div className="w-10 h-10 rounded-lg bg-[#0B132B] flex items-center justify-center text-white font-black text-lg tracking-wider border border-slate-700 shadow-xs">
+                <div className="w-12 h-12 rounded-lg bg-[#0B132B] flex items-center justify-center text-white font-black text-xl tracking-wider border border-slate-700 shadow-xs">
                   LM
                 </div>
                 <div>
                   <div className="flex items-center tracking-tight">
-                    <span className="text-xl font-black text-[#0B132B] font-sans">
+                    <span className="text-2xl font-black text-[#0B132B] font-sans">
                       {websiteSettings?.companyName?.split(' ')[0] || 'LEGOMARK'}
                     </span>
-                    <span className="text-xl font-black text-orange-600 font-sans ml-1">
+                    <span className="text-2xl font-black text-orange-600 font-sans ml-1">
                       {websiteSettings?.companyName?.split(' ').slice(1).join(' ') || 'INDIA'}
                     </span>
                   </div>
-                  <p className="text-[9.5px] uppercase font-bold tracking-wider text-slate-500 -mt-0.5">
+                  <p className="text-[11px] uppercase font-bold tracking-wider text-slate-500 -mt-0.5">
                     {websiteSettings?.positioning || COMPANY_PROFILE.positioning}
                   </p>
                 </div>
