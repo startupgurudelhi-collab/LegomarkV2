@@ -71,6 +71,13 @@
       "when": 1786745000000,
       "tag": "0009_service_packages",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1786748000000,
+      "tag": "0010_association_logos",
+      "breakpoints": true
     }
   ]
 }

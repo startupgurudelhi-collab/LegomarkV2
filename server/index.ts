@@ -1,8 +1,10 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { config } from './config/env';
-import { verifyDatabaseConnection, closeDatabasePool } from './config/database';
+import { verifyDatabaseConnection, closeDatabasePool, getDatabase } from './config/database';
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { applySecurityMiddleware } from './middleware/security';
 import { requestLogger } from './middleware/requestLogger';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
@@ -21,7 +23,18 @@ async function bootstrap() {
 
   // Step 1: Verify PostgreSQL connection before or upon server startup
   const dbConnected = await verifyDatabaseConnection();
-  if (!dbConnected) {
+  if (dbConnected) {
+    try {
+      const migrationsFolder = path.resolve(process.cwd(), 'db/migrations');
+      if (fs.existsSync(migrationsFolder)) {
+        const db = getDatabase();
+        await migrate(db, { migrationsFolder });
+        logger.info('Database schema migrations verified on startup.', 'Bootstrap');
+      }
+    } catch (migErr) {
+      logger.warn('Schema migration check encountered an issue during startup (tables are also auto-verified by repositories):', 'Bootstrap', migErr);
+    }
+  } else {
     logger.warn('Server starting with degraded database state. Supply valid PostgreSQL credentials to achieve full health.', 'Bootstrap');
   }
 

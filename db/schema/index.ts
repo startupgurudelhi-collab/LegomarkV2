@@ -814,6 +814,30 @@ export const clientLogos = pgTable(
 export type ClientLogo = typeof clientLogos.$inferSelect;
 export type NewClientLogo = typeof clientLogos.$inferInsert;
 
+/**
+ * ============================================================================
+ * STAGE 11 / PHASE 8: ASSOCIATION & STATUTORY BODIES LOGOS (WE ARE ASSOCIATED)
+ * ============================================================================
+ */
 
+export const associationLogos = pgTable(
+  'association_logos',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: varchar('name', { length: 255 }).notNull(),
+    logoUrl: varchar('logo_url', { length: 512 }).notNull(),
+    category: varchar('category', { length: 100 }).notNull().default('Professional Association'),
+    isActive: boolean('is_active').notNull().default(true),
+    displayOrder: integer('display_order').notNull().default(1),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedBy: varchar('updated_by', { length: 128 }),
+  },
+  (table) => ({
+    isActiveIdx: index('association_logos_is_active_idx').on(table.isActive),
+    displayOrderIdx: index('association_logos_display_order_idx').on(table.displayOrder),
+  })
+);
 
-
+export type AssociationLogo = typeof associationLogos.$inferSelect;
+export type NewAssociationLogo = typeof associationLogos.$inferInsert;
