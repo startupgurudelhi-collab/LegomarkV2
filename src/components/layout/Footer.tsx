@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { COMPANY_PROFILE } from '../../data/websiteData';
 import { Phone, Mail, MapPin, Clock, ArrowUp, Globe } from 'lucide-react';
+import { fetchPublicSettings } from '../../services/settings.service';
+import { WebsiteSettingsData } from '../../types/settings';
 
 interface FooterProps {
   onNavigateSection: (sectionId: string) => void;
@@ -20,6 +22,16 @@ export const Footer: React.FC<FooterProps> = ({
   onToggleDiagnostics,
 }) => {
   const { address, contact, positioning } = COMPANY_PROFILE;
+  const [websiteSettings, setWebsiteSettings] = useState<WebsiteSettingsData | null>(null);
+  const [logoImageError, setLogoImageError] = useState(false);
+
+  useEffect(() => {
+    fetchPublicSettings().then((data) => {
+      if (data) {
+        setWebsiteSettings(data);
+      }
+    });
+  }, []);
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -43,19 +55,29 @@ export const Footer: React.FC<FooterProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-10">
           {/* Col 1: Brand & Contact Information */}
           <div className="lg:col-span-2 space-y-4">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-orange-600 flex items-center justify-center text-white font-extrabold text-sm tracking-wider shadow-xs">
-                LM
+            {websiteSettings?.logoUrl && !logoImageError ? (
+              <img
+                src={websiteSettings.logoUrl}
+                alt={websiteSettings.companyName || COMPANY_PROFILE.name}
+                className="h-12 sm:h-14 w-auto max-w-[260px] object-contain object-left"
+                onError={() => setLogoImageError(true)}
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-orange-600 flex items-center justify-center text-white font-extrabold text-sm tracking-wider shadow-xs">
+                  LM
+                </div>
+                <div className="flex items-center">
+                  <span className="text-lg font-black tracking-tight text-white font-sans">
+                    {websiteSettings?.companyName?.split(' ')[0] || 'LEGOMARK'}
+                  </span>
+                  <span className="text-lg font-black tracking-tight text-orange-500 font-sans ml-1">
+                    {websiteSettings?.companyName?.split(' ').slice(1).join(' ') || 'INDIA'}
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center">
-                <span className="text-lg font-black tracking-tight text-white font-sans">
-                  LEGOMARK
-                </span>
-                <span className="text-lg font-black tracking-tight text-orange-500 font-sans ml-1">
-                  INDIA
-                </span>
-              </div>
-            </div>
+            )}
 
             <p className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">
               {positioning}
