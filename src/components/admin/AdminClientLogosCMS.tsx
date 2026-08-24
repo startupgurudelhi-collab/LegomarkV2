@@ -132,10 +132,15 @@ export const AdminClientLogosCMS: React.FC = () => {
 
   const handleSaveModal = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingItem.name.trim()) {
-      setError('Client / Enterprise Name is required');
+    if (!editingItem.logoUrl || !editingItem.logoUrl.trim()) {
+      setError('Client Corporate Logo Emblem is required. Please select or upload a logo.');
       return;
     }
+
+    const fallbackName = editingItem.logoUrl
+      ? editingItem.logoUrl.split('/').pop()?.split('.')[0]?.replace(/[-_]/g, ' ') || 'Client Logo'
+      : 'Client Logo';
+    const finalName = editingItem.name.trim() || fallbackName;
 
     setIsSaving(true);
     setError(null);
@@ -143,9 +148,9 @@ export const AdminClientLogosCMS: React.FC = () => {
     try {
       if (isEditingExisting && editingItem.id) {
         const updateInput: UpdateClientLogoInput = {
-          name: editingItem.name,
+          name: finalName,
           logoUrl: editingItem.logoUrl,
-          category: editingItem.category,
+          category: editingItem.category ? editingItem.category.trim() : '',
           isActive: editingItem.isActive,
           displayOrder: editingItem.displayOrder,
         };
@@ -154,9 +159,9 @@ export const AdminClientLogosCMS: React.FC = () => {
         showToast(`Updated "${updated.name}" successfully.`);
       } else {
         const createInput: CreateClientLogoInput = {
-          name: editingItem.name,
+          name: finalName,
           logoUrl: editingItem.logoUrl,
-          category: editingItem.category,
+          category: editingItem.category ? editingItem.category.trim() : '',
           isActive: editingItem.isActive,
           displayOrder: editingItem.displayOrder,
         };
@@ -447,7 +452,7 @@ export const AdminClientLogosCMS: React.FC = () => {
             <form onSubmit={handleSaveModal} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Client / Enterprise Name <span className="text-rose-400">*</span>
+                  Client / Enterprise Name
                 </label>
                 <input
                   type="text"
@@ -455,7 +460,6 @@ export const AdminClientLogosCMS: React.FC = () => {
                   onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
                   placeholder="e.g. Razorpay Software"
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-hidden focus:border-orange-500"
-                  required
                 />
               </div>
 
