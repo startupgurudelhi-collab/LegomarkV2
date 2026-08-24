@@ -43,7 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   const navLinks = [
     { label: 'Services', sectionId: 'services-section', hasDropdown: true },
-    { label: 'Packages', sectionId: 'packages-section', hasDropdown: false },
+    { label: 'Trust Factor', sectionId: 'trust-factor-section', hasDropdown: false },
     { label: 'Why Us', sectionId: 'why-us-section', hasDropdown: false },
     { label: 'Leadership', sectionId: 'founder-section', hasDropdown: false },
     { label: 'Our Office', sectionId: 'office-section', hasDropdown: false },

@@ -4,9 +4,8 @@ import { HeroSection } from './components/hero/HeroSection';
 import { TrustStrip } from './components/trust/TrustStrip';
 import { ServicesSection } from './components/services/ServicesSection';
 import { CategorySpotlights } from './components/services/CategorySpotlights';
-import { PackagesSection } from './components/packages/PackagesSection';
-import { PackageMatrix } from './components/matrix/PackageMatrix';
 import { WhyLegomark } from './components/why-us/WhyLegomark';
+import { TrustFactorSection } from './components/trust/TrustFactorSection';
 import { FounderSection } from './components/founder/FounderSection';
 import { OfficeSection } from './components/office/OfficeSection';
 import { ClientLogos } from './components/logos/ClientLogos';
@@ -332,17 +331,8 @@ export default function App() {
             </div>
           </div>
 
-          {/* Packages & Pricing Area */}
-          <PackagesSection
-            onOpenConsultation={handleOpenConsultation}
-            onOpenBuyNowPackage={handleOpenBuyNow}
-          />
-
-          {/* Package Matrix Presentation */}
-          <PackageMatrix
-            onOpenConsultation={handleOpenConsultation}
-            onOpenBuyNowPackage={handleOpenBuyNow}
-          />
+          {/* LEGOMARK Trust Factor & Associations */}
+          <TrustFactorSection />
 
           {/* Why LEGOMARK Advantage */}
           <WhyLegomark />
