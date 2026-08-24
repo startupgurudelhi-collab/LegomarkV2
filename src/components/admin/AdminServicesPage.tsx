@@ -5,6 +5,7 @@ import { ServiceCompletenessBadge } from './ServiceCompleteness';
 import { ServiceEditorModal } from './ServiceEditorModal';
 import { CategoryManagerModal } from './CategoryManagerModal';
 import { ServicePreviewModal } from './ServicePreviewModal';
+import { ServicePackagesModal } from './ServicePackagesModal';
 import {
   Building2,
   Plus,
@@ -30,6 +31,7 @@ import {
   Loader2,
   ChevronRight,
   Filter,
+  Package,
 } from 'lucide-react';
 
 export const AdminServicesPage: React.FC = () => {
@@ -50,6 +52,7 @@ export const AdminServicesPage: React.FC = () => {
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [previewService, setPreviewService] = useState<AdminService | null>(null);
+  const [packagesService, setPackagesService] = useState<AdminService | null>(null);
 
   const loadData = async () => {
     try {
@@ -559,6 +562,15 @@ export const AdminServicesPage: React.FC = () => {
 
                         <button
                           type="button"
+                          onClick={() => setPackagesService(service)}
+                          className="p-1.5 rounded-lg border border-slate-800 bg-slate-900/60 hover:bg-orange-600/20 text-slate-300 hover:text-orange-400 transition"
+                          title="Packages for this Service"
+                        >
+                          <Package className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                          type="button"
                           onClick={() => handleDuplicate(service)}
                           className="p-1.5 rounded-lg border border-slate-800 bg-slate-900/60 hover:bg-slate-800 text-slate-300 hover:text-slate-100 transition"
                           title="Duplicate Service"
@@ -668,6 +680,14 @@ export const AdminServicesPage: React.FC = () => {
                   </button>
                   <button
                     type="button"
+                    onClick={() => setPackagesService(service)}
+                    className="p-1.5 rounded-lg border border-slate-800 bg-slate-950 hover:bg-orange-600/20 text-slate-300 hover:text-orange-400 transition"
+                    title="Packages"
+                  >
+                    <Package className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => handleDuplicate(service)}
                     className="p-1.5 rounded-lg border border-slate-800 bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-slate-100 transition"
                     title="Duplicate"
@@ -723,6 +743,15 @@ export const AdminServicesPage: React.FC = () => {
           onEdit={(s) => {
             handleEdit(s);
           }}
+        />
+      )}
+
+      {/* Service Packages Modal */}
+      {packagesService && (
+        <ServicePackagesModal
+          isOpen={!!packagesService}
+          service={packagesService}
+          onClose={() => setPackagesService(null)}
         />
       )}
     </div>

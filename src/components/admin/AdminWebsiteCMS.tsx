@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { User, Building2, Briefcase, Image as ImageIcon } from 'lucide-react';
+import { User, Building2, Briefcase, Image as ImageIcon, ShieldCheck } from 'lucide-react';
 import { AdminFounderPage } from './AdminFounderPage';
 import { AdminOfficePage } from './AdminOfficePage';
 import { AdminClientLogosCMS } from './AdminClientLogosCMS';
+import { AdminAssociationLogosCMS } from './AdminAssociationLogosCMS';
 import { AdminWebsiteSettingsCMS } from './AdminWebsiteSettingsCMS';
 
 export const AdminWebsiteCMS: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'founder' | 'office' | 'logos' | 'company-logo'>('founder');
+  const [activeTab, setActiveTab] = useState<'founder' | 'office' | 'logos' | 'associations' | 'company-logo'>('founder');
 
   return (
     <div className="space-y-6">
@@ -49,6 +50,18 @@ export const AdminWebsiteCMS: React.FC = () => {
         </button>
 
         <button
+          onClick={() => setActiveTab('associations')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+            activeTab === 'associations'
+              ? 'bg-orange-600 text-white shadow-xs'
+              : 'text-slate-400 hover:text-white hover:bg-slate-800'
+          }`}
+        >
+          <ShieldCheck className="w-4 h-4" />
+          <span>Association Logos</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('company-logo')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
             activeTab === 'company-logo'
@@ -66,6 +79,7 @@ export const AdminWebsiteCMS: React.FC = () => {
         {activeTab === 'founder' && <AdminFounderPage />}
         {activeTab === 'office' && <AdminOfficePage />}
         {activeTab === 'logos' && <AdminClientLogosCMS />}
+        {activeTab === 'associations' && <AdminAssociationLogosCMS />}
         {activeTab === 'company-logo' && <AdminWebsiteSettingsCMS />}
       </div>
     </div>

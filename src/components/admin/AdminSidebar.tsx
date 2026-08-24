@@ -84,12 +84,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       icon: Briefcase,
     },
     {
-      id: 'packages',
-      label: 'Packages',
-      description: 'Pricing & Deliverables',
-      icon: Package,
-    },
-    {
       id: 'leads',
       label: 'Leads & Enquiries',
       description: 'Consultation Requests',

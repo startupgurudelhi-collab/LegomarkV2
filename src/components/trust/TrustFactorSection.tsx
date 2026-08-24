@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Star, Award, CheckCircle2, Globe, Building2 } from 'lucide-react';
-import { ClientLogoData } from '../../types/clientLogo';
-import { fetchPublicClientLogos } from '../../services/clientLogo.service';
+import { AssociationLogoData } from '../../types/associationLogo';
+import { fetchPublicAssociationLogos } from '../../services/associationLogo.service';
 
 interface TrustFactorMetric {
   id: string;
@@ -12,15 +12,15 @@ interface TrustFactorMetric {
 }
 
 export const TrustFactorSection: React.FC = () => {
-  const [associatedLogos, setAssociatedLogos] = useState<ClientLogoData[]>([]);
+  const [associatedLogos, setAssociatedLogos] = useState<AssociationLogoData[]>([]);
   const [failedLogoIds, setFailedLogoIds] = useState<Record<string, boolean>>({});
   const [isLoadingLogos, setIsLoadingLogos] = useState(true);
 
   useEffect(() => {
-    fetchPublicClientLogos()
+    fetchPublicAssociationLogos()
       .then((data) => {
         if (Array.isArray(data)) {
-          // Filter for active logos with a valid logoUrl
+          // Filter for active association logos with a valid logoUrl
           const activeLogosWithImages = data.filter(
             (item) => item.isActive && item.logoUrl && item.logoUrl.trim().length > 0
           );
