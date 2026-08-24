@@ -22,6 +22,10 @@ import { BuyNowModal } from './components/payment/BuyNowModal';
 import { DiagnosticsPanel } from './components/DiagnosticsPanel';
 import { ServiceLandingPage } from './components/services/ServiceLandingPage';
 import { AdminPortal } from './components/admin/AdminPortal';
+import { PrivacyPolicyPage } from './components/legal/PrivacyPolicyPage';
+import { TermsAndConditionsPage } from './components/legal/TermsAndConditionsPage';
+import { RefundPolicyPage } from './components/legal/RefundPolicyPage';
+import { LegalPolicyType } from './components/legal/LegalPageLayout';
 import { getServiceBySlug } from './data/websiteData';
 import { X } from 'lucide-react';
 import { useHealthReport } from './services/useHealthReport';
@@ -180,6 +184,20 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
+  const handleNavigatePolicy = useCallback((policy: LegalPolicyType) => {
+    setActiveServiceSlug(null);
+    setActiveBlogSlug(null);
+    const pathMap: Record<LegalPolicyType, string> = {
+      privacy: '/privacy-policy',
+      terms: '/terms-and-conditions',
+      refund: '/refund-policy',
+    };
+    const path = pathMap[policy];
+    setCurrentPath(path);
+    window.history.pushState({}, '', path);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   const handleNavigateSection = useCallback((sectionId: string) => {
     if (sectionId === 'resources') {
       handleNavigateResources();
@@ -236,8 +254,26 @@ export default function App() {
         services={publicServices}
       />
 
-      {/* 2. Page Content: Dedicated Article Page OR Resources Landing Page OR Service Landing Page OR Homepage */}
-      {activeBlogSlug !== null ? (
+      {/* 2. Page Content: Legal Policy Pages OR Dedicated Article Page OR Resources Landing Page OR Service Landing Page OR Homepage */}
+      {currentPath === '/privacy-policy' ? (
+        <PrivacyPolicyPage
+          onNavigatePolicy={handleNavigatePolicy}
+          onNavigateHome={handleNavigateHome}
+          onOpenConsultation={handleOpenConsultation}
+        />
+      ) : currentPath === '/terms-and-conditions' ? (
+        <TermsAndConditionsPage
+          onNavigatePolicy={handleNavigatePolicy}
+          onNavigateHome={handleNavigateHome}
+          onOpenConsultation={handleOpenConsultation}
+        />
+      ) : currentPath === '/refund-policy' ? (
+        <RefundPolicyPage
+          onNavigatePolicy={handleNavigatePolicy}
+          onNavigateHome={handleNavigateHome}
+          onOpenConsultation={handleOpenConsultation}
+        />
+      ) : activeBlogSlug !== null ? (
         <BlogDetailPage
           slug={activeBlogSlug}
           onOpenConsultation={handleOpenConsultation}

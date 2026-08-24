@@ -264,6 +264,60 @@ export const Footer: React.FC<FooterProps> = ({
                   FAQs
                 </button>
               </li>
+              <li className="pt-2 border-t border-slate-800/80">
+                <a
+                  href="/privacy-policy"
+                  onClick={(e) => {
+                    if (!e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0) {
+                      e.preventDefault();
+                      if (onNavigatePath) {
+                        onNavigatePath('/privacy-policy');
+                      } else {
+                        window.location.assign('/privacy-policy');
+                      }
+                    }
+                  }}
+                  className="hover:text-orange-400 text-slate-400 transition-colors text-left block cursor-pointer"
+                >
+                  Privacy Policy
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/terms-and-conditions"
+                  onClick={(e) => {
+                    if (!e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0) {
+                      e.preventDefault();
+                      if (onNavigatePath) {
+                        onNavigatePath('/terms-and-conditions');
+                      } else {
+                        window.location.assign('/terms-and-conditions');
+                      }
+                    }
+                  }}
+                  className="hover:text-orange-400 text-slate-400 transition-colors text-left block cursor-pointer"
+                >
+                  Terms & Conditions
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/refund-policy"
+                  onClick={(e) => {
+                    if (!e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0) {
+                      e.preventDefault();
+                      if (onNavigatePath) {
+                        onNavigatePath('/refund-policy');
+                      } else {
+                        window.location.assign('/refund-policy');
+                      }
+                    }
+                  }}
+                  className="hover:text-orange-400 text-slate-400 transition-colors text-left block cursor-pointer"
+                >
+                  Refund Policy
+                </a>
+              </li>
             </ul>
           </div>
         </div>
@@ -277,6 +331,57 @@ export const Footer: React.FC<FooterProps> = ({
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-400">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <span>&copy; {new Date().getFullYear()} LEGOMARK INDIA. All Rights Reserved.</span>
+              <span className="text-slate-600 hidden sm:inline">•</span>
+              <a
+                href="/privacy-policy"
+                onClick={(e) => {
+                  if (!e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0) {
+                    e.preventDefault();
+                    if (onNavigatePath) {
+                      onNavigatePath('/privacy-policy');
+                    } else {
+                      window.location.assign('/privacy-policy');
+                    }
+                  }
+                }}
+                className="hover:text-orange-400 text-slate-300 transition-colors cursor-pointer"
+              >
+                Privacy Policy
+              </a>
+              <span className="text-slate-600">•</span>
+              <a
+                href="/terms-and-conditions"
+                onClick={(e) => {
+                  if (!e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0) {
+                    e.preventDefault();
+                    if (onNavigatePath) {
+                      onNavigatePath('/terms-and-conditions');
+                    } else {
+                      window.location.assign('/terms-and-conditions');
+                    }
+                  }
+                }}
+                className="hover:text-orange-400 text-slate-300 transition-colors cursor-pointer"
+              >
+                Terms & Conditions
+              </a>
+              <span className="text-slate-600">•</span>
+              <a
+                href="/refund-policy"
+                onClick={(e) => {
+                  if (!e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0) {
+                    e.preventDefault();
+                    if (onNavigatePath) {
+                      onNavigatePath('/refund-policy');
+                    } else {
+                      window.location.assign('/refund-policy');
+                    }
+                  }
+                }}
+                className="hover:text-orange-400 text-slate-300 transition-colors cursor-pointer"
+              >
+                Refund Policy
+              </a>
               <span className="text-slate-600 hidden sm:inline">•</span>
               <span>
                 Designed & Developed by <span className="text-slate-300 font-medium hover:text-orange-400 transition-colors">Creattivee</span>
