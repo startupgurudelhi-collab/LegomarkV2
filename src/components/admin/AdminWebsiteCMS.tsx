@@ -6,8 +6,23 @@ import { AdminClientLogosCMS } from './AdminClientLogosCMS';
 import { AdminAssociationLogosCMS } from './AdminAssociationLogosCMS';
 import { AdminWebsiteSettingsCMS } from './AdminWebsiteSettingsCMS';
 
-export const AdminWebsiteCMS: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'founder' | 'office' | 'logos' | 'associations' | 'company-logo'>('founder');
+export interface AdminWebsiteCMSProps {
+  initialTab?: 'founder' | 'office' | 'logos' | 'associations' | 'company-logo';
+}
+
+export const AdminWebsiteCMS: React.FC<AdminWebsiteCMSProps> = ({ initialTab }) => {
+  const [activeTab, setActiveTab] = useState<'founder' | 'office' | 'logos' | 'associations' | 'company-logo'>(() => {
+    if (initialTab) return initialTab;
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      if (path.includes('association')) return 'associations';
+      if (path.includes('office')) return 'office';
+      if (path.includes('founder')) return 'founder';
+      if (path.includes('client')) return 'logos';
+      if (path.includes('logo')) return 'company-logo';
+    }
+    return 'founder';
+  });
 
   return (
     <div className="space-y-6">

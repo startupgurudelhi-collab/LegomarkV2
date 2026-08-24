@@ -56,7 +56,9 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
     if (
       currentPath.includes('/admin/website') ||
       currentPath.includes('/admin/founder') ||
-      currentPath.includes('/admin/office')
+      currentPath.includes('/admin/office') ||
+      currentPath.includes('/admin/association') ||
+      currentPath.includes('/admin/associations')
     ) {
       return 'website';
     }
@@ -182,7 +184,21 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
               onNavigateHome={onNavigateHome}
             />
           )}
-          {activeSection === 'website' && <AdminWebsiteCMS />}
+          {activeSection === 'website' && (
+            <AdminWebsiteCMS
+              initialTab={
+                currentPath.includes('association')
+                  ? 'associations'
+                  : currentPath.includes('office')
+                  ? 'office'
+                  : currentPath.includes('founder')
+                  ? 'founder'
+                  : currentPath.includes('company-logo')
+                  ? 'company-logo'
+                  : undefined
+              }
+            />
+          )}
           {activeSection === 'client-logos' && <AdminClientLogosCMS />}
           {activeSection === 'services' && <AdminServicesPage />}
           {activeSection === 'packages' && <AdminPackagesPage />}
