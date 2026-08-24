@@ -140,9 +140,18 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
               <div className="space-y-4">
                 {/* Top Card Bar */}
                 <div className="flex items-start justify-between gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-orange-50 border border-orange-100 flex items-center justify-center">
+                  <a
+                    href={`/services/${service.slug}`}
+                    onClick={(e) => {
+                      if (onNavigateService && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0) {
+                        e.preventDefault();
+                        onNavigateService(service.slug);
+                      }
+                    }}
+                    className="w-10 h-10 rounded-lg bg-orange-50 border border-orange-100 flex items-center justify-center cursor-pointer hover:bg-orange-100 transition-colors"
+                  >
                     {renderServiceIcon(service.iconName)}
-                  </div>
+                  </a>
                   {service.badge && (
                     <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-200">
                       {service.badge}

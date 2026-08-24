@@ -303,6 +303,7 @@ export default function App() {
           <HeroSection
             onOpenConsultation={handleOpenConsultation}
             onNavigateSection={handleNavigateSection}
+            onNavigateService={handleNavigateService}
           />
 
           {/* Trust & Credibility Strip */}

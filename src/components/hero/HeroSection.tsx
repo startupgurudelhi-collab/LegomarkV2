@@ -16,11 +16,13 @@ import { ServiceCategory } from '../../types/website';
 interface HeroSectionProps {
   onOpenConsultation: (serviceName?: string) => void;
   onNavigateSection: (sectionId: string) => void;
+  onNavigateService?: (slug: string) => void;
 }
 
 export const HeroSection: React.FC<HeroSectionProps> = ({
   onOpenConsultation,
   onNavigateSection,
+  onNavigateService,
 }) => {
   const [activeCategory, setActiveCategory] = useState<ServiceCategory>('company-registration');
 
@@ -198,9 +200,15 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {currentServices.map((item) => (
-                    <div
+                    <a
                       key={item.id}
-                      onClick={() => onOpenConsultation(item.title)}
+                      href={`/services/${item.slug}`}
+                      onClick={(e) => {
+                        if (onNavigateService && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0) {
+                          e.preventDefault();
+                          onNavigateService(item.slug);
+                        }
+                      }}
                       className="group p-2.5 rounded-lg bg-white border border-slate-200 hover:border-orange-500 hover:shadow-xs transition-all cursor-pointer flex flex-col justify-between"
                     >
                       <div>
@@ -212,7 +220,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                           {item.shortDesc}
                         </p>
                       </div>
-                    </div>
+                    </a>
                   ))}
                 </div>
               </div>
