@@ -28,7 +28,7 @@ export const ClientLogos: React.FC = () => {
               Trusted Enterprise Legal Advisory
             </div>
             <h2 className="text-base sm:text-lg md:text-xl font-bold text-slate-900 font-sans tracking-tight">
-              Trusted by 10,000+ Fast-Growing Indian Businesses
+              Trusted by Businesses Across India
             </h2>
           </div>
           <p className="text-xs text-slate-500 font-medium max-w-sm sm:text-right">
