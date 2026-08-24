@@ -9,6 +9,7 @@ import {
   reorderAdminPackages,
   deleteAdminPackage,
 } from '../../services/adminPackage.service';
+import { adminServiceApi } from '../../services/adminService.service';
 import { PackageEditorModal } from './PackageEditorModal';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 import {
@@ -76,22 +77,38 @@ export const ServicePackagesModal: React.FC<ServicePackagesModalProps> = ({
     }, 4000);
   };
 
-  // Load packages from database
+  // Load packages for this specific service
   const loadPackages = useCallback(async () => {
     if (!isOpen || !service) return;
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const data = await fetchAdminPackages();
-      // Ensure sorted by displayOrder ASC
-      const sorted = [...data].sort((a, b) => a.displayOrder - b.displayOrder);
-      setPackagesList(sorted);
+      // 1. Fetch fresh service details to get assignedPackages
+      const fullService = await adminServiceApi.getServiceById(service.id);
+      const assigned = fullService?.assignedPackages || [];
+      const assignedPkgIds = new Set(assigned.map((ap) => ap.packageId));
+
+      // 2. Fetch all packages to get complete package metadata and features
+      const allPackages = await fetchAdminPackages();
+
+      // 3. Filter packages strictly belonging to this service
+      let servicePkgs = allPackages.filter((pkg) => assignedPkgIds.has(pkg.id));
+
+      // Order according to service's assignedPackages displayOrder
+      const orderMap = new Map(assigned.map((ap) => [ap.packageId, Number(ap.displayOrder) || 0]));
+      servicePkgs.sort((a, b) => {
+        const orderA = orderMap.has(a.id) ? Number(orderMap.get(a.id)) : Number(a.displayOrder) || 0;
+        const orderB = orderMap.has(b.id) ? Number(orderMap.get(b.id)) : Number(b.displayOrder) || 0;
+        return orderA - orderB;
+      });
+
+      setPackagesList(servicePkgs);
     } catch (err: any) {
       if (err.statusCode === 401) {
         window.location.href = '/admin/login';
         return;
       }
-      setErrorMessage(err.message || 'Failed to load packages from database.');
+      setErrorMessage(err.message || 'Failed to load packages for this service.');
     } finally {
       setIsLoading(false);
     }
@@ -122,7 +139,7 @@ export const ServicePackagesModal: React.FC<ServicePackagesModalProps> = ({
   };
 
   // Handle Save (Create or Update)
-  const handleSavePackage = async (formData: PackageFormData, isEdit: boolean) => {
+  const handleSavePackage = async (formData: PackageFormData, isEdit: boolean, associatedServiceId?: string) => {
     setIsSaving(true);
     try {
       if (isEdit) {
@@ -130,7 +147,24 @@ export const ServicePackagesModal: React.FC<ServicePackagesModalProps> = ({
         showToast(`✓ Package "${formData.name}" updated successfully.`);
       } else {
         await createAdminPackage(formData);
-        showToast(`✓ Package "${formData.name}" created successfully.`);
+
+        // Automatically associate new package with this service
+        const targetServiceId = associatedServiceId || service?.id;
+        if (targetServiceId) {
+          try {
+            const currentService = await adminServiceApi.getServiceById(targetServiceId);
+            const currentPkgIds = (currentService.assignedPackages || []).map((p) => p.packageId);
+            if (!currentPkgIds.includes(formData.id)) {
+              await adminServiceApi.updateService(targetServiceId, {
+                packageIds: [...currentPkgIds, formData.id],
+              });
+            }
+          } catch (assocErr) {
+            console.warn('Could not auto-link package to service', assocErr);
+          }
+        }
+
+        showToast(`✓ Package "${formData.name}" created and added to ${service?.title || 'service'}.`);
       }
       await loadPackages();
     } finally {
@@ -195,8 +229,17 @@ export const ServicePackagesModal: React.FC<ServicePackagesModalProps> = ({
 
     setIsReordering(true);
     try {
+      // Persist global display orders
       await reorderAdminPackages(reorderPayload);
-      showToast('✓ Package order updated and persisted to database.');
+
+      // Also persist service-scoped packageIds order to service
+      if (service?.id) {
+        await adminServiceApi.updateService(service.id, {
+          packageIds: reorderedList.map((p) => p.id),
+        });
+      }
+
+      showToast('✓ Package order updated and persisted.');
       await loadPackages();
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to persist package ordering.');
@@ -582,7 +625,7 @@ export const ServicePackagesModal: React.FC<ServicePackagesModalProps> = ({
         {/* Modal Footer */}
         <div className="p-4 bg-slate-950/70 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
           <div>
-            Total packages in system: <strong className="text-white">{packagesList.length}</strong>
+            Packages configured for this service: <strong className="text-orange-400">{packagesList.length}</strong>
           </div>
           <button
             type="button"
@@ -600,6 +643,7 @@ export const ServicePackagesModal: React.FC<ServicePackagesModalProps> = ({
           isOpen={isEditorOpen}
           packageToEdit={packageToEdit}
           initialNextOrder={packagesList.length}
+          initialServiceId={service?.id}
           isSaving={isSaving}
           onSave={handleSavePackage}
           onClose={() => setIsEditorOpen(false)}

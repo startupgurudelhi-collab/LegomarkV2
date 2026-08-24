@@ -22,8 +22,9 @@ interface PackageEditorModalProps {
   isOpen: boolean;
   packageToEdit: AdminPackage | null; // null means "Add Package"
   initialNextOrder?: number;
+  initialServiceId?: string;
   isSaving: boolean;
-  onSave: (data: PackageFormData, isEdit: boolean) => Promise<void>;
+  onSave: (data: PackageFormData, isEdit: boolean, associatedServiceId?: string) => Promise<void>;
   onClose: () => void;
 }
 
@@ -38,6 +39,7 @@ export const PackageEditorModal: React.FC<PackageEditorModalProps> = ({
   isOpen,
   packageToEdit,
   initialNextOrder = 0,
+  initialServiceId = '',
   isSaving,
   onSave,
   onClose,
@@ -69,10 +71,13 @@ export const PackageEditorModal: React.FC<PackageEditorModalProps> = ({
   // Associated Services from database
   const [servicesList, setServicesList] = useState<AdminService[]>([]);
   const [serviceSearch, setServiceSearch] = useState('');
-  const [selectedServiceId, setSelectedServiceId] = useState<string>('');
+  const [selectedServiceId, setSelectedServiceId] = useState<string>(initialServiceId);
 
   useEffect(() => {
     if (isOpen) {
+      if (!packageToEdit && initialServiceId) {
+        setSelectedServiceId(initialServiceId);
+      }
       adminServiceApi
         .getAllServices()
         .then((res) => {
@@ -82,7 +87,7 @@ export const PackageEditorModal: React.FC<PackageEditorModalProps> = ({
           console.warn('Could not load services for package association', e);
         });
     }
-  }, [isOpen]);
+  }, [isOpen, initialServiceId, packageToEdit]);
 
   // Snapshot initial state to check for unsaved dirty changes
   const initialSnapshot = useMemo(() => {
@@ -278,7 +283,7 @@ export const PackageEditorModal: React.FC<PackageEditorModalProps> = ({
         features: sanitizedFeatures,
       };
 
-      await onSave(payloadToSave, isEdit);
+      await onSave(payloadToSave, isEdit, selectedServiceId || undefined);
       setSaveSuccess(true);
       setTimeout(() => {
         onClose();
