@@ -195,21 +195,35 @@ export function getStaticFallbackServiceBySlug(slug: string): ClientPublicServic
       timeline: r.timeline,
       iconName: r.iconName,
     })),
-    packages: s.slug === 'private-limited-company-registration'
-      ? PACKAGES.map((p, idx) => ({
-          id: p.id,
-          name: p.name,
-          tagline: p.tagline || null,
-          price: p.price,
-          priceAmount: parseFloat(p.price.replace(/[^\d.]/g, '')) || 0,
-          billingType: p.period?.includes('year') ? 'yearly' : p.period?.includes('mo') ? 'monthly' : 'one_time',
-          idealFor: p.idealFor,
-          popular: !!p.popular,
-          badge: p.badge || null,
-          features: p.features || [],
+    packages: s.packages && s.packages.length > 0
+      ? s.packages.map((pkg, idx) => ({
+          id: pkg.id,
+          name: pkg.name,
+          tagline: pkg.tagline || null,
+          price: pkg.price,
+          priceAmount: parseFloat(String(pkg.price).replace(/[^\d.]/g, '')) || 0,
+          billingType: pkg.period?.includes('year') ? 'yearly' : pkg.period?.includes('mo') ? 'monthly' : 'one_time',
+          idealFor: pkg.idealFor,
+          popular: !!pkg.popular,
+          badge: pkg.badge || null,
+          features: pkg.features || [],
           displayOrder: idx,
         }))
-      : [],
+      : s.slug === 'private-limited-company-registration'
+        ? PACKAGES.map((p, idx) => ({
+            id: p.id,
+            name: p.name,
+            tagline: p.tagline || null,
+            price: p.price,
+            priceAmount: parseFloat(p.price.replace(/[^\d.]/g, '')) || 0,
+            billingType: p.period?.includes('year') ? 'yearly' : p.period?.includes('mo') ? 'monthly' : 'one_time',
+            idealFor: p.idealFor,
+            popular: !!p.popular,
+            badge: p.badge || null,
+            features: p.features || [],
+            displayOrder: idx,
+          }))
+        : [],
     seo: {
       title: `${s.title} | Corporate Legal & Tax Advisory | LEGOMARK INDIA`,
       metaDescription: s.shortDesc,
