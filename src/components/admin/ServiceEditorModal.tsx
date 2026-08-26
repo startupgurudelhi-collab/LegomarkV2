@@ -7,11 +7,12 @@ import {
   ServiceFaqItem,
 } from '../../types/adminService';
 import { adminServiceApi } from '../../services/adminService.service';
-import { fetchAdminPackages } from '../../services/adminPackage.service';
-import { AdminPackage } from '../../types/admin';
+import { fetchAdminPackages, updateAdminPackage } from '../../services/adminPackage.service';
+import { AdminPackage, PackageFormData } from '../../types/admin';
 import { PACKAGES } from '../../data/websiteData';
 import { ServiceCompletenessBadge, calculateServiceCompleteness } from './ServiceCompleteness';
 import { RichTextEditor } from './RichTextEditor';
+import { PackageEditorModal } from './PackageEditorModal';
 import {
   X,
   Save,
@@ -41,6 +42,7 @@ import {
   Flame,
   Check,
   AlertCircle,
+  Edit2,
   Package as PackageIcon,
 } from 'lucide-react';
 
@@ -98,6 +100,11 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
   const [isDirty, setIsDirty] = useState(false);
   const [availablePackages, setAvailablePackages] = useState<AdminPackage[]>([]);
   const [loadingPackages, setLoadingPackages] = useState(false);
+
+  // Package editing state for Step 3: Packages
+  const [editingPackage, setEditingPackage] = useState<AdminPackage | null>(null);
+  const [isPackageEditorOpen, setIsPackageEditorOpen] = useState(false);
+  const [isSavingPackage, setIsSavingPackage] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState<Partial<AdminService>>({
@@ -278,6 +285,36 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
   const updateField = <K extends keyof AdminService>(field: K, value: AdminService[K]) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setIsDirty(true);
+  };
+
+  // Step 3: Package Editor Handlers
+  const handleOpenEditPackage = (pkg: AdminPackage, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setEditingPackage(pkg);
+    setIsPackageEditorOpen(true);
+  };
+
+  const handleSavePackageModal = async (
+    packageData: PackageFormData,
+    isEdit: boolean
+  ) => {
+    setIsSavingPackage(true);
+    try {
+      if (isEdit) {
+        await updateAdminPackage(packageData.id, packageData);
+      }
+      // Refresh package catalogue in this modal so updated values reflect immediately
+      const pkgs = await fetchAdminPackages();
+      if (pkgs && pkgs.length > 0) {
+        setAvailablePackages(pkgs);
+      }
+      setIsPackageEditorOpen(false);
+      setEditingPackage(null);
+    } catch (err: any) {
+      alert(err.message || 'Failed to update package.');
+    } finally {
+      setIsSavingPackage(false);
+    }
   };
 
   const handleTitleChange = (val: string) => {
@@ -814,9 +851,20 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
                             </div>
 
                             <div className="pt-3 mt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
-                              <span className="text-slate-400">
-                                {pkg.features?.length || 0} features included
-                              </span>
+                              <div className="flex items-center gap-2.5">
+                                <span className="text-slate-400">
+                                  {pkg.features?.length || 0} features included
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleOpenEditPackage(pkg, e)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 hover:border-slate-600 transition text-[11px] font-semibold cursor-pointer shadow-xs"
+                                  title={`Edit "${pkg.name}" specifications`}
+                                >
+                                  <Edit2 className="w-3 h-3 text-orange-400" />
+                                  <span>Edit Package</span>
+                                </button>
+                              </div>
                               <span
                                 className={`font-semibold ${
                                   isSelected ? 'text-orange-400' : 'text-slate-500'
@@ -1634,6 +1682,21 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
           </div>
         </form>
       </div>
+
+      {/* Step 3: Package Editor Modal */}
+      {isPackageEditorOpen && (
+        <PackageEditorModal
+          isOpen={isPackageEditorOpen}
+          packageToEdit={editingPackage}
+          initialServiceId={serviceId || formData.id || ''}
+          isSaving={isSavingPackage}
+          onSave={handleSavePackageModal}
+          onClose={() => {
+            setIsPackageEditorOpen(false);
+            setEditingPackage(null);
+          }}
+        />
+      )}
     </div>
   );
 };
