@@ -664,15 +664,15 @@ export const PackageEditorModal: React.FC<PackageEditorModalProps> = ({
             </div>
           </div>
 
-          {/* Section 3: Deliverables / Feature Items */}
+          {/* Section 3: Included Deliverables */}
           <div className="space-y-4 pt-4 border-t border-slate-800">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-orange-400">
-                  3. Deliverable Features ({formData.features.length})
+                  3. Included Deliverables ({formData.features.length})
                 </h3>
                 <p className="text-[11px] text-slate-400">
-                  Add, edit, reorder, or remove bulleted deliverable features for this package.
+                  Add, edit, reorder, or remove bulleted included deliverables for this package.
                 </p>
               </div>
               <button
@@ -682,7 +682,7 @@ export const PackageEditorModal: React.FC<PackageEditorModalProps> = ({
                 className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-orange-600/20 text-orange-400 border border-orange-500/30 hover:bg-orange-600/30 transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Add Feature</span>
+                <span>Add Deliverable</span>
               </button>
             </div>
 
@@ -690,7 +690,7 @@ export const PackageEditorModal: React.FC<PackageEditorModalProps> = ({
               <p className="text-[11px] text-rose-400">{fieldErrors.features}</p>
             )}
 
-            {/* Feature Rows */}
+            {/* Feature / Deliverable Rows */}
             <div className="space-y-2">
               {formData.features.map((feature, idx) => (
                 <div
@@ -706,7 +706,7 @@ export const PackageEditorModal: React.FC<PackageEditorModalProps> = ({
                     disabled={isSaving}
                     value={feature.featureText}
                     onChange={(e) => handleUpdateFeatureText(idx, e.target.value)}
-                    placeholder="Enter feature description..."
+                    placeholder="Enter included deliverable..."
                     className="flex-1 px-2.5 py-1.5 text-xs bg-slate-900 border border-slate-700/60 rounded-md text-slate-100 placeholder-slate-600 focus:outline-hidden focus:ring-1 focus:ring-orange-500"
                   />
 
@@ -717,7 +717,7 @@ export const PackageEditorModal: React.FC<PackageEditorModalProps> = ({
                       onClick={() => handleMoveFeature(idx, 'up')}
                       disabled={idx === 0 || isSaving}
                       className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-20 disabled:hover:bg-transparent"
-                      title="Move feature up"
+                      title="Move deliverable up"
                     >
                       <ArrowUp className="w-3.5 h-3.5" />
                     </button>
@@ -726,7 +726,7 @@ export const PackageEditorModal: React.FC<PackageEditorModalProps> = ({
                       onClick={() => handleMoveFeature(idx, 'down')}
                       disabled={idx === formData.features.length - 1 || isSaving}
                       className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-20 disabled:hover:bg-transparent"
-                      title="Move feature down"
+                      title="Move deliverable down"
                     >
                       <ArrowDown className="w-3.5 h-3.5" />
                     </button>
@@ -735,7 +735,7 @@ export const PackageEditorModal: React.FC<PackageEditorModalProps> = ({
                       onClick={() => handleRemoveFeature(idx)}
                       disabled={isSaving}
                       className="p-1 rounded-md text-slate-400 hover:text-rose-400 hover:bg-rose-500/10"
-                      title="Delete feature"
+                      title="Delete deliverable"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -745,7 +745,7 @@ export const PackageEditorModal: React.FC<PackageEditorModalProps> = ({
 
               {formData.features.length === 0 && (
                 <div className="py-6 text-center border border-dashed border-slate-800 rounded-lg text-xs text-slate-500">
-                  No features added yet. Click &ldquo;+ Add Feature&rdquo; to begin.
+                  No deliverables added yet. Click &ldquo;+ Add Deliverable&rdquo; to begin.
                 </div>
               )}
             </div>

@@ -195,19 +195,21 @@ export function getStaticFallbackServiceBySlug(slug: string): ClientPublicServic
       timeline: r.timeline,
       iconName: r.iconName,
     })),
-    packages: PACKAGES.map((p, idx) => ({
-      id: p.id,
-      name: p.name,
-      tagline: p.tagline || null,
-      price: p.price,
-      priceAmount: parseFloat(p.price.replace(/[^\d.]/g, '')) || 0,
-      billingType: p.period?.includes('year') ? 'yearly' : p.period?.includes('mo') ? 'monthly' : 'one_time',
-      idealFor: p.idealFor,
-      popular: !!p.popular,
-      badge: p.badge || null,
-      features: p.features || [],
-      displayOrder: idx,
-    })),
+    packages: s.slug === 'private-limited-company-registration'
+      ? PACKAGES.map((p, idx) => ({
+          id: p.id,
+          name: p.name,
+          tagline: p.tagline || null,
+          price: p.price,
+          priceAmount: parseFloat(p.price.replace(/[^\d.]/g, '')) || 0,
+          billingType: p.period?.includes('year') ? 'yearly' : p.period?.includes('mo') ? 'monthly' : 'one_time',
+          idealFor: p.idealFor,
+          popular: !!p.popular,
+          badge: p.badge || null,
+          features: p.features || [],
+          displayOrder: idx,
+        }))
+      : [],
     seo: {
       title: `${s.title} | Corporate Legal & Tax Advisory | LEGOMARK INDIA`,
       metaDescription: s.shortDesc,
@@ -349,6 +351,21 @@ export function mapSummaryToServiceItem(summary: ClientPublicServiceSummary): Se
  */
 export function mapDetailToServiceItem(detail: ClientPublicServiceDetail): ServiceItem {
   const fallback = getServiceBySlug(detail.slug);
+  const mappedPackages = Array.isArray(detail.packages)
+    ? detail.packages.map((pkg) => ({
+        id: pkg.id,
+        name: pkg.name,
+        tagline: pkg.tagline || '',
+        price: pkg.price,
+        period: pkg.billingType === 'yearly' ? 'year' : pkg.billingType === 'monthly' ? 'month' : undefined,
+        popular: !!pkg.popular,
+        idealFor: pkg.idealFor,
+        features: pkg.features || [],
+        ctaLabel: 'Buy Package',
+        badge: pkg.badge || undefined,
+      }))
+    : (fallback?.packages || []);
+
   return {
     id: detail.id,
     slug: detail.slug,
@@ -383,35 +400,9 @@ export function mapDetailToServiceItem(detail: ClientPublicServiceDetail): Servi
             answer: f.answer,
           }))
         : (fallback?.landingPage?.faqs || []),
-      packages: detail.packages && detail.packages.length > 0
-        ? detail.packages.map((pkg) => ({
-            id: pkg.id,
-            name: pkg.name,
-            tagline: pkg.tagline || '',
-            price: pkg.price,
-            period: pkg.billingType === 'yearly' ? 'year' : pkg.billingType === 'monthly' ? 'month' : undefined,
-            popular: !!pkg.popular,
-            idealFor: pkg.idealFor,
-            features: pkg.features || [],
-            ctaLabel: 'Buy Package',
-            badge: pkg.badge || undefined,
-          }))
-        : fallback?.landingPage?.packages,
+      packages: mappedPackages,
     },
-    packages: detail.packages && detail.packages.length > 0
-      ? detail.packages.map((pkg) => ({
-          id: pkg.id,
-          name: pkg.name,
-          tagline: pkg.tagline || '',
-          price: pkg.price,
-          period: pkg.billingType === 'yearly' ? 'year' : pkg.billingType === 'monthly' ? 'month' : undefined,
-          popular: !!pkg.popular,
-          idealFor: pkg.idealFor,
-          features: pkg.features || [],
-          ctaLabel: 'Buy Package',
-          badge: pkg.badge || undefined,
-        }))
-      : fallback?.packages,
+    packages: mappedPackages,
   };
 }
 

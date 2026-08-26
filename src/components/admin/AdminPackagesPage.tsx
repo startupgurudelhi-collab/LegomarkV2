@@ -403,7 +403,7 @@ export const AdminPackagesPage: React.FC = () => {
                     <th className="py-3.5 px-4">Package</th>
                     <th className="py-3.5 px-4">Price</th>
                     <th className="py-3.5 px-4">Billing</th>
-                    <th className="py-3.5 px-4">Features</th>
+                    <th className="py-3.5 px-4">Included Deliverables</th>
                     <th className="py-3.5 px-4">Status</th>
                     <th className="py-3.5 px-4 text-right">Actions</th>
                   </tr>
@@ -488,11 +488,11 @@ export const AdminPackagesPage: React.FC = () => {
                           </span>
                         </td>
 
-                        {/* Features Count */}
+                        {/* Deliverables Count */}
                         <td className="py-4 px-4">
                           <div className="flex items-center space-x-1.5">
                             <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-slate-800 text-slate-300">
-                              {pkg.features?.length || 0} features
+                              {pkg.features?.length || 0} deliverables
                             </span>
                           </div>
                         </td>

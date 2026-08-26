@@ -853,7 +853,7 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
                             <div className="pt-3 mt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
                               <div className="flex items-center gap-2.5">
                                 <span className="text-slate-400">
-                                  {pkg.features?.length || 0} features included
+                                  {pkg.features?.length || 0} deliverables included
                                 </span>
                                 <button
                                   type="button"
