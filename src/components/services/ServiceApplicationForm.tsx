@@ -10,7 +10,6 @@ import {
   MapPin,
   FileText,
   Lock,
-  ArrowRight,
   Sparkles,
   AlertCircle,
   Layers,
@@ -180,11 +179,9 @@ export const ServiceApplicationForm: React.FC<ServiceApplicationFormProps> = ({
             {onOpenBuyNow && (
               <button
                 type="button"
-                onClick={handleCheckoutClick}
                 className="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-xs cursor-pointer"
               >
                 <span>START YOUR REGISTRATION</span>
-                <ArrowRight className="w-4 h-4" />
               </button>
             )}
             <button
@@ -342,11 +339,9 @@ export const ServiceApplicationForm: React.FC<ServiceApplicationFormProps> = ({
                 <span className="text-slate-500 font-medium">Ready to start?</span>
                 <button
                   type="button"
-                  onClick={handleCheckoutClick}
-                  className="font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1 hover:underline cursor-pointer"
+                  className="font-bold text-orange-600 flex items-center gap-1 cursor-pointer"
                 >
                   <span>START YOUR REGISTRATION</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             )}

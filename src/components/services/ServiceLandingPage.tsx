@@ -266,7 +266,6 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
                   className="px-6 py-3.5 bg-[#0B132B] hover:bg-slate-800 text-white text-xs sm:text-sm font-bold rounded-lg transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
                 >
                   <span>START YOUR REGISTRATION</span>
-                  <ArrowRight className="w-4 h-4 text-orange-400" />
                 </button>
                 <button
                   type="button"
