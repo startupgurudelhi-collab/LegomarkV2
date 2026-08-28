@@ -261,16 +261,15 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
 
               {/* Action Buttons */}
               <div className="flex flex-wrap items-center gap-3.5 pt-1">
-                {onOpenBuyNow && (
-                  <button
-                    onClick={handleProceedBuyNow}
-                    className="px-6 py-3.5 bg-[#0B132B] hover:bg-slate-800 text-white text-xs sm:text-sm font-bold rounded-lg transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
-                  >
-                    <span>START YOUR REGISTRATION</span>
-                    <ArrowRight className="w-4 h-4 text-orange-400" />
-                  </button>
-                )}
                 <button
+                  type="button"
+                  className="px-6 py-3.5 bg-[#0B132B] hover:bg-slate-800 text-white text-xs sm:text-sm font-bold rounded-lg transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
+                >
+                  <span>START YOUR REGISTRATION</span>
+                  <ArrowRight className="w-4 h-4 text-orange-400" />
+                </button>
+                <button
+                  type="button"
                   onClick={handleConsultation}
                   className="px-5 py-3.5 bg-white hover:bg-slate-50 text-slate-800 text-xs sm:text-sm font-bold rounded-lg border border-slate-300 transition-colors flex items-center gap-2 cursor-pointer"
                 >
