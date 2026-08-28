@@ -419,6 +419,15 @@ export class AdminServiceService {
       aliases: data.aliases || [],
       seoTitle: data.seoTitle || `${data.title} | LEGOMARK INDIA`,
       metaDescription: data.metaDescription || data.shortDesc,
+      features: data.features,
+      highlights: data.highlights,
+      benefits: data.benefits,
+      deliverables: data.deliverables,
+      documents: data.documents,
+      processSteps: data.processSteps,
+      faqs: data.faqs,
+      relatedServiceIds: data.relatedServiceIds,
+      packageIds: data.packageIds,
     };
 
     logger.info(`Creating service: ${data.id} (slug: ${data.slug})`, 'AdminServiceService');
@@ -494,6 +503,15 @@ export class AdminServiceService {
       aliases: data.aliases !== undefined ? data.aliases : [],
       seoTitle: data.seoTitle !== undefined ? data.seoTitle : `${data.title} | LEGOMARK INDIA`,
       metaDescription: data.metaDescription !== undefined ? data.metaDescription : data.shortDesc,
+      features: data.features,
+      highlights: data.highlights,
+      benefits: data.benefits,
+      deliverables: data.deliverables,
+      documents: data.documents,
+      processSteps: data.processSteps,
+      faqs: data.faqs,
+      relatedServiceIds: data.relatedServiceIds,
+      packageIds: data.packageIds,
     };
 
     logger.info(`Updating service metadata: ${id}`, 'AdminServiceService');
