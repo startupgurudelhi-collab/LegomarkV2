@@ -913,15 +913,15 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
                     </div>
                   </div>
 
-                  {/* 1. Key Value Highlights (Repeatable with Title, Description, Icon, Reorder, Delete) */}
+                  {/* 1. Key Value Highlights / Service Snapshot Highlights (Repeatable with Icon, Title, Description, Reorder, Delete) */}
                   <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl space-y-3">
                     <div className="flex items-center justify-between">
                       <div>
                         <span className="text-xs font-bold text-slate-200">
-                          1. Key Value Highlights ({formData.highlights?.length || 0})
+                          1. Service Snapshot Highlights ({formData.highlights?.length || 0})
                         </span>
                         <p className="text-[11px] text-slate-400">
-                          High-impact strategic value cards displayed prominently on the service landing page.
+                          High-impact strategic value cards displayed in the Service Snapshot section (Recommended: up to 4 cards).
                         </p>
                       </div>
                       <button
@@ -946,7 +946,7 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
 
                     {(!formData.highlights || formData.highlights.length === 0) ? (
                       <div className="p-4 text-center bg-slate-900/40 border border-dashed border-slate-800 rounded-lg text-slate-500 text-xs">
-                        No highlight cards added yet. Click &ldquo;Add Highlight Card&rdquo; above.
+                        No custom highlight cards added. (The service will display professional default highlights).
                       </div>
                     ) : (
                       <div className="space-y-2.5">
@@ -1006,7 +1006,30 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                              <select
+                                value={hl.iconName || 'ShieldCheck'}
+                                onChange={(e) => {
+                                  const list = [...(formData.highlights || [])];
+                                  list[idx] = { ...list[idx], iconName: e.target.value };
+                                  updateField('highlights', list);
+                                }}
+                                className="sm:col-span-3 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-hidden focus:border-orange-500"
+                              >
+                                <option value="ShieldCheck">ShieldCheck</option>
+                                <option value="FileCheck2">FileCheck2</option>
+                                <option value="Sparkles">Sparkles</option>
+                                <option value="Zap">Zap</option>
+                                <option value="Lock">Lock</option>
+                                <option value="Scale">Scale</option>
+                                <option value="Building2">Building2</option>
+                                <option value="Award">Award</option>
+                                <option value="Users">Users</option>
+                                <option value="Briefcase">Briefcase</option>
+                                <option value="Layers">Layers</option>
+                                <option value="FileText">FileText</option>
+                                <option value="Clock">Clock</option>
+                              </select>
                               <input
                                 type="text"
                                 value={hl.title}
@@ -1016,8 +1039,9 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
                                   updateField('highlights', list);
                                 }}
                                 placeholder="Highlight Title (e.g. Zero MCA Rejections)"
-                                className="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 placeholder-slate-600 focus:outline-hidden focus:border-orange-500"
-                              />
+                                className="sm:col-span-4 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 placeholder-slate-600 focus:outline-hidden focus:border-orange-500"
+                              >
+                              </input>
                               <input
                                 type="text"
                                 value={hl.description}
@@ -1027,7 +1051,7 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
                                   updateField('highlights', list);
                                 }}
                                 placeholder="Highlight Description (e.g. 100% compliant drafting)"
-                                className="sm:col-span-2 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 placeholder-slate-600 focus:outline-hidden focus:border-orange-500"
+                                className="sm:col-span-5 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 placeholder-slate-600 focus:outline-hidden focus:border-orange-500"
                               />
                             </div>
                           </div>

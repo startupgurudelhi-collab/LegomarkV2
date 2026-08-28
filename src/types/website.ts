@@ -69,10 +69,19 @@ export interface ServiceFAQ {
   answer: string;
 }
 
+export interface ServiceHighlight {
+  id?: string;
+  title: string;
+  description: string;
+  iconName?: string;
+  displayOrder?: number;
+}
+
 export interface ServiceLandingPageData {
   headline?: string;
   description?: string;
   overview: string;
+  highlights?: ServiceHighlight[];
   benefits: string[];
   deliverables: string[];
   documents: string[];

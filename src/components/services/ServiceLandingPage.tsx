@@ -40,6 +40,7 @@ import { TestimonialsSection } from '../testimonials/TestimonialsSection';
 import { FounderSection } from '../founder/FounderSection';
 import { ServiceApplicationForm } from './ServiceApplicationForm';
 import { ServicePackages } from './ServicePackages';
+import { ServiceSnapshot } from './ServiceSnapshot';
 
 interface ServiceLandingPageProps {
   service?: ServiceItem;
@@ -255,51 +256,8 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
                 </p>
               </div>
 
-              {/* Key Value Badges */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                <div className="flex items-start gap-2.5 p-3 rounded-lg bg-slate-50 border border-slate-200">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                  <div>
-                    <div className="text-xs font-bold text-slate-900">CA / CS & Legal Verification</div>
-                    <div className="text-[11px] text-slate-600">Processed by practicing professionals</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2.5 p-3 rounded-lg bg-slate-50 border border-slate-200">
-                  <FileCheck2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                  <div>
-                    <div className="text-xs font-bold text-slate-900">Official Portal Processing</div>
-                    <div className="text-[11px] text-slate-600">Direct MCA / GST / IP India filings</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Service Inclusions Checklist */}
-              <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200 space-y-2.5">
-                <div className="text-xs font-bold uppercase tracking-wider text-[#0B132B] flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-orange-600" />
-                    <span>
-                      {selectedPackage ? `Included in ${selectedPackage.name}` : 'Included in this Service'}
-                    </span>
-                  </span>
-                  <span className="text-[11px] font-extrabold text-orange-600 bg-white px-2 py-0.5 rounded border border-orange-200">
-                    {selectedPackage ? selectedPackage.price : `From ${service.startingPrice}`}
-                  </span>
-                </div>
-                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-700">
-                  {(selectedPackage?.features || service.features).map((feat, idx) => (
-                    <li key={idx} className="flex items-start gap-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                      <span>{feat}</span>
-                    </li>
-                  ))}
-                </ul>
-                {service.governmentFeeNote && (
-                  <p className="text-[11px] text-slate-500 italic pt-1 border-t border-slate-200/60">
-                    * {service.governmentFeeNote}
-                  </p>
-                )}
-              </div>
+              {/* Reusable Service Snapshot & Core Inclusions (Independent of Package Selection) */}
+              <ServiceSnapshot service={service} />
 
               {/* Action Buttons */}
               <div className="flex flex-wrap items-center gap-3.5 pt-1">
@@ -406,7 +364,7 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
               Every deliverable is verified by our corporate secretarial and legal drafting team.
             </p>
             <ul className="space-y-3 pt-2">
-              {(selectedPackage?.features || landingData?.deliverables || service.features).map((item, idx) => (
+              {(landingData?.deliverables || service.features).map((item, idx) => (
                 <li key={idx} className="flex items-start gap-3 text-xs sm:text-sm text-slate-700">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                   <span>{item}</span>

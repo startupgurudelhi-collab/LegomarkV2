@@ -398,6 +398,15 @@ export function mapDetailToServiceItem(detail: ClientPublicServiceDetail): Servi
     landingPage: {
       headline: detail.headline || fallback?.landingPage?.headline,
       overview: detail.overview || fallback?.landingPage?.overview || detail.fullDesc,
+      highlights: detail.highlights && detail.highlights.length > 0
+        ? detail.highlights.map((h) => ({
+            id: h.id,
+            title: h.title,
+            description: h.description,
+            iconName: h.iconName,
+            displayOrder: h.displayOrder,
+          }))
+        : (fallback?.landingPage?.highlights || []),
       benefits: detail.benefits && detail.benefits.length > 0 ? detail.benefits : (fallback?.landingPage?.benefits || []),
       deliverables: detail.deliverables && detail.deliverables.length > 0 ? detail.deliverables : (fallback?.landingPage?.deliverables || []),
       documents: detail.documents && detail.documents.length > 0 ? detail.documents : (fallback?.landingPage?.documents || []),
