@@ -28,6 +28,7 @@ import { LegalPolicyType } from './components/legal/LegalPageLayout';
 import { getServiceBySlug } from './data/websiteData';
 import { X } from 'lucide-react';
 import { useHealthReport } from './services/useHealthReport';
+import { openConsultationBooking } from './utils/consultation';
 import { usePublicServicesData, usePublicServiceDetail } from './services/publicService.service';
 import { BuyNowItem, PackageTier, ServiceItem } from './types/website';
 
@@ -105,10 +106,7 @@ export default function App() {
   }, []);
 
   const handleOpenConsultation = (serviceName?: string) => {
-    if (serviceName) {
-      setConsultationService(serviceName);
-    }
-    setIsConsultationOpen(true);
+    openConsultationBooking(serviceName);
   };
 
   const handleOpenBuyNow = useCallback(

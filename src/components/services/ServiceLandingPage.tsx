@@ -266,9 +266,7 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
                     onClick={handleProceedBuyNow}
                     className="px-6 py-3.5 bg-[#0B132B] hover:bg-slate-800 text-white text-xs sm:text-sm font-bold rounded-lg transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
                   >
-                    <span>
-                      Instant Checkout &mdash; {selectedPackage ? selectedPackage.price : service.startingPrice}
-                    </span>
+                    <span>START YOUR REGISTRATION</span>
                     <ArrowRight className="w-4 h-4 text-orange-400" />
                   </button>
                 )}
@@ -277,7 +275,7 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
                   className="px-5 py-3.5 bg-white hover:bg-slate-50 text-slate-800 text-xs sm:text-sm font-bold rounded-lg border border-slate-300 transition-colors flex items-center gap-2 cursor-pointer"
                 >
                   <PhoneCall className="w-4 h-4 text-orange-600" />
-                  <span>Request Phone Consultation</span>
+                  <span>REQUEST PHONE CALL</span>
                 </button>
               </div>
             </div>
@@ -581,9 +579,7 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
               onClick={handleProceedBuyNow}
               className="px-6 py-3.5 bg-orange-600 hover:bg-orange-700 text-white text-xs sm:text-sm font-bold rounded-lg transition-colors flex items-center gap-2 shadow-sm cursor-pointer"
             >
-              <span>
-                Instant Checkout &mdash; {selectedPackage ? selectedPackage.price : service.startingPrice}
-              </span>
+              <span>START YOUR REGISTRATION</span>
               <ArrowRight className="w-4 h-4" />
             </button>
             <button
@@ -591,7 +587,7 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
               className="px-5 py-3.5 bg-white hover:bg-slate-100 text-slate-900 text-xs sm:text-sm font-bold rounded-lg transition-colors flex items-center gap-2 cursor-pointer shadow-xs"
             >
               <PhoneCall className="w-4 h-4 text-orange-600" />
-              <span>Request Consultation</span>
+              <span>REQUEST PHONE CALL</span>
             </button>
             <button
               onClick={onNavigateHome}

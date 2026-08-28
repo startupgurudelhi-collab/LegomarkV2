@@ -162,7 +162,7 @@ export const ServiceApplicationForm: React.FC<ServiceApplicationFormProps> = ({
               <div className="flex items-center justify-between text-slate-600">
                 <span>Selected Package:</span>
                 <span className="font-bold text-orange-600">
-                  {activePackageName} ({activePriceDisplay})
+                  {activePackageName}
                 </span>
               </div>
             )}
@@ -183,7 +183,7 @@ export const ServiceApplicationForm: React.FC<ServiceApplicationFormProps> = ({
                 onClick={handleCheckoutClick}
                 className="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-xs cursor-pointer"
               >
-                <span>Proceed to Instant Checkout &mdash; {activePriceDisplay}</span>
+                <span>START YOUR REGISTRATION</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             )}
@@ -331,9 +331,7 @@ export const ServiceApplicationForm: React.FC<ServiceApplicationFormProps> = ({
               ) : (
                 <>
                   <Send className="w-4 h-4" />
-                  <span>
-                    Submit Application {activePackageName ? `(${activePackageName})` : ''}
-                  </span>
+                  <span>SUBMIT APPLICATION</span>
                 </>
               )}
             </button>
@@ -347,7 +345,7 @@ export const ServiceApplicationForm: React.FC<ServiceApplicationFormProps> = ({
                   onClick={handleCheckoutClick}
                   className="font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1 hover:underline cursor-pointer"
                 >
-                  <span>Instant Checkout &mdash; {activePriceDisplay}</span>
+                  <span>START YOUR REGISTRATION</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
