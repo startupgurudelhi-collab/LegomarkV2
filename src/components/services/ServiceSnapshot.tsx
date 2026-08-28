@@ -94,14 +94,9 @@ export const ServiceSnapshot: React.FC<ServiceSnapshotProps> = ({ service, class
       className={`p-4 sm:p-5 rounded-xl bg-slate-50/90 border border-slate-200 shadow-xs space-y-4 ${className}`}
     >
       {/* Section Header */}
-      <div className="flex items-center justify-between border-b border-slate-200/70 pb-2.5">
-        <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#0B132B]">
-          <Sparkles className="w-3.5 h-3.5 text-orange-600" />
-          <span>Service Snapshot & Core Inclusions</span>
-        </div>
-        <span className="text-[11px] font-extrabold text-orange-600 bg-white px-2 py-0.5 rounded border border-orange-200 shadow-2xs">
-          Starting {service.startingPrice}
-        </span>
+      <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#0B132B] border-b border-slate-200/70 pb-2.5">
+        <Sparkles className="w-3.5 h-3.5 text-orange-600" />
+        <span>Service Snapshot & Core Inclusions</span>
       </div>
 
       {/* 1. Highlight Cards (Max 4, compact layout) */}
