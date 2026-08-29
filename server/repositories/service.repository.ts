@@ -11,6 +11,7 @@ import {
   serviceFaqs,
   serviceRelatedServices,
   servicePackages,
+  servicePackageFeatures,
   packages as packagesTable,
   packageFeatures as packageFeaturesTable,
 } from '../../db/schema/index';
@@ -535,15 +536,25 @@ export class ServiceRepository {
           }),
       ]);
 
-      // Resolve package features
+      // Resolve package features and service-scoped configuration
       let resolvedPackages: PublicServicePackage[] = [];
       if (assignedPkgRows && assignedPkgRows.length > 0) {
         const pkgIds = assignedPkgRows.map((r) => r.pkg.id);
-        const pkgFeatRows = await db
-          .select()
-          .from(packageFeaturesTable)
-          .where(inArray(packageFeaturesTable.packageId, pkgIds))
-          .orderBy(asc(packageFeaturesTable.displayOrder));
+        const servicePkgIds = assignedPkgRows.map((r) => r.servicePackage.id);
+
+        const [pkgFeatRows, servicePkgFeatRows] = await Promise.all([
+          db
+            .select()
+            .from(packageFeaturesTable)
+            .where(inArray(packageFeaturesTable.packageId, pkgIds))
+            .orderBy(asc(packageFeaturesTable.displayOrder)),
+          db
+            .select()
+            .from(servicePackageFeatures)
+            .where(inArray(servicePackageFeatures.servicePackageId, servicePkgIds))
+            .orderBy(asc(servicePackageFeatures.displayOrder))
+            .catch(() => []),
+        ]);
 
         const featMap = new Map<string, string[]>();
         for (const f of pkgFeatRows) {
@@ -552,20 +563,50 @@ export class ServiceRepository {
           featMap.set(f.packageId, list);
         }
 
-        resolvedPackages = assignedPkgRows.map((r) => ({
-          id: r.pkg.id,
-          name: r.pkg.name,
-          tagline: r.pkg.tagline,
-          price: r.pkg.priceDisplayOverride || `₹${Number(r.pkg.priceAmount).toLocaleString('en-IN')}`,
-          priceAmount: Number(r.pkg.priceAmount) || 0,
-          currency: r.pkg.currency,
-          billingType: r.pkg.billingType,
-          idealFor: r.pkg.idealFor,
-          popular: r.pkg.popular,
-          badge: r.pkg.badge,
-          features: featMap.get(r.pkg.id) || [],
-          displayOrder: r.servicePackage.displayOrder,
-        }));
+        const servicePkgFeatMap = new Map<string, string[]>();
+        for (const spf of servicePkgFeatRows) {
+          const list = servicePkgFeatMap.get(spf.servicePackageId) || [];
+          list.push(spf.featureText);
+          servicePkgFeatMap.set(spf.servicePackageId, list);
+        }
+
+        resolvedPackages = assignedPkgRows.map((r) => {
+          const sp = r.servicePackage;
+          const pkg = r.pkg;
+
+          // Resolve features: prefer service-scoped features if present, otherwise fallback to template features
+          const serviceFeaturesList = servicePkgFeatMap.get(sp.id);
+          const finalFeatures = serviceFeaturesList && serviceFeaturesList.length > 0
+            ? serviceFeaturesList
+            : (featMap.get(pkg.id) || []);
+
+          // Resolve price amount
+          const finalPriceAmount = sp.priceAmount !== null && sp.priceAmount !== undefined
+            ? Number(sp.priceAmount)
+            : (Number(pkg.priceAmount) || 0);
+
+          // Resolve display price
+          const finalPriceDisplay = sp.priceDisplayOverride || (
+            sp.priceAmount !== null && sp.priceAmount !== undefined
+              ? `₹${Number(sp.priceAmount).toLocaleString('en-IN')}`
+              : (pkg.priceDisplayOverride || `₹${Number(pkg.priceAmount).toLocaleString('en-IN')}`)
+          );
+
+          return {
+            id: pkg.id,
+            name: sp.customName || pkg.name,
+            tagline: sp.customTagline !== null && sp.customTagline !== undefined ? sp.customTagline : pkg.tagline,
+            price: finalPriceDisplay,
+            priceAmount: finalPriceAmount,
+            currency: sp.currency || pkg.currency || 'INR',
+            billingType: sp.billingType || pkg.billingType || 'one_time',
+            idealFor: sp.customIdealFor !== null && sp.customIdealFor !== undefined ? sp.customIdealFor : pkg.idealFor,
+            popular: sp.popular !== null && sp.popular !== undefined ? Boolean(sp.popular) : Boolean(pkg.popular),
+            badge: sp.customBadge !== null && sp.customBadge !== undefined ? sp.customBadge : pkg.badge,
+            features: finalFeatures,
+            displayOrder: sp.displayOrder,
+          };
+        });
       } else {
         // If no packages are assigned to this service, return empty list (do not auto-inject all packages)
         resolvedPackages = [];

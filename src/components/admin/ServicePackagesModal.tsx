@@ -8,6 +8,12 @@ import {
   toggleAdminPackageStatus,
   reorderAdminPackages,
   deleteAdminPackage,
+  fetchAdminServicePackages,
+  updateAdminServicePackage,
+  createOrAssignAdminServicePackage,
+  toggleAdminServicePackageStatus,
+  reorderAdminServicePackages,
+  deleteAdminServicePackage,
 } from '../../services/adminPackage.service';
 import { adminServiceApi } from '../../services/adminService.service';
 import { PackageEditorModal } from './PackageEditorModal';
@@ -83,25 +89,7 @@ export const ServicePackagesModal: React.FC<ServicePackagesModalProps> = ({
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      // 1. Fetch fresh service details to get assignedPackages
-      const fullService = await adminServiceApi.getServiceById(service.id);
-      const assigned = fullService?.assignedPackages || [];
-      const assignedPkgIds = new Set(assigned.map((ap) => ap.packageId));
-
-      // 2. Fetch all packages to get complete package metadata and features
-      const allPackages = await fetchAdminPackages();
-
-      // 3. Filter packages strictly belonging to this service
-      let servicePkgs = allPackages.filter((pkg) => assignedPkgIds.has(pkg.id));
-
-      // Order according to service's assignedPackages displayOrder
-      const orderMap = new Map(assigned.map((ap) => [ap.packageId, Number(ap.displayOrder) || 0]));
-      servicePkgs.sort((a, b) => {
-        const orderA = orderMap.has(a.id) ? Number(orderMap.get(a.id)) : Number(a.displayOrder) || 0;
-        const orderB = orderMap.has(b.id) ? Number(orderMap.get(b.id)) : Number(b.displayOrder) || 0;
-        return orderA - orderB;
-      });
-
+      const servicePkgs = await fetchAdminServicePackages(service.id);
       setPackagesList(servicePkgs);
     } catch (err: any) {
       if (err.statusCode === 401) {
@@ -139,32 +127,16 @@ export const ServicePackagesModal: React.FC<ServicePackagesModalProps> = ({
   };
 
   // Handle Save (Create or Update)
-  const handleSavePackage = async (formData: PackageFormData, isEdit: boolean, associatedServiceId?: string) => {
+  const handleSavePackage = async (formData: PackageFormData, isEdit: boolean) => {
+    if (!service) return;
     setIsSaving(true);
     try {
       if (isEdit) {
-        await updateAdminPackage(formData.id, formData);
-        showToast(`✓ Package "${formData.name}" updated successfully.`);
+        await updateAdminServicePackage(service.id, formData.id, formData);
+        showToast(`✓ Package "${formData.name}" updated for ${service.title}.`);
       } else {
-        await createAdminPackage(formData);
-
-        // Automatically associate new package with this service
-        const targetServiceId = associatedServiceId || service?.id;
-        if (targetServiceId) {
-          try {
-            const currentService = await adminServiceApi.getServiceById(targetServiceId);
-            const currentPkgIds = (currentService.assignedPackages || []).map((p) => p.packageId);
-            if (!currentPkgIds.includes(formData.id)) {
-              await adminServiceApi.updateService(targetServiceId, {
-                packageIds: [...currentPkgIds, formData.id],
-              });
-            }
-          } catch (assocErr) {
-            console.warn('Could not auto-link package to service', assocErr);
-          }
-        }
-
-        showToast(`✓ Package "${formData.name}" created and added to ${service?.title || 'service'}.`);
+        await createOrAssignAdminServicePackage(service.id, formData);
+        showToast(`✓ Package "${formData.name}" added to ${service.title}.`);
       }
       await loadPackages();
     } finally {
@@ -174,12 +146,13 @@ export const ServicePackagesModal: React.FC<ServicePackagesModalProps> = ({
 
   // Handle Status Toggle (Active / Inactive)
   const handleToggleStatus = async (pkg: AdminPackage) => {
+    if (!service) return;
     setTogglingId(pkg.id);
     const nextStatus = !pkg.isActive;
     try {
-      await toggleAdminPackageStatus(pkg.id, nextStatus);
+      await toggleAdminServicePackageStatus(service.id, pkg.id, nextStatus);
       showToast(
-        `✓ Package "${pkg.name}" is now ${nextStatus ? 'ACTIVE' : 'INACTIVE'}.`
+        `✓ Package "${pkg.name}" is now ${nextStatus ? 'ACTIVE' : 'INACTIVE'} for ${service.title}.`
       );
       await loadPackages();
     } catch (err: any) {
@@ -191,11 +164,11 @@ export const ServicePackagesModal: React.FC<ServicePackagesModalProps> = ({
 
   // Handle Delete Confirmation
   const handleConfirmDelete = async () => {
-    if (!packageToDelete) return;
+    if (!packageToDelete || !service) return;
     setIsDeleting(true);
     try {
-      await deleteAdminPackage(packageToDelete.id);
-      showToast(`✓ Package "${packageToDelete.name}" deleted successfully.`);
+      await deleteAdminServicePackage(service.id, packageToDelete.id);
+      showToast(`✓ Package "${packageToDelete.name}" removed from ${service.title}.`);
       setIsDeleteOpen(false);
       setPackageToDelete(null);
       await loadPackages();
@@ -209,6 +182,7 @@ export const ServicePackagesModal: React.FC<ServicePackagesModalProps> = ({
   // Handle Reordering with ↑ / ↓ buttons
   const handleMoveOrder = async (index: number, direction: 'up' | 'down') => {
     if (
+      !service ||
       (direction === 'up' && index === 0) ||
       (direction === 'down' && index === packagesList.length - 1)
     ) {
@@ -229,16 +203,7 @@ export const ServicePackagesModal: React.FC<ServicePackagesModalProps> = ({
 
     setIsReordering(true);
     try {
-      // Persist global display orders
-      await reorderAdminPackages(reorderPayload);
-
-      // Also persist service-scoped packageIds order to service
-      if (service?.id) {
-        await adminServiceApi.updateService(service.id, {
-          packageIds: reorderedList.map((p) => p.id),
-        });
-      }
-
+      await reorderAdminServicePackages(service.id, reorderPayload);
       showToast('✓ Package order updated and persisted.');
       await loadPackages();
     } catch (err: any) {

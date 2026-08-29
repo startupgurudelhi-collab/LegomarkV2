@@ -11,9 +11,11 @@ import {
   serviceFaqs,
   serviceRelatedServices,
   servicePackages,
+  servicePackageFeatures,
   packages as packagesTable,
+  packageFeatures,
 } from '../../db/schema/index';
-import { eq, asc, inArray, count, sql } from 'drizzle-orm';
+import { eq, and, asc, inArray, count, sql } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 import { SERVICES, SERVICE_CATEGORIES, getServiceBySlug } from '../../src/data/websiteData';
 
@@ -819,14 +821,57 @@ export class AdminServiceRepository {
     }
 
     if (input.packageIds && input.packageIds.length > 0) {
-      await db.insert(servicePackages).values(
-        input.packageIds.map((pkgId, i) => ({
-          serviceId: inserted.id,
-          packageId: pkgId,
-          displayOrder: i,
-          isActive: true,
-        }))
-      );
+      const templatePkgs = await db
+        .select()
+        .from(packagesTable)
+        .where(inArray(packagesTable.id, input.packageIds));
+      const templateFeats = await db
+        .select()
+        .from(packageFeatures)
+        .where(inArray(packageFeatures.packageId, input.packageIds))
+        .orderBy(asc(packageFeatures.displayOrder));
+
+      const pkgMap = new Map(templatePkgs.map((p) => [p.id, p]));
+      const featMap = new Map<string, Array<{ featureText: string; displayOrder: number }>>();
+      for (const tf of templateFeats) {
+        const list = featMap.get(tf.packageId) || [];
+        list.push({ featureText: tf.featureText, displayOrder: tf.displayOrder });
+        featMap.set(tf.packageId, list);
+      }
+
+      for (let i = 0; i < input.packageIds.length; i++) {
+        const pkgId = input.packageIds[i];
+        const template = pkgMap.get(pkgId);
+        const [insertedSp] = await db
+          .insert(servicePackages)
+          .values({
+            serviceId: inserted.id,
+            packageId: pkgId,
+            customName: template?.name,
+            customTagline: template?.tagline,
+            priceAmount: template?.priceAmount || '0',
+            currency: template?.currency || 'INR',
+            billingType: template?.billingType,
+            priceDisplayOverride: template?.priceDisplayOverride,
+            customIdealFor: template?.idealFor,
+            customBadge: template?.badge,
+            popular: template?.popular,
+            displayOrder: i,
+            isActive: true,
+          })
+          .returning();
+
+        const feats = featMap.get(pkgId) || [];
+        if (feats.length > 0) {
+          await db.insert(servicePackageFeatures).values(
+            feats.map((f, fIdx) => ({
+              servicePackageId: insertedSp.id,
+              featureText: f.featureText,
+              displayOrder: fIdx,
+            }))
+          );
+        }
+      }
     }
 
     const full = await this.findById(inserted.id);
@@ -988,16 +1033,98 @@ export class AdminServiceRepository {
     }
 
     if (input.packageIds !== undefined) {
-      await db.delete(servicePackages).where(eq(servicePackages.serviceId, id));
+      const existing = await db
+        .select()
+        .from(servicePackages)
+        .where(eq(servicePackages.serviceId, id));
+
+      const existingMap = new Map(existing.map((e) => [e.packageId, e]));
+      const newPkgIds = new Set(input.packageIds);
+
+      // 1. Delete packages that are no longer assigned
+      const toDelete = existing.filter((e) => !newPkgIds.has(e.packageId));
+      if (toDelete.length > 0) {
+        await db
+          .delete(servicePackages)
+          .where(
+            and(
+              eq(servicePackages.serviceId, id),
+              inArray(servicePackages.packageId, toDelete.map((d) => d.packageId))
+            )
+          );
+      }
+
+      // 2. Update existing or insert newly added packages
       if (input.packageIds.length > 0) {
-        await db.insert(servicePackages).values(
-          input.packageIds.map((pkgId, i) => ({
-            serviceId: id,
-            packageId: pkgId,
-            displayOrder: i,
-            isActive: true,
-          }))
-        );
+        const toAdd = input.packageIds.filter((pkgId) => !existingMap.has(pkgId));
+        let pkgMap = new Map<string, typeof packagesTable.$inferSelect>();
+        let featMap = new Map<string, Array<{ featureText: string; displayOrder: number }>>();
+
+        if (toAdd.length > 0) {
+          const templatePkgs = await db
+            .select()
+            .from(packagesTable)
+            .where(inArray(packagesTable.id, toAdd));
+          const templateFeats = await db
+            .select()
+            .from(packageFeatures)
+            .where(inArray(packageFeatures.packageId, toAdd))
+            .orderBy(asc(packageFeatures.displayOrder));
+
+          pkgMap = new Map(templatePkgs.map((p) => [p.id, p]));
+          for (const tf of templateFeats) {
+            const list = featMap.get(tf.packageId) || [];
+            list.push({ featureText: tf.featureText, displayOrder: tf.displayOrder });
+            featMap.set(tf.packageId, list);
+          }
+        }
+
+        for (let i = 0; i < input.packageIds.length; i++) {
+          const pkgId = input.packageIds[i];
+          const existingRow = existingMap.get(pkgId);
+
+          if (existingRow) {
+            // Preserve existing custom configuration and only update displayOrder if changed
+            if (existingRow.displayOrder !== i) {
+              await db
+                .update(servicePackages)
+                .set({ displayOrder: i, updatedAt: new Date() })
+                .where(eq(servicePackages.id, existingRow.id));
+            }
+          } else {
+            // Newly assigned package: initialize with template defaults
+            const template = pkgMap.get(pkgId);
+            const [insertedSp] = await db
+              .insert(servicePackages)
+              .values({
+                serviceId: id,
+                packageId: pkgId,
+                customName: template?.name,
+                customTagline: template?.tagline,
+                priceAmount: template?.priceAmount || '0',
+                currency: template?.currency || 'INR',
+                billingType: template?.billingType,
+                priceDisplayOverride: template?.priceDisplayOverride,
+                customIdealFor: template?.idealFor,
+                customBadge: template?.badge,
+                popular: template?.popular,
+                displayOrder: i,
+                isActive: true,
+              })
+              .returning();
+
+            const feats = featMap.get(pkgId) || [];
+            if (feats.length > 0) {
+              await db.insert(servicePackageFeatures).values(
+                feats.map((f, fIdx) => ({
+                  servicePackageId: insertedSp.id,
+                  featureText: f.featureText,
+                  displayOrder: fIdx,
+                }))
+              );
+            }
+          }
+        }
       }
     }
 

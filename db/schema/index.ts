@@ -502,6 +502,15 @@ export const servicePackages = pgTable(
     packageId: varchar('package_id', { length: 64 })
       .references(() => packages.id, { onDelete: 'cascade' })
       .notNull(),
+    customName: varchar('custom_name', { length: 128 }),
+    customTagline: varchar('custom_tagline', { length: 255 }),
+    priceAmount: numeric('price_amount', { precision: 12, scale: 2 }),
+    currency: varchar('currency', { length: 8 }).default('INR'),
+    billingType: varchar('billing_type', { length: 32 }),
+    priceDisplayOverride: varchar('price_display_override', { length: 64 }),
+    customIdealFor: text('custom_ideal_for'),
+    customBadge: varchar('custom_badge', { length: 64 }),
+    popular: boolean('popular'),
     displayOrder: integer('display_order').default(0).notNull(),
     isActive: boolean('is_active').default(true).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -514,6 +523,26 @@ export const servicePackages = pgTable(
     ),
     servicePackagesServiceIdx: index('service_packages_service_id_idx').on(table.serviceId),
     servicePackagesPackageIdx: index('service_packages_package_id_idx').on(table.packageId),
+  })
+);
+
+/**
+ * Service Package Features Table
+ * Independent deliverables for a specific package under a specific service
+ */
+export const servicePackageFeatures = pgTable(
+  'service_package_features',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    servicePackageId: uuid('service_package_id')
+      .references(() => servicePackages.id, { onDelete: 'cascade' })
+      .notNull(),
+    featureText: varchar('feature_text', { length: 255 }).notNull(),
+    displayOrder: integer('display_order').default(0).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    servicePkgFeatIdx: index('service_pkg_feat_service_pkg_id_idx').on(table.servicePackageId),
   })
 );
 
@@ -540,7 +569,7 @@ export const servicesRelations = relations(services, ({ one, many }) => ({
   servicePackages: many(servicePackages),
 }));
 
-export const servicePackagesRelations = relations(servicePackages, ({ one }) => ({
+export const servicePackagesRelations = relations(servicePackages, ({ one, many }) => ({
   service: one(services, {
     fields: [servicePackages.serviceId],
     references: [services.id],
@@ -548,6 +577,14 @@ export const servicePackagesRelations = relations(servicePackages, ({ one }) => 
   package: one(packages, {
     fields: [servicePackages.packageId],
     references: [packages.id],
+  }),
+  features: many(servicePackageFeatures),
+}));
+
+export const servicePackageFeaturesRelations = relations(servicePackageFeatures, ({ one }) => ({
+  servicePackage: one(servicePackages, {
+    fields: [servicePackageFeatures.servicePackageId],
+    references: [servicePackages.id],
   }),
 }));
 

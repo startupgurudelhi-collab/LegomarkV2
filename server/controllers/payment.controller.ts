@@ -42,7 +42,35 @@ async function resolveAuthoritativeItemPrice(params: {
   const { itemType, itemId, slug, itemName } = params;
   const isExplicitPackage = itemType === 'package' || itemId === 'starter' || itemId === 'growth' || itemId === 'enterprise';
 
-  // 1. Resolve as Package if specified or if ID matches a known package
+  // 1. If a service slug/context is provided along with a package reference, resolve service-scoped package first
+  if (slug && (isExplicitPackage || itemId)) {
+    try {
+      const dbService = await serviceRepository.getPublicServiceBySlug(slug);
+      if (dbService && dbService.packages && dbService.packages.length > 0) {
+        const matchedPkg = dbService.packages.find(
+          (p) =>
+            (itemId && p.id.toLowerCase() === itemId.toLowerCase()) ||
+            (itemName && p.name.toLowerCase() === itemName.toLowerCase())
+        );
+        if (matchedPkg) {
+          const num = matchedPkg.priceAmount > 0 ? matchedPkg.priceAmount : parsePriceToNumber(matchedPkg.price);
+          if (num > 0) {
+            return {
+              resolvedName: `${dbService.title} - ${matchedPkg.name}`,
+              resolvedAmount: num,
+              itemType: 'package',
+              slug: dbService.slug,
+              id: matchedPkg.id,
+            };
+          }
+        }
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
+  // 2. Resolve as global Package if specified or if ID matches a known package
   if (isExplicitPackage || (!slug && itemId)) {
     try {
       const activePackages = await packageRepository.getActivePackages();
