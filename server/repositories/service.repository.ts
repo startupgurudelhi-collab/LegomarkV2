@@ -580,17 +580,28 @@ export class ServiceRepository {
             ? serviceFeaturesList
             : (featMap.get(pkg.id) || []);
 
-          // Resolve price amount
-          const finalPriceAmount = sp.priceAmount !== null && sp.priceAmount !== undefined
+          // 1. Resolve price amount: service-scoped priceAmount if explicitly set, otherwise global template
+          const hasSpPriceAmount = sp.priceAmount !== null && sp.priceAmount !== undefined && String(sp.priceAmount).trim() !== '';
+          const finalPriceAmount = hasSpPriceAmount
             ? Number(sp.priceAmount)
             : (Number(pkg.priceAmount) || 0);
 
-          // Resolve display price
-          const finalPriceDisplay = sp.priceDisplayOverride || (
-            sp.priceAmount !== null && sp.priceAmount !== undefined
-              ? `₹${Number(sp.priceAmount).toLocaleString('en-IN')}`
-              : (pkg.priceDisplayOverride || `₹${Number(pkg.priceAmount).toLocaleString('en-IN')}`)
-          );
+          // 2. Resolve display price:
+          // Order:
+          // 1) service-specific display override (if non-empty string)
+          // 2) service-specific numeric price amount formatted (if service-specific priceAmount is set)
+          // 3) global package default display override (if non-empty string)
+          // 4) global package default numeric price amount formatted
+          let finalPriceDisplay: string;
+          if (sp.priceDisplayOverride && sp.priceDisplayOverride.trim().length > 0) {
+            finalPriceDisplay = sp.priceDisplayOverride.trim();
+          } else if (hasSpPriceAmount) {
+            finalPriceDisplay = `₹${Number(sp.priceAmount).toLocaleString('en-IN')}`;
+          } else if (pkg.priceDisplayOverride && pkg.priceDisplayOverride.trim().length > 0) {
+            finalPriceDisplay = pkg.priceDisplayOverride.trim();
+          } else {
+            finalPriceDisplay = `₹${(Number(pkg.priceAmount) || 0).toLocaleString('en-IN')}`;
+          }
 
           return {
             id: pkg.id,

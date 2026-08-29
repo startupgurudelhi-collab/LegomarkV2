@@ -7,7 +7,12 @@ import {
   ServiceFaqItem,
 } from '../../types/adminService';
 import { adminServiceApi } from '../../services/adminService.service';
-import { fetchAdminPackages, updateAdminPackage } from '../../services/adminPackage.service';
+import {
+  fetchAdminPackages,
+  updateAdminPackage,
+  fetchAdminServicePackages,
+  updateAdminServicePackage,
+} from '../../services/adminPackage.service';
 import { AdminPackage, PackageFormData } from '../../types/admin';
 import { PACKAGES } from '../../data/websiteData';
 import { ServiceCompletenessBadge, calculateServiceCompleteness } from './ServiceCompleteness';
@@ -143,39 +148,22 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
     packageIds: [],
   });
 
-  // Load available packages on modal open
-  useEffect(() => {
-    if (!isOpen) return;
+  // Load available packages on modal open or serviceId change
+  const loadPackagesForService = async (targetServiceId?: string) => {
     setLoadingPackages(true);
-    fetchAdminPackages()
-      .then((pkgs) => {
-        if (pkgs && pkgs.length > 0) {
-          setAvailablePackages(pkgs);
-        } else {
-          // Fallback to canonical packages if DB returned empty
-          setAvailablePackages(
-            PACKAGES.map((p, idx) => ({
-              id: p.id,
-              name: p.name,
-              tagline: p.tagline || null,
-              priceAmount: p.price.replace(/[^\d.]/g, '') || '0',
-              currency: 'INR',
-              billingType: (p.period?.includes('year') ? 'yearly' : p.period?.includes('mo') ? 'monthly' : 'one_time') as any,
-              priceDisplayOverride: p.price,
-              idealFor: p.idealFor || '',
-              popular: !!p.popular,
-              badge: p.badge || null,
-              isActive: true,
-              displayOrder: idx,
-              features: (p.features || []).map((f, i) => ({ id: `f-${i}`, featureText: f, displayOrder: i })),
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            }))
-          );
+    try {
+      if (targetServiceId) {
+        const servicePkgs = await fetchAdminServicePackages(targetServiceId);
+        if (servicePkgs && servicePkgs.length > 0) {
+          setAvailablePackages(servicePkgs);
+          return;
         }
-      })
-      .catch((err) => {
-        console.warn('Failed to load packages in ServiceEditorModal, using canonical fallback:', err);
+      }
+      const pkgs = await fetchAdminPackages();
+      if (pkgs && pkgs.length > 0) {
+        setAvailablePackages(pkgs);
+      } else {
+        // Fallback to canonical packages if DB returned empty
         setAvailablePackages(
           PACKAGES.map((p, idx) => ({
             id: p.id,
@@ -195,11 +183,37 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
             updatedAt: new Date().toISOString(),
           }))
         );
-      })
-      .finally(() => {
-        setLoadingPackages(false);
-      });
-  }, [isOpen]);
+      }
+    } catch (err) {
+      console.warn('Failed to load packages in ServiceEditorModal, using canonical fallback:', err);
+      setAvailablePackages(
+        PACKAGES.map((p, idx) => ({
+          id: p.id,
+          name: p.name,
+          tagline: p.tagline || null,
+          priceAmount: p.price.replace(/[^\d.]/g, '') || '0',
+          currency: 'INR',
+          billingType: (p.period?.includes('year') ? 'yearly' : p.period?.includes('mo') ? 'monthly' : 'one_time') as any,
+          priceDisplayOverride: p.price,
+          idealFor: p.idealFor || '',
+          popular: !!p.popular,
+          badge: p.badge || null,
+          isActive: true,
+          displayOrder: idx,
+          features: (p.features || []).map((f, i) => ({ id: `f-${i}`, featureText: f, displayOrder: i })),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }))
+      );
+    } finally {
+      setLoadingPackages(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    loadPackagesForService(serviceId);
+  }, [isOpen, serviceId]);
 
   // Load service data if editing
   useEffect(() => {
@@ -301,13 +315,14 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
     setIsSavingPackage(true);
     try {
       if (isEdit) {
-        await updateAdminPackage(packageData.id, packageData);
+        if (serviceId) {
+          await updateAdminServicePackage(serviceId, packageData.id, packageData);
+        } else {
+          await updateAdminPackage(packageData.id, packageData);
+        }
       }
       // Refresh package catalogue in this modal so updated values reflect immediately
-      const pkgs = await fetchAdminPackages();
-      if (pkgs && pkgs.length > 0) {
-        setAvailablePackages(pkgs);
-      }
+      await loadPackagesForService(serviceId);
       setIsPackageEditorOpen(false);
       setEditingPackage(null);
     } catch (err: any) {
@@ -828,7 +843,9 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
 
                                 <div className="text-right">
                                   <div className="text-sm font-extrabold text-slate-100">
-                                    ₹{Number(pkg.priceAmount).toLocaleString('en-IN')}
+                                    {pkg.priceDisplayOverride && pkg.priceDisplayOverride.trim()
+                                      ? pkg.priceDisplayOverride
+                                      : `₹${Number(pkg.priceAmount).toLocaleString('en-IN')}`}
                                   </div>
                                   <div className="text-[10px] text-slate-400 uppercase font-semibold">
                                     {pkg.billingType}
