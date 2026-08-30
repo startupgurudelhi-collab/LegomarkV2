@@ -278,8 +278,17 @@ export const PackageEditorModal: React.FC<PackageEditorModalProps> = ({
           displayOrder: index,
         }));
 
+      // If priceDisplayOverride is an old formatted numeric price that contradicts the new priceAmount, clear it so priceAmount is authoritative
+      const parsedOverride = parseFloat((formData.priceDisplayOverride || '').replace(/[^\d.]/g, ''));
+      const parsedAmount = parseFloat((formData.priceAmount || '').replace(/[^\d.]/g, ''));
+      let sanitizedOverride = formData.priceDisplayOverride?.trim() || '';
+      if (!isNaN(parsedOverride) && !isNaN(parsedAmount) && parsedOverride > 0 && Math.abs(parsedOverride - parsedAmount) > 0.01) {
+        sanitizedOverride = '';
+      }
+
       const payloadToSave: PackageFormData = {
         ...formData,
+        priceDisplayOverride: sanitizedOverride,
         features: sanitizedFeatures,
       };
 

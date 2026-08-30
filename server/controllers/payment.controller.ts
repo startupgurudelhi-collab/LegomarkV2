@@ -50,7 +50,10 @@ async function resolveAuthoritativeItemPrice(params: {
         const matchedPkg = dbService.packages.find(
           (p) =>
             (itemId && p.id.toLowerCase() === itemId.toLowerCase()) ||
-            (itemName && p.name.toLowerCase() === itemName.toLowerCase())
+            (itemName && p.name.toLowerCase() === itemName.toLowerCase()) ||
+            (itemName && `${dbService.title} - ${p.name}`.toLowerCase() === itemName.toLowerCase()) ||
+            (itemName && `${dbService.title} (${p.name})`.toLowerCase() === itemName.toLowerCase()) ||
+            (itemName && itemName.toLowerCase().includes(p.name.toLowerCase()))
         );
         if (matchedPkg) {
           const num = matchedPkg.priceAmount > 0 ? matchedPkg.priceAmount : parsePriceToNumber(matchedPkg.price);

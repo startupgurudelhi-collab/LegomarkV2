@@ -30,7 +30,7 @@ ensureUploadDirectoriesExist();
 
 // Configure disk storage
 const storage = multer.diskStorage({
-  destination: (req: Request, file: Express.Multer.File, cb) => {
+  destination: (req: any, file: any, cb: any) => {
     // Determine category based on query or route params
     const category = ((req.query.category as string) || (req.body.category as string) || 'media') as UploadCategory;
     const targetDir = (SUB_DIRS as readonly string[]).includes(category)
@@ -39,7 +39,7 @@ const storage = multer.diskStorage({
 
     cb(null, targetDir);
   },
-  filename: (req: Request, file: Express.Multer.File, cb) => {
+  filename: (req: any, file: any, cb: any) => {
     // Sanitize original name and generate unique timestamp prefix
     const ext = path.extname(file.originalname).toLowerCase();
     const baseName = path
@@ -53,7 +53,7 @@ const storage = multer.diskStorage({
 });
 
 // File validation filter
-const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+const fileFilter = (req: any, file: any, cb: any) => {
   const allowedMimeTypes = [
     'image/jpeg',
     'image/png',

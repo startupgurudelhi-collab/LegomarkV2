@@ -425,13 +425,13 @@ export class ServiceRepository {
               features: pkg.features || [],
               displayOrder: pIdx,
             }))
-          : (s.slug === 'private-limited-company-registration'
-              ? PACKAGES.map((pkg, pIdx) => ({
+          : (s.landingPage?.packages && s.landingPage.packages.length > 0
+              ? s.landingPage.packages.map((pkg, pIdx) => ({
                   id: pkg.id,
                   name: pkg.name,
                   tagline: pkg.tagline || null,
                   price: pkg.price,
-                  priceAmount: parseFloat(pkg.price.replace(/[^\d.]/g, '')) || 0,
+                  priceAmount: parseFloat(String(pkg.price).replace(/[^\d.]/g, '')) || 0,
                   currency: 'INR',
                   billingType: pkg.period?.includes('year') ? 'yearly' : pkg.period?.includes('mo') ? 'monthly' : 'one_time',
                   idealFor: pkg.idealFor,
@@ -588,19 +588,30 @@ export class ServiceRepository {
 
           // 2. Resolve display price:
           // Order:
-          // 1) service-specific display override (if non-empty string)
+          // 1) service-specific display override (if non-empty string and not a contradictory numeric price)
           // 2) service-specific numeric price amount formatted (if service-specific priceAmount is set)
-          // 3) global package default display override (if non-empty string)
+          // 3) global package default display override (if non-empty string and not a contradictory numeric price)
           // 4) global package default numeric price amount formatted
           let finalPriceDisplay: string;
           if (sp.priceDisplayOverride && sp.priceDisplayOverride.trim().length > 0) {
-            finalPriceDisplay = sp.priceDisplayOverride.trim();
+            const parsedOverride = parseFloat(sp.priceDisplayOverride.replace(/[^\d.]/g, ''));
+            // If the display override contains a numeric amount that differs from finalPriceAmount, respect authoritative finalPriceAmount
+            if (!isNaN(parsedOverride) && parsedOverride > 0 && Math.abs(parsedOverride - finalPriceAmount) > 0.01) {
+              finalPriceDisplay = `₹${finalPriceAmount.toLocaleString('en-IN')}`;
+            } else {
+              finalPriceDisplay = sp.priceDisplayOverride.trim();
+            }
           } else if (hasSpPriceAmount) {
-            finalPriceDisplay = `₹${Number(sp.priceAmount).toLocaleString('en-IN')}`;
+            finalPriceDisplay = `₹${finalPriceAmount.toLocaleString('en-IN')}`;
           } else if (pkg.priceDisplayOverride && pkg.priceDisplayOverride.trim().length > 0) {
-            finalPriceDisplay = pkg.priceDisplayOverride.trim();
+            const parsedPkgOverride = parseFloat(pkg.priceDisplayOverride.replace(/[^\d.]/g, ''));
+            if (!isNaN(parsedPkgOverride) && parsedPkgOverride > 0 && Math.abs(parsedPkgOverride - finalPriceAmount) > 0.01) {
+              finalPriceDisplay = `₹${finalPriceAmount.toLocaleString('en-IN')}`;
+            } else {
+              finalPriceDisplay = pkg.priceDisplayOverride.trim();
+            }
           } else {
-            finalPriceDisplay = `₹${(Number(pkg.priceAmount) || 0).toLocaleString('en-IN')}`;
+            finalPriceDisplay = `₹${finalPriceAmount.toLocaleString('en-IN')}`;
           }
 
           return {

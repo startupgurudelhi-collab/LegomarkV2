@@ -6,7 +6,7 @@ import { uploadMiddleware } from '../utils/upload';
 const router = Router();
 
 // Protect all media endpoints with existing requireAuth middleware
-router.post('/upload', requireAuth, uploadMiddleware.single('file'), (req, res, next) => {
+router.post('/upload', requireAuth, uploadMiddleware.single('file') as any, (req: any, res: any, next: any) => {
   mediaController.handleUpload(req, res, next);
 });
 
