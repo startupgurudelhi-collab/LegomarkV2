@@ -93,20 +93,20 @@ export const PackageEditorModal: React.FC<PackageEditorModalProps> = ({
   const initialSnapshot = useMemo(() => {
     if (packageToEdit) {
       return JSON.stringify({
-        id: packageToEdit.id,
-        name: packageToEdit.name,
-        tagline: packageToEdit.tagline || '',
-        priceAmount: packageToEdit.priceAmount,
+        id: packageToEdit.id ?? '',
+        name: packageToEdit.name ?? '',
+        tagline: packageToEdit.tagline ?? '',
+        priceAmount: packageToEdit.priceAmount ?? '',
         currency: packageToEdit.currency || 'INR',
         billingType: packageToEdit.billingType,
-        priceDisplayOverride: packageToEdit.priceDisplayOverride || '',
-        idealFor: packageToEdit.idealFor,
+        priceDisplayOverride: packageToEdit.priceDisplayOverride ?? '',
+        idealFor: packageToEdit.idealFor ?? '',
         popular: Boolean(packageToEdit.popular),
-        badge: packageToEdit.badge || '',
+        badge: packageToEdit.badge ?? '',
         isActive: Boolean(packageToEdit.isActive),
-        displayOrder: packageToEdit.displayOrder,
+        displayOrder: packageToEdit.displayOrder ?? 0,
         features: (packageToEdit.features || []).map((f, idx) => ({
-          featureText: f.featureText,
+          featureText: f.featureText ?? '',
           displayOrder: idx,
         })),
       });
@@ -135,21 +135,21 @@ export const PackageEditorModal: React.FC<PackageEditorModalProps> = ({
     if (isOpen) {
       if (packageToEdit) {
         setFormData({
-          id: packageToEdit.id,
-          name: packageToEdit.name,
-          tagline: packageToEdit.tagline || '',
-          priceAmount: packageToEdit.priceAmount,
+          id: packageToEdit.id ?? '',
+          name: packageToEdit.name ?? '',
+          tagline: packageToEdit.tagline ?? '',
+          priceAmount: packageToEdit.priceAmount != null ? String(packageToEdit.priceAmount) : '',
           currency: packageToEdit.currency || 'INR',
-          billingType: packageToEdit.billingType,
-          priceDisplayOverride: packageToEdit.priceDisplayOverride || '',
-          idealFor: packageToEdit.idealFor,
+          billingType: packageToEdit.billingType || 'one_time',
+          priceDisplayOverride: packageToEdit.priceDisplayOverride ?? '',
+          idealFor: packageToEdit.idealFor ?? '',
           popular: Boolean(packageToEdit.popular),
-          badge: packageToEdit.badge || '',
+          badge: packageToEdit.badge ?? '',
           isActive: Boolean(packageToEdit.isActive),
-          displayOrder: packageToEdit.displayOrder,
+          displayOrder: packageToEdit.displayOrder ?? 0,
           features: (packageToEdit.features || []).map((f, idx) => ({
             id: f.id,
-            featureText: f.featureText,
+            featureText: f.featureText ?? '',
             displayOrder: idx,
           })),
         });
@@ -182,20 +182,20 @@ export const PackageEditorModal: React.FC<PackageEditorModalProps> = ({
   // Check if form is dirty
   const isDirty = useMemo(() => {
     const currentSnapshot = JSON.stringify({
-      id: formData.id,
-      name: formData.name,
-      tagline: formData.tagline,
-      priceAmount: formData.priceAmount,
-      currency: formData.currency,
+      id: formData.id ?? '',
+      name: formData.name ?? '',
+      tagline: formData.tagline ?? '',
+      priceAmount: formData.priceAmount ?? '',
+      currency: formData.currency || 'INR',
       billingType: formData.billingType,
-      priceDisplayOverride: formData.priceDisplayOverride,
-      idealFor: formData.idealFor,
-      popular: formData.popular,
-      badge: formData.badge,
-      isActive: formData.isActive,
-      displayOrder: formData.displayOrder,
-      features: formData.features.map((f, idx) => ({
-        featureText: f.featureText,
+      priceDisplayOverride: formData.priceDisplayOverride ?? '',
+      idealFor: formData.idealFor ?? '',
+      popular: Boolean(formData.popular),
+      badge: formData.badge ?? '',
+      isActive: Boolean(formData.isActive),
+      displayOrder: formData.displayOrder ?? 0,
+      features: (formData.features || []).map((f, idx) => ({
+        featureText: f.featureText ?? '',
         displayOrder: idx,
       })),
     });
@@ -215,26 +215,30 @@ export const PackageEditorModal: React.FC<PackageEditorModalProps> = ({
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
 
+    const idStr = (formData.id ?? '').trim();
+    const nameStr = (formData.name ?? '').trim();
+    const cleanPrice = String(formData.priceAmount ?? '').trim();
+    const idealForStr = (formData.idealFor ?? '').trim();
+
     // ID validation for new packages
     if (!isEdit) {
-      if (!formData.id.trim()) {
+      if (!idStr) {
         errors.id = 'Package ID / Slug is required.';
-      } else if (!/^[a-z0-9-_]+$/i.test(formData.id.trim())) {
+      } else if (!/^[a-z0-9-_]+$/i.test(idStr)) {
         errors.id = 'ID can only contain letters, numbers, hyphens, and underscores.';
-      } else if (formData.id.trim().length > 64) {
+      } else if (idStr.length > 64) {
         errors.id = 'ID must be 64 characters or less.';
       }
     }
 
     // Name validation
-    if (!formData.name.trim()) {
+    if (!nameStr) {
       errors.name = 'Package name is required.';
-    } else if (formData.name.trim().length > 128) {
+    } else if (nameStr.length > 128) {
       errors.name = 'Package name must be 128 characters or less.';
     }
 
     // Price validation
-    const cleanPrice = formData.priceAmount.trim();
     if (!cleanPrice) {
       errors.priceAmount = 'Price amount is required.';
     } else {
@@ -245,12 +249,12 @@ export const PackageEditorModal: React.FC<PackageEditorModalProps> = ({
     }
 
     // Ideal for validation
-    if (!formData.idealFor.trim()) {
+    if (!idealForStr) {
       errors.idealFor = 'Ideal for target description is required.';
     }
 
     // Features validation
-    const validFeatures = formData.features.filter((f) => f.featureText.trim().length > 0);
+    const validFeatures = (formData.features || []).filter((f) => (f.featureText ?? '').trim().length > 0);
     if (validFeatures.length === 0) {
       errors.features = 'At least one non-empty feature item is required.';
     }
@@ -270,25 +274,34 @@ export const PackageEditorModal: React.FC<PackageEditorModalProps> = ({
 
     try {
       // Clean up features to remove any trailing blank rows
-      const sanitizedFeatures = formData.features
-        .filter((f) => f.featureText.trim().length > 0)
+      const sanitizedFeatures = (formData.features || [])
+        .filter((f) => (f.featureText ?? '').trim().length > 0)
         .map((f, index) => ({
           ...f,
-          featureText: f.featureText.trim(),
+          featureText: (f.featureText ?? '').trim(),
           displayOrder: index,
         }));
 
       // If priceDisplayOverride is an old formatted numeric price that contradicts the new priceAmount, clear it so priceAmount is authoritative
-      const parsedOverride = parseFloat((formData.priceDisplayOverride || '').replace(/[^\d.]/g, ''));
-      const parsedAmount = parseFloat((formData.priceAmount || '').replace(/[^\d.]/g, ''));
-      let sanitizedOverride = formData.priceDisplayOverride?.trim() || '';
+      const rawOverride = formData.priceDisplayOverride ?? '';
+      const rawPrice = formData.priceAmount ?? '';
+      const parsedOverride = parseFloat(String(rawOverride).replace(/[^\d.]/g, ''));
+      const parsedAmount = parseFloat(String(rawPrice).replace(/[^\d.]/g, ''));
+      let sanitizedOverride = String(rawOverride).trim();
       if (!isNaN(parsedOverride) && !isNaN(parsedAmount) && parsedOverride > 0 && Math.abs(parsedOverride - parsedAmount) > 0.01) {
         sanitizedOverride = '';
       }
 
       const payloadToSave: PackageFormData = {
         ...formData,
-        priceDisplayOverride: sanitizedOverride,
+        id: (formData.id ?? '').trim(),
+        name: (formData.name ?? '').trim(),
+        tagline: (formData.tagline ?? '').trim() || null,
+        priceAmount: String(formData.priceAmount ?? '').trim(),
+        currency: (formData.currency ?? '').trim() || 'INR',
+        idealFor: (formData.idealFor ?? '').trim(),
+        badge: (formData.badge ?? '').trim() || null,
+        priceDisplayOverride: sanitizedOverride || null,
         features: sanitizedFeatures,
       };
 
@@ -548,7 +561,7 @@ export const PackageEditorModal: React.FC<PackageEditorModalProps> = ({
               {/* Price Amount */}
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Price Amount (₹) <span className="text-rose-400">*</span>
+                  Mandate — ₹ <span className="text-rose-400">*</span>
                 </label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-xs text-slate-400">

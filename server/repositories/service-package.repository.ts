@@ -145,15 +145,15 @@ export class ServicePackageRepository {
         // Create base package template first
         await db.insert(packages).values({
           id: packageId,
-          name: payload.name.trim(),
-          tagline: payload.tagline.trim() || null,
-          priceAmount: payload.priceAmount.trim() || '0',
-          currency: payload.currency.trim() || 'INR',
+          name: (payload.name ?? '').trim(),
+          tagline: (payload.tagline ?? '').trim() || null,
+          priceAmount: String(payload.priceAmount ?? '').trim() || '0',
+          currency: (payload.currency ?? '').trim() || 'INR',
           billingType: payload.billingType,
-          priceDisplayOverride: payload.priceDisplayOverride.trim() || null,
-          idealFor: payload.idealFor.trim(),
+          priceDisplayOverride: (payload.priceDisplayOverride ?? '').trim() || null,
+          idealFor: (payload.idealFor ?? '').trim(),
           popular: Boolean(payload.popular),
-          badge: payload.badge.trim() || null,
+          badge: (payload.badge ?? '').trim() || null,
           isActive: Boolean(payload.isActive),
           displayOrder: Number(payload.displayOrder) || 0,
         });
@@ -165,14 +165,14 @@ export class ServicePackageRepository {
         .values({
           serviceId,
           packageId,
-          customName: payload.name.trim(),
-          customTagline: payload.tagline.trim() || null,
-          priceAmount: payload.priceAmount.trim() || '0',
-          currency: payload.currency.trim() || 'INR',
+          customName: (payload.name ?? '').trim(),
+          customTagline: (payload.tagline ?? '').trim() || null,
+          priceAmount: String(payload.priceAmount ?? '').trim() || '0',
+          currency: (payload.currency ?? '').trim() || 'INR',
           billingType: payload.billingType,
-          priceDisplayOverride: payload.priceDisplayOverride.trim() || null,
-          customIdealFor: payload.idealFor.trim(),
-          customBadge: payload.badge.trim() || null,
+          priceDisplayOverride: (payload.priceDisplayOverride ?? '').trim() || null,
+          customIdealFor: (payload.idealFor ?? '').trim(),
+          customBadge: (payload.badge ?? '').trim() || null,
           popular: Boolean(payload.popular),
           displayOrder: Number(payload.displayOrder) || 0,
           isActive: Boolean(payload.isActive),
@@ -185,14 +185,14 @@ export class ServicePackageRepository {
       const [updatedSp] = await db
         .update(servicePackages)
         .set({
-          customName: payload.name.trim(),
-          customTagline: payload.tagline.trim() || null,
-          priceAmount: payload.priceAmount.trim() || '0',
-          currency: payload.currency.trim() || 'INR',
+          customName: (payload.name ?? '').trim(),
+          customTagline: (payload.tagline ?? '').trim() || null,
+          priceAmount: String(payload.priceAmount ?? '').trim() || '0',
+          currency: (payload.currency ?? '').trim() || 'INR',
           billingType: payload.billingType,
-          priceDisplayOverride: payload.priceDisplayOverride.trim() || null,
-          customIdealFor: payload.idealFor.trim(),
-          customBadge: payload.badge.trim() || null,
+          priceDisplayOverride: (payload.priceDisplayOverride ?? '').trim() || null,
+          customIdealFor: (payload.idealFor ?? '').trim(),
+          customBadge: (payload.badge ?? '').trim() || null,
           popular: Boolean(payload.popular),
           displayOrder: Number(payload.displayOrder) || 0,
           isActive: Boolean(payload.isActive),
@@ -209,12 +209,12 @@ export class ServicePackageRepository {
       // Delete old features for this service package
       await db.delete(servicePackageFeatures).where(eq(servicePackageFeatures.servicePackageId, spRow.id));
 
-      const validFeatures = payload.features.filter((f) => f.featureText.trim().length > 0);
+      const validFeatures = payload.features.filter((f) => (f.featureText ?? '').trim().length > 0);
       if (validFeatures.length > 0) {
         await db.insert(servicePackageFeatures).values(
           validFeatures.map((f, idx) => ({
             servicePackageId: spRow.id,
-            featureText: f.featureText.trim(),
+            featureText: (f.featureText ?? '').trim(),
             displayOrder: idx,
           }))
         );
@@ -242,7 +242,7 @@ export class ServicePackageRepository {
     updatedBy?: string
   ): Promise<AdminPackage> {
     const db = getDatabase();
-    const packageId = payload.id.trim();
+    const packageId = (payload.id ?? '').trim();
 
     // Check if template exists
     const [templatePkg] = await db.select().from(packages).where(eq(packages.id, packageId)).limit(1);
@@ -250,15 +250,15 @@ export class ServicePackageRepository {
       // Create template package
       await db.insert(packages).values({
         id: packageId,
-        name: payload.name.trim(),
-        tagline: payload.tagline.trim() || null,
-        priceAmount: payload.priceAmount.trim() || '0',
-        currency: payload.currency.trim() || 'INR',
+        name: (payload.name ?? '').trim(),
+        tagline: (payload.tagline ?? '').trim() || null,
+        priceAmount: String(payload.priceAmount ?? '').trim() || '0',
+        currency: (payload.currency ?? '').trim() || 'INR',
         billingType: payload.billingType,
-        priceDisplayOverride: payload.priceDisplayOverride.trim() || null,
-        idealFor: payload.idealFor.trim(),
+        priceDisplayOverride: (payload.priceDisplayOverride ?? '').trim() || null,
+        idealFor: (payload.idealFor ?? '').trim(),
         popular: Boolean(payload.popular),
-        badge: payload.badge.trim() || null,
+        badge: (payload.badge ?? '').trim() || null,
         isActive: Boolean(payload.isActive),
         displayOrder: Number(payload.displayOrder) || 0,
       });
@@ -268,7 +268,7 @@ export class ServicePackageRepository {
         await db.insert(packageFeatures).values(
           payload.features.map((f, i) => ({
             packageId,
-            featureText: f.featureText.trim(),
+            featureText: (f.featureText ?? '').trim(),
             displayOrder: i,
           }))
         );
