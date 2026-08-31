@@ -1,5 +1,6 @@
 import React from 'react';
 import { AdminService } from '../../types/adminService';
+import { RichContentRenderer } from '../blog/RichContentRenderer';
 import {
   X,
   Building2,
@@ -126,7 +127,7 @@ export const ServicePreviewModal: React.FC<ServicePreviewModalProps> = ({
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
                 Strategic Overview
               </h4>
-              <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-line">{service.overview}</p>
+              <RichContentRenderer content={service.overview} className="text-slate-300 text-xs" />
             </div>
           )}
 

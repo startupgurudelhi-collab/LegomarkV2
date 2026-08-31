@@ -9,11 +9,11 @@ export function markdownToHtml(md: string): string {
     md.includes('</div>') || 
     md.includes('</h1>') || 
     md.includes('</h2>') || 
-    md.includes('</h3>') ||
-    md.includes('</h4>') ||
-    md.includes('</ul>') ||
-    md.includes('</ol>') ||
-    md.includes('</blockquote>') ||
+    md.includes('</h3>') || 
+    md.includes('</h4>') || 
+    md.includes('</ul>') || 
+    md.includes('</ol>') || 
+    md.includes('</blockquote>') || 
     md.includes('</figure>')
   );
 
@@ -46,20 +46,26 @@ export function markdownToHtml(md: string): string {
     const imgMdMatch = trimmed.match(/^!\[(.*?)\]\((.*?)\)$/);
     if (imgMdMatch) {
       flushList();
-      const alt = imgMdMatch[1] || 'Article image';
-      const src = imgMdMatch[2];
-      htmlBlocks.push(`<figure class="article-image-block"><img src="${src}" alt="${alt}" /><figcaption>${alt}</figcaption></figure><p><br></p>`);
+      const alt = imgMdMatch[1] || 'Article illustration';
+      const src = imgMdMatch[2].trim().replace(/^["']|["']$/g, '');
+      htmlBlocks.push(`<figure class="article-image-block"><img src="${src}" alt="${alt}" /><figcaption>${alt}</figcaption></figure>`);
       continue;
     }
 
-    // Check for standard HTML image tag
-    const imgHtmlMatch = trimmed.match(/<img\s+[^>]*src=["']([^"']+)["'][^>]*\/?>/i);
+    // Check for standard HTML figure tag or img tag on its own line
+    if (trimmed.startsWith('<figure') && trimmed.includes('<img')) {
+      flushList();
+      htmlBlocks.push(trimmed);
+      continue;
+    }
+
+    const imgHtmlMatch = trimmed.match(/^<img\s+[^>]*src=["']([^"']+)["'][^>]*\/?>$/i);
     if (imgHtmlMatch) {
       flushList();
       const src = imgHtmlMatch[1];
       const altMatch = trimmed.match(/alt=["']([^"']+)["']/i);
       const alt = altMatch ? altMatch[1] : 'Article illustration';
-      htmlBlocks.push(`<figure class="article-image-block"><img src="${src}" alt="${alt}" /><figcaption>${alt}</figcaption></figure><p><br></p>`);
+      htmlBlocks.push(`<figure class="article-image-block"><img src="${src}" alt="${alt}" /><figcaption>${alt}</figcaption></figure>`);
       continue;
     }
 
@@ -138,8 +144,14 @@ export function formatInlineToHtml(text: string): string {
 
   let res = text;
 
-  // Links: [Text](url) (don't match if inside HTML attribute)
-  res = res.replace(/\[(.*?)\]\((https?:\/\/[^\s\)]+|mailto:[^\s\)]+|\/[^\s\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  // 1. Process Markdown Images first: ![alt](url) -> converted to figure block
+  res = res.replace(/!\[(.*?)\]\((https?:\/\/[^\s\)]+|\/[^\s\)]+)\)/g, (_match, alt, src) => {
+    const safeAlt = alt || 'Article illustration';
+    return `<figure class="article-image-block"><img src="${src}" alt="${safeAlt}" /><figcaption>${safeAlt}</figcaption></figure>`;
+  });
+
+  // 2. Links: [Text](url) -> only match if NOT preceded by '!' (negative lookbehind)
+  res = res.replace(/(?<!\!)\[(.*?)\]\((https?:\/\/[^\s\)]+|mailto:[^\s\)]+|\/[^\s\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
 
   // Bold: **text** or __text__
   res = res.replace(/(\*\*|__)(.*?)\1/g, '<strong>$2</strong>');
@@ -238,7 +250,8 @@ function parseNodeToMarkdown(node: Node): string {
           const img = el.querySelector('img');
           if (img) {
             const src = img.getAttribute('src') || '';
-            const alt = img.getAttribute('alt') || 'Article illustration';
+            const figcaption = el.querySelector('figcaption');
+            const alt = figcaption?.textContent?.trim() || img.getAttribute('alt') || 'Article illustration';
             output += `\n\n![${alt}](${src})\n\n`;
           }
           break;
@@ -300,6 +313,16 @@ function parseInlineChildren(node: Node): string {
           output += `[${parseInlineChildren(el)}](${href})`;
           break;
         }
+        case 'figure': {
+          const img = el.querySelector('img');
+          if (img) {
+            const src = img.getAttribute('src') || '';
+            const figcaption = el.querySelector('figcaption');
+            const alt = figcaption?.textContent?.trim() || img.getAttribute('alt') || 'Article illustration';
+            output += `![${alt}](${src})`;
+          }
+          break;
+        }
         case 'img': {
           const src = el.getAttribute('src') || '';
           const alt = el.getAttribute('alt') || 'Article illustration';
@@ -318,3 +341,4 @@ function parseInlineChildren(node: Node): string {
 
   return output;
 }
+
