@@ -15,12 +15,14 @@ import { ServiceCategory } from '../../types/website';
 
 interface HeroSectionProps {
   onOpenConsultation: (serviceName?: string) => void;
+  onOpenRequestCallback?: (serviceName?: string) => void;
   onNavigateSection: (sectionId: string) => void;
   onNavigateService?: (slug: string) => void;
 }
 
 export const HeroSection: React.FC<HeroSectionProps> = ({
   onOpenConsultation,
+  onOpenRequestCallback,
   onNavigateSection,
   onNavigateService,
 }) => {
@@ -231,10 +233,17 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                   Need guidance on which structure or filing fits your business?
                 </p>
                 <button
-                  onClick={() => onOpenConsultation(currentCategory.name)}
-                  className="w-full sm:w-auto px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs whitespace-nowrap"
+                  id="hero-service-panel-request-callback-btn"
+                  onClick={() => {
+                    if (onOpenRequestCallback) {
+                      onOpenRequestCallback(currentCategory.name);
+                    } else {
+                      onOpenConsultation(currentCategory.name);
+                    }
+                  }}
+                  className="w-full sm:w-auto px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs whitespace-nowrap uppercase tracking-wider"
                 >
-                  <span>Select {currentCategory.shortLabel}</span>
+                  <span>REQUEST A CALL BACK</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>

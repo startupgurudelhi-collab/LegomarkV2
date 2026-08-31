@@ -30,21 +30,13 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ serviceName,
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Chat with LEGOMARK INDIA on WhatsApp"
-        className="group flex items-center gap-2.5 bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white pl-3.5 pr-4 py-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 font-sans cursor-pointer"
+        className="w-14 h-14 bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center cursor-pointer group"
       >
         <div className="relative flex items-center justify-center">
-          <MessageCircle className="w-5 h-5 fill-white text-[#25D366]" />
-          <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+          <MessageCircle className="w-7 h-7 fill-white text-[#25D366]" />
+          <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
-          </span>
-        </div>
-        <div className="flex flex-col text-left">
-          <span className="text-[10px] font-medium leading-none text-emerald-100 uppercase tracking-wider">
-            Online Support
-          </span>
-          <span className="text-xs font-bold leading-tight tracking-tight">
-            Chat on WhatsApp
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white"></span>
           </span>
         </div>
       </a>

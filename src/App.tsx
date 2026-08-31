@@ -123,6 +123,11 @@ export default function App() {
     openConsultationBooking(serviceName);
   };
 
+  const handleOpenRequestCallback = useCallback((serviceName?: string) => {
+    setConsultationService(serviceName || 'Company Registration');
+    setIsConsultationOpen(true);
+  }, []);
+
   const handleOpenBuyNow = useCallback(
     (
       item:
@@ -313,6 +318,7 @@ export default function App() {
           {/* Hero Section */}
           <HeroSection
             onOpenConsultation={handleOpenConsultation}
+            onOpenRequestCallback={handleOpenRequestCallback}
             onNavigateSection={handleNavigateSection}
             onNavigateService={handleNavigateService}
           />
