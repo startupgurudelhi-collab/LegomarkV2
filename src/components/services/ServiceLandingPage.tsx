@@ -41,6 +41,8 @@ import { FounderSection } from '../founder/FounderSection';
 import { ServiceApplicationForm } from './ServiceApplicationForm';
 import { ServicePackages } from './ServicePackages';
 import { ServiceSnapshot } from './ServiceSnapshot';
+import { RichContentRenderer } from '../blog/RichContentRenderer';
+import { ensureRupeePrice } from '../../utils/pricing';
 
 interface ServiceLandingPageProps {
   service?: ServiceItem;
@@ -316,9 +318,9 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
           <h2 className="text-xl sm:text-2xl font-bold text-[#0B132B]">
             About {service.title}
           </h2>
-          <p className="text-xs sm:text-sm text-slate-700 leading-relaxed max-w-4xl">
-            {landingData?.overview || service.fullDesc}
-          </p>
+          <div className="text-xs sm:text-sm text-slate-700 leading-relaxed max-w-4xl">
+            <RichContentRenderer content={landingData?.overview || service.fullDesc} />
+          </div>
 
           {/* Strategic Benefits Grid */}
           {landingData?.benefits && landingData.benefits.length > 0 && (
@@ -550,7 +552,7 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({
                     </div>
                   </div>
                   <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-[#0B132B]">
-                    <span>{rel.startingPrice}</span>
+                    <span>{ensureRupeePrice(rel.startingPrice)}</span>
                     <span className="text-orange-600 group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
                       Learn More <ArrowRight className="w-3 h-3" />
                     </span>

@@ -18,6 +18,7 @@ import { ConsultationCTA } from './components/cta/ConsultationCTA';
 import { Footer } from './components/layout/Footer';
 import { ConsultationModal } from './components/common/ConsultationModal';
 import { BuyNowModal } from './components/payment/BuyNowModal';
+import { FloatingWhatsApp } from './components/common/FloatingWhatsApp';
 import { DiagnosticsPanel } from './components/DiagnosticsPanel';
 import { ServiceLandingPage } from './components/services/ServiceLandingPage';
 import { AdminPortal } from './components/admin/AdminPortal';
@@ -30,6 +31,8 @@ import { X } from 'lucide-react';
 import { useHealthReport } from './services/useHealthReport';
 import { openConsultationBooking } from './utils/consultation';
 import { usePublicServicesData, usePublicServiceDetail } from './services/publicService.service';
+import { fetchPublicSettings } from './services/settings.service';
+import { applyWebsiteFont } from './utils/fontLoader';
 import { BuyNowItem, PackageTier, ServiceItem } from './types/website';
 
 export default function App() {
@@ -39,6 +42,17 @@ export default function App() {
   const [isBuyNowOpen, setIsBuyNowOpen] = useState(false);
   const [buyNowItem, setBuyNowItem] = useState<BuyNowItem | null>(null);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+
+  // Apply dynamic Admin-selected font family on load
+  useEffect(() => {
+    fetchPublicSettings().then((data) => {
+      if (data?.fontFamily) {
+        applyWebsiteFont(data.fontFamily);
+      }
+    }).catch(() => {
+      applyWebsiteFont('Plus Jakarta Sans');
+    });
+  }, []);
 
   const [currentPath, setCurrentPath] = useState<string>(() => {
     if (typeof window !== 'undefined') {
@@ -381,6 +395,11 @@ export default function App() {
         isOpen={isBuyNowOpen}
         onClose={() => setIsBuyNowOpen(false)}
         item={buyNowItem}
+      />
+
+      {/* Floating WhatsApp Action Widget (Public Site-Wide) */}
+      <FloatingWhatsApp
+        serviceName={currentServiceItem?.title}
       />
 
       {/* Diagnostic Overlay */}

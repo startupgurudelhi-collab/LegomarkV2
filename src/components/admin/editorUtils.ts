@@ -3,9 +3,23 @@
 export function markdownToHtml(md: string): string {
   if (!md) return '<p><br></p>';
 
-  // If the content is already HTML (e.g. starts with <p>, <h1>, <div>, etc.)
-  if (md.trim().startsWith('<') && (md.includes('</p>') || md.includes('</div>') || md.includes('</h1>') || md.includes('</h2>') || md.includes('</h3>'))) {
-    return md;
+  // If the content is already pure HTML structure (starts with HTML tags)
+  const isHtml = md.trim().startsWith('<') && (
+    md.includes('</p>') || 
+    md.includes('</div>') || 
+    md.includes('</h1>') || 
+    md.includes('</h2>') || 
+    md.includes('</h3>') ||
+    md.includes('</h4>') ||
+    md.includes('</ul>') ||
+    md.includes('</ol>') ||
+    md.includes('</blockquote>') ||
+    md.includes('</figure>')
+  );
+
+  if (isHtml) {
+    // Process any remaining inline markdown formatting inside the HTML tags
+    return formatInlineToHtml(md);
   }
 
   const lines = md.split('\n');
@@ -50,6 +64,12 @@ export function markdownToHtml(md: string): string {
     }
 
     // Headings
+    if (trimmed.startsWith('#### ')) {
+      flushList();
+      htmlBlocks.push(`<h4>${formatInlineToHtml(trimmed.substring(5))}</h4>`);
+      continue;
+    }
+
     if (trimmed.startsWith('### ')) {
       flushList();
       htmlBlocks.push(`<h3>${formatInlineToHtml(trimmed.substring(4))}</h3>`);
@@ -113,13 +133,13 @@ export function markdownToHtml(md: string): string {
   return htmlBlocks.length > 0 ? htmlBlocks.join('') : '<p><br></p>';
 }
 
-function formatInlineToHtml(text: string): string {
+export function formatInlineToHtml(text: string): string {
   if (!text) return '';
 
   let res = text;
 
-  // Links: [Text](url)
-  res = res.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2">$1</a>');
+  // Links: [Text](url) (don't match if inside HTML attribute)
+  res = res.replace(/\[(.*?)\]\((https?:\/\/[^\s\)]+|mailto:[^\s\)]+|\/[^\s\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
 
   // Bold: **text** or __text__
   res = res.replace(/(\*\*|__)(.*?)\1/g, '<strong>$2</strong>');
@@ -130,7 +150,8 @@ function formatInlineToHtml(text: string): string {
   // Strikethrough: ~~text~~
   res = res.replace(/~~(.*?)~~/g, '<del>$1</del>');
 
-  // Underline <u>text</u> is already HTML
+  // Inline code: `code`
+  res = res.replace(/`([^`]+)`/g, '<code class="bg-slate-100 text-orange-600 px-1.5 py-0.5 rounded text-xs font-mono">$1</code>');
 
   return res;
 }

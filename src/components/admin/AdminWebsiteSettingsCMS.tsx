@@ -23,11 +23,14 @@ import {
   UploadCloud,
   Search,
   X,
+  Type,
+  Sparkles,
 } from 'lucide-react';
 import { WebsiteSettingsData, UpdateWebsiteSettingsInput } from '../../types/settings';
 import { fetchAdminSettings, updateAdminSettings } from '../../services/settings.service';
 import { fetchMediaAssets, MediaAsset } from '../../services/adminMedia.service';
 import { MediaUploadDropzone } from './MediaUploadDropzone';
+import { APPROVED_FONTS, applyWebsiteFont } from '../../utils/fontLoader';
 
 interface AdminWebsiteSettingsCMSProps {
   onNavigateToSection?: (sectionId: string) => void;
@@ -64,6 +67,7 @@ export const AdminWebsiteSettingsCMS: React.FC<AdminWebsiteSettingsCMSProps> = (
     officeHours: '',
     registeredOfficeAddress: '',
     logoUrl: null,
+    fontFamily: 'Plus Jakarta Sans',
   });
 
   const [logoAction, setLogoAction] = useState<'unchanged' | 'updated' | 'removed'>('unchanged');
@@ -87,6 +91,7 @@ export const AdminWebsiteSettingsCMS: React.FC<AdminWebsiteSettingsCMSProps> = (
       const data = await fetchAdminSettings();
       setSettings(data);
       setLogoAction('unchanged');
+      const initialFont = data.fontFamily || 'Plus Jakarta Sans';
       setFormData({
         companyName: data.companyName || 'LEGOMARK INDIA',
         positioning: data.positioning || 'LEGAL, TAXATION & CORPORATE ADVISORY',
@@ -106,7 +111,9 @@ export const AdminWebsiteSettingsCMS: React.FC<AdminWebsiteSettingsCMSProps> = (
           data.registeredOfficeAddress ||
           'D-561, Pocket 11, DDA Janta Flats, Jasola, New Delhi – 110025',
         logoUrl: data.logoUrl || null,
+        fontFamily: initialFont,
       });
+      applyWebsiteFont(initialFont);
       loadMediaAssets();
     } catch (err: any) {
       setError(err.message || 'Failed to load website settings');
@@ -140,6 +147,7 @@ export const AdminWebsiteSettingsCMS: React.FC<AdminWebsiteSettingsCMSProps> = (
         secondaryWebsite: formData.secondaryWebsite,
         officeHours: formData.officeHours,
         registeredOfficeAddress: formData.registeredOfficeAddress,
+        fontFamily: formData.fontFamily,
       };
 
       // Only include logoUrl if explicitly updated or removed by the admin
@@ -152,6 +160,9 @@ export const AdminWebsiteSettingsCMS: React.FC<AdminWebsiteSettingsCMSProps> = (
       const updated = await updateAdminSettings(payload);
       setSettings(updated);
       setLogoAction('unchanged');
+      if (updated.fontFamily) {
+        applyWebsiteFont(updated.fontFamily);
+      }
       setSuccessMessage('Website configuration saved successfully to database.');
       setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: any) {
@@ -506,6 +517,93 @@ export const AdminWebsiteSettingsCMS: React.FC<AdminWebsiteSettingsCMSProps> = (
                       }}
                     />
                   )}
+                </div>
+              </div>
+
+              {/* TYPOGRAPHY & FONT FAMILY SELECTION */}
+              <div className="md:col-span-2 p-5 bg-slate-950/80 border border-slate-800 rounded-2xl space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800/80">
+                  <div>
+                    <label className="text-sm font-bold text-white flex items-center gap-2">
+                      <Type className="w-4 h-4 text-orange-400" />
+                      <span>Typography & Brand Font Family</span>
+                    </label>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Select the primary typeface applied across the public website headings, body text, and interfaces.
+                    </p>
+                  </div>
+                  <span className="text-[11px] font-mono text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-md border border-orange-500/20 shrink-0 font-bold">
+                    Active: {formData.fontFamily || 'Plus Jakarta Sans'}
+                  </span>
+                </div>
+
+                {/* Font Live Preview Box */}
+                <div
+                  className="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-1 transition-all"
+                  style={{ fontFamily: `'${formData.fontFamily || 'Plus Jakarta Sans'}', sans-serif` }}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
+                      Live Sample Preview ({formData.fontFamily || 'Plus Jakarta Sans'})
+                    </span>
+                    <span className="text-[10px] text-orange-400 font-medium">Real-Time Canvas Test</span>
+                  </div>
+                  <h4 className="text-base sm:text-lg font-bold text-white tracking-tight">
+                    LEGOMARK INDIA — Legal, Taxation & Corporate Advisory Services
+                  </h4>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Simplifying company registration, GST compliance, trademark protection, and statutory MCA filings with technology-driven precision.
+                  </p>
+                </div>
+
+                {/* Font Selection Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+                  {APPROVED_FONTS.map((font) => {
+                    const isSelected = (formData.fontFamily || 'Plus Jakarta Sans').toLowerCase() === font.name.toLowerCase();
+                    return (
+                      <button
+                        key={font.name}
+                        type="button"
+                        onClick={() => {
+                          setFormData({ ...formData, fontFamily: font.name });
+                          applyWebsiteFont(font.name);
+                        }}
+                        className={`p-3.5 rounded-xl border text-left flex flex-col justify-between transition-all duration-150 relative cursor-pointer group ${
+                          isSelected
+                            ? 'bg-orange-500/15 border-orange-500 ring-1 ring-orange-500/50 shadow-md'
+                            : 'bg-slate-900/90 border-slate-800 hover:border-slate-700 hover:bg-slate-900'
+                        }`}
+                      >
+                        {isSelected && (
+                          <div className="absolute top-2.5 right-2.5 w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center text-white shadow-xs">
+                            <CheckCircle2 className="w-3 h-3" />
+                          </div>
+                        )}
+                        <div>
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <span
+                              className="text-sm font-bold text-white group-hover:text-orange-300 transition-colors"
+                              style={{ fontFamily: `'${font.name}', sans-serif` }}
+                            >
+                              {font.name}
+                            </span>
+                            <span className="text-[9px] uppercase font-semibold px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                              {font.category}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
+                            {font.description}
+                          </p>
+                        </div>
+                        <div
+                          className="pt-2 mt-2 border-t border-slate-800/80 text-xs text-slate-200 font-medium"
+                          style={{ fontFamily: `'${font.name}', sans-serif` }}
+                        >
+                          Aa Bb Gg 123 — ₹6,999
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

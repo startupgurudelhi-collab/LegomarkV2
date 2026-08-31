@@ -1,5 +1,5 @@
 import { getDatabase, pingDatabase } from '../config/database';
-import { websiteSettings, WebsiteSettings, NewWebsiteSettings } from '../../db/schema/index';
+import { websiteSettings, WebsiteSettings, NewWebsiteSettings, systemMetadata } from '../../db/schema/index';
 import { eq } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 import { COMPANY_PROFILE } from '../../src/data/websiteData';
@@ -19,7 +19,14 @@ export interface UpdateSettingsInput {
   officeHours?: string;
   registeredOfficeAddress?: string;
   logoUrl?: string | null;
+  fontFamily?: string;
 }
+
+export type SettingsWithFont = WebsiteSettings & {
+  fontFamily?: string;
+};
+
+const DEFAULT_FONT = 'Plus Jakarta Sans';
 
 const DEFAULT_SETTINGS: WebsiteSettings = {
   id: 'global',
@@ -43,12 +50,15 @@ const DEFAULT_SETTINGS: WebsiteSettings = {
 
 class SettingsRepository {
   private fallbackStore: WebsiteSettings = { ...DEFAULT_SETTINGS };
+  private fallbackFont: string = DEFAULT_FONT;
 
   /**
-   * Fetch current global website settings
+   * Fetch current global website settings (including configured font family)
    */
-  async getSettings(): Promise<WebsiteSettings> {
+  async getSettings(): Promise<SettingsWithFont> {
     const dbStatus = await pingDatabase();
+    let currentSettings = this.fallbackStore;
+    let currentFont = this.fallbackFont;
 
     if (dbStatus.connected) {
       try {
@@ -60,20 +70,35 @@ class SettingsRepository {
           .limit(1);
 
         if (rows && rows.length > 0) {
-          return rows[0];
+          currentSettings = rows[0];
+        }
+
+        // Fetch configured font family from systemMetadata
+        const fontRows = await db
+          .select()
+          .from(systemMetadata)
+          .where(eq(systemMetadata.key, 'site_font_family'))
+          .limit(1);
+
+        if (fontRows && fontRows.length > 0 && fontRows[0].value) {
+          currentFont = fontRows[0].value;
+          this.fallbackFont = currentFont;
         }
       } catch (err) {
         logger.error('Error fetching website settings from DB', 'SettingsRepo', err);
       }
     }
 
-    return this.fallbackStore;
+    return {
+      ...currentSettings,
+      fontFamily: currentFont,
+    };
   }
 
   /**
-   * Update or upsert website settings
+   * Update or upsert website settings (including font family)
    */
-  async updateSettings(input: UpdateSettingsInput, authorUser = 'Admin'): Promise<WebsiteSettings> {
+  async updateSettings(input: UpdateSettingsInput, authorUser = 'Admin'): Promise<SettingsWithFont> {
     const existing = await this.getSettings();
     const dbStatus = await pingDatabase();
     const now = new Date();
@@ -101,6 +126,12 @@ class SettingsRepository {
     // If undefined/omitted, preserve the existing database value.
     if (input.logoUrl !== undefined) {
       patch.logoUrl = input.logoUrl ? input.logoUrl.trim() : null;
+    }
+
+    let savedFont = existing.fontFamily || DEFAULT_FONT;
+    if (input.fontFamily !== undefined && input.fontFamily.trim()) {
+      savedFont = input.fontFamily.trim();
+      this.fallbackFont = savedFont;
     }
 
     if (dbStatus.connected) {
@@ -135,9 +166,35 @@ class SettingsRepository {
           })
           .returning();
 
+        // Upsert font family in systemMetadata table
+        if (input.fontFamily !== undefined && input.fontFamily.trim()) {
+          try {
+            await db
+              .insert(systemMetadata)
+              .values({
+                key: 'site_font_family',
+                value: savedFont,
+                updatedAt: now,
+                createdAt: now,
+              })
+              .onConflictDoUpdate({
+                target: systemMetadata.key,
+                set: {
+                  value: savedFont,
+                  updatedAt: now,
+                },
+              });
+          } catch (fontErr) {
+            logger.warn('Could not persist font to systemMetadata, keeping fallback in memory', 'SettingsRepo', fontErr);
+          }
+        }
+
         if (updated && updated.length > 0) {
           this.fallbackStore = updated[0];
-          return updated[0];
+          return {
+            ...updated[0],
+            fontFamily: savedFont,
+          };
         }
       } catch (err) {
         logger.error('Error saving website settings in DB', 'SettingsRepo', err);
@@ -148,7 +205,10 @@ class SettingsRepository {
       ...existing,
       ...patch,
     };
-    return this.fallbackStore;
+    return {
+      ...this.fallbackStore,
+      fontFamily: savedFont,
+    };
   }
 }
 

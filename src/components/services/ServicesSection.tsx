@@ -4,6 +4,7 @@ import {
   SERVICE_CATEGORIES,
 } from '../../data/websiteData';
 import { ServiceCategory, ServiceCategoryMeta, ServiceItem } from '../../types/website';
+import { ensureRupeePrice } from '../../utils/pricing';
 import {
   Building2,
   Scale,
@@ -203,7 +204,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                     <div className="text-right">
                       <span className="text-xs text-slate-500 font-sans">Starting </span>
                       <span className="text-sm font-bold text-[#0B132B]">
-                        {service.startingPrice}
+                        {ensureRupeePrice(service.startingPrice)}
                       </span>
                     </div>
                   )}
@@ -220,7 +221,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                     }}
                     className="w-full py-2.5 px-3 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                   >
-                    <span>Buy Now &mdash; {service.startingPrice}</span>
+                    <span>Buy Now &mdash; {ensureRupeePrice(service.startingPrice)}</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
 

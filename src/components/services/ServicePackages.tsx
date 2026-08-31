@@ -12,6 +12,7 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { PackageTier, ServiceItem, BuyNowItem } from '../../types/website';
+import { ensureRupeePrice } from '../../utils/pricing';
 
 interface ServicePackagesProps {
   packages?: PackageTier[];
@@ -118,7 +119,7 @@ export const ServicePackages: React.FC<ServicePackagesProps> = ({
                 {/* Price Display */}
                 <div className="border-y border-slate-100 py-3.5 flex items-baseline gap-1.5">
                   <span className="text-2xl sm:text-3xl font-extrabold text-[#0B132B]">
-                    {pkg.price}
+                    {ensureRupeePrice(pkg.price)}
                   </span>
                   {pkg.period && (
                     <span className="text-xs font-semibold text-slate-500">
@@ -187,7 +188,7 @@ export const ServicePackages: React.FC<ServicePackagesProps> = ({
                         id: pkg.id,
                         name: `${service.title} - ${pkg.name}`,
                         title: `${service.title} (${pkg.name})`,
-                        priceDisplay: pkg.price,
+                        priceDisplay: ensureRupeePrice(pkg.price),
                         itemType: 'package',
                         category: service.category,
                         governmentFeeNote: service.governmentFeeNote,
@@ -196,7 +197,7 @@ export const ServicePackages: React.FC<ServicePackagesProps> = ({
                     }}
                     className="w-full py-2.5 bg-[#0B132B] hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
                   >
-                    <span>Instant Checkout &mdash; {pkg.price}</span>
+                    <span>Instant Checkout &mdash; {ensureRupeePrice(pkg.price)}</span>
                     <ArrowRight className="w-3.5 h-3.5 text-orange-400" />
                   </button>
                 )}

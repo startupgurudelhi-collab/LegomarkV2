@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { ServiceItem, PackageTier, BuyNowItem } from '../../types/website';
 import { submitPublicConsultation } from '../../services/lead.service';
+import { ensureRupeePrice } from '../../utils/pricing';
 
 interface ServiceApplicationFormProps {
   service: ServiceItem;
@@ -45,7 +46,7 @@ export const ServiceApplicationForm: React.FC<ServiceApplicationFormProps> = ({
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const activePriceDisplay = selectedPackage ? selectedPackage.price : service.startingPrice;
+  const activePriceDisplay = selectedPackage ? ensureRupeePrice(selectedPackage.price) : ensureRupeePrice(service.startingPrice);
   const activePackageName = selectedPackage ? selectedPackage.name : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -114,7 +115,7 @@ export const ServiceApplicationForm: React.FC<ServiceApplicationFormProps> = ({
         name: `${service.title} - ${selectedPackage.name}`,
         title: `${service.title} (${selectedPackage.name})`,
         slug: service.slug,
-        priceDisplay: selectedPackage.price,
+        priceDisplay: ensureRupeePrice(selectedPackage.price),
         itemType: 'package',
         category: service.category,
         governmentFeeNote: service.governmentFeeNote,

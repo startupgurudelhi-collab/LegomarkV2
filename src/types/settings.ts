@@ -14,6 +14,7 @@ export interface WebsiteSettingsData {
   officeHours: string;
   registeredOfficeAddress: string;
   logoUrl?: string | null;
+  fontFamily?: string;
   updatedAt?: string;
   updatedBy?: string | null;
 }
@@ -33,4 +34,5 @@ export interface UpdateWebsiteSettingsInput {
   officeHours?: string;
   registeredOfficeAddress?: string;
   logoUrl?: string | null;
+  fontFamily?: string;
 }

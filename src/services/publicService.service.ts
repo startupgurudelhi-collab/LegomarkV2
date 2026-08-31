@@ -7,6 +7,7 @@ import {
   getRelatedServices,
 } from '../data/websiteData';
 import { ServiceCategory, ServiceCategoryMeta, ServiceItem } from '../types/website';
+import { ensureRupeePrice } from '../utils/pricing';
 
 export interface ClientPublicCategoryItem {
   id: string;
@@ -348,7 +349,7 @@ export function mapSummaryToServiceItem(summary: ClientPublicServiceSummary): Se
     title: summary.title,
     shortDesc: summary.shortDesc,
     fullDesc: summary.fullDesc,
-    startingPrice: summary.startingPrice,
+    startingPrice: ensureRupeePrice(summary.startingPrice),
     pricingType: summary.pricingType as 'fixed' | 'recurring' | 'custom',
     governmentFeeNote: summary.governmentFeeNote || undefined,
     timeline: summary.timeline,
@@ -370,7 +371,7 @@ export function mapDetailToServiceItem(detail: ClientPublicServiceDetail): Servi
         id: pkg.id,
         name: pkg.name,
         tagline: pkg.tagline || '',
-        price: pkg.price,
+        price: ensureRupeePrice(pkg.price),
         period: pkg.billingType === 'yearly' ? 'year' : pkg.billingType === 'monthly' ? 'month' : undefined,
         popular: !!pkg.popular,
         idealFor: pkg.idealFor,
@@ -387,7 +388,7 @@ export function mapDetailToServiceItem(detail: ClientPublicServiceDetail): Servi
     title: detail.title,
     shortDesc: detail.shortDesc,
     fullDesc: detail.fullDesc,
-    startingPrice: detail.startingPrice,
+    startingPrice: ensureRupeePrice(detail.startingPrice),
     pricingType: detail.pricingType as 'fixed' | 'recurring' | 'custom',
     governmentFeeNote: detail.governmentFeeNote || undefined,
     timeline: detail.timeline,

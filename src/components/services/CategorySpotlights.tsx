@@ -2,6 +2,7 @@ import React from 'react';
 import { Building2, Receipt, Sparkles, CheckCircle, ArrowRight } from 'lucide-react';
 import { getServiceBySlug, SERVICES } from '../../data/websiteData';
 import { BuyNowItem, ServiceItem } from '../../types/website';
+import { ensureRupeePrice } from '../../utils/pricing';
 
 interface CategorySpotlightsProps {
   onOpenConsultation: (serviceName?: string) => void;
@@ -61,7 +62,7 @@ export const CategorySpotlights: React.FC<CategorySpotlightsProps> = ({
                       id: pvtLtdService.id,
                       slug: pvtLtdService.slug,
                       name: pvtLtdService.title,
-                      priceDisplay: pvtLtdService.startingPrice,
+                      priceDisplay: ensureRupeePrice(pvtLtdService.startingPrice),
                       itemType: 'service',
                       governmentFeeNote: pvtLtdService.governmentFeeNote,
                       features: pvtLtdService.features,
@@ -72,7 +73,7 @@ export const CategorySpotlights: React.FC<CategorySpotlightsProps> = ({
                 }}
                 className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-2 cursor-pointer shadow-xs"
               >
-                <span>Buy Now &mdash; {pvtLtdService.startingPrice}</span>
+                <span>Buy Now &mdash; {ensureRupeePrice(pvtLtdService.startingPrice)}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
               <button
@@ -156,7 +157,7 @@ export const CategorySpotlights: React.FC<CategorySpotlightsProps> = ({
                       id: annualComplianceService.id,
                       slug: annualComplianceService.slug,
                       name: annualComplianceService.title,
-                      priceDisplay: annualComplianceService.startingPrice,
+                      priceDisplay: ensureRupeePrice(annualComplianceService.startingPrice),
                       itemType: 'service',
                       governmentFeeNote: annualComplianceService.governmentFeeNote,
                       features: annualComplianceService.features,
@@ -167,7 +168,7 @@ export const CategorySpotlights: React.FC<CategorySpotlightsProps> = ({
                 }}
                 className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-2 cursor-pointer shadow-xs"
               >
-                <span>Buy Now &mdash; {annualComplianceService.startingPrice}</span>
+                <span>Buy Now &mdash; {ensureRupeePrice(annualComplianceService.startingPrice)}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
               <button
@@ -242,7 +243,7 @@ export const CategorySpotlights: React.FC<CategorySpotlightsProps> = ({
                       id: trademarkService.id,
                       slug: trademarkService.slug,
                       name: trademarkService.title,
-                      priceDisplay: trademarkService.startingPrice,
+                      priceDisplay: ensureRupeePrice(trademarkService.startingPrice),
                       itemType: 'service',
                       governmentFeeNote: trademarkService.governmentFeeNote,
                       features: trademarkService.features,
@@ -253,7 +254,7 @@ export const CategorySpotlights: React.FC<CategorySpotlightsProps> = ({
                 }}
                 className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-2 cursor-pointer shadow-xs"
               >
-                <span>Buy Now &mdash; {trademarkService.startingPrice}</span>
+                <span>Buy Now &mdash; {ensureRupeePrice(trademarkService.startingPrice)}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
               <button
