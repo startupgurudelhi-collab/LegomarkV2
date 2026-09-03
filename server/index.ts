@@ -50,6 +50,7 @@ async function bootstrap() {
 
   // Step 5: Mount Persistent Uploads Static Directory
   app.use('/uploads', express.static(config.uploadsDir));
+  app.use('/uploads', notFoundHandler);
 
   // Step 6: Mount API Router
   app.use('/api', apiRouter);
@@ -69,8 +70,8 @@ async function bootstrap() {
 
     // Wildcard fallback for Single Page Application routing (Express v4)
     app.get('*', (req, res, next) => {
-      // If request was meant for an API route that didn't match, send 404 JSON instead of HTML
-      if (req.originalUrl.startsWith('/api/')) {
+      // If request was meant for an API route or uploads that didn't match, send 404 JSON instead of HTML
+      if (req.originalUrl.startsWith('/api/') || req.originalUrl.startsWith('/uploads/')) {
         return notFoundHandler(req, res);
       }
       res.sendFile(path.join(distPath, 'index.html'), (err) => {
