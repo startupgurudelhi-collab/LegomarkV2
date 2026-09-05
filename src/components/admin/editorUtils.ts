@@ -43,10 +43,10 @@ export function markdownToHtml(md: string): string {
     const trimmed = rawLine.trim();
 
     // Check for image markdown: ![alt](url)
-    const imgMdMatch = trimmed.match(/^!\[(.*?)\]\((.*?)\)$/);
+    const imgMdMatch = trimmed.match(/^!\[(.*?)\]\((.+?)\)$/);
     if (imgMdMatch) {
       flushList();
-      const alt = imgMdMatch[1] || 'Article illustration';
+      const alt = imgMdMatch[1].trim() || 'Article illustration';
       const src = imgMdMatch[2].trim().replace(/^["']|["']$/g, '');
       htmlBlocks.push(`<figure class="article-image-block"><img src="${src}" alt="${alt}" /><figcaption>${alt}</figcaption></figure>`);
       continue;
@@ -145,8 +145,9 @@ export function formatInlineToHtml(text: string): string {
   let res = text;
 
   // 1. Process Markdown Images first: ![alt](url) -> converted to figure block
-  res = res.replace(/!\[(.*?)\]\((https?:\/\/[^\s\)]+|\/[^\s\)]+)\)/g, (_match, alt, src) => {
-    const safeAlt = alt || 'Article illustration';
+  res = res.replace(/!\[(.*?)\]\((.+?)\)/g, (_match, alt, rawSrc) => {
+    const safeAlt = (alt || 'Article illustration').trim();
+    const src = rawSrc.trim().replace(/^["']|["']$/g, '');
     return `<figure class="article-image-block"><img src="${src}" alt="${safeAlt}" /><figcaption>${safeAlt}</figcaption></figure>`;
   });
 
@@ -173,7 +174,24 @@ export function htmlToMarkdown(html: string): string {
 
   // Use DOMParser if available in browser
   if (typeof window === 'undefined' || typeof DOMParser === 'undefined') {
-    return html;
+    let fallback = html;
+    fallback = fallback.replace(
+      /<figure[^>]*>\s*<img[^>]*src=["']([^"']+)["'][^>]*alt=["']([^"']*)["'][^>]*\/?>\s*(?:<figcaption[^>]*>(.*?)<\/figcaption>)?\s*<\/figure>/gi,
+      (_m, src, alt, caption) => `\n\n![${(caption || alt || 'Article illustration').replace(/[\[\]]/g, '').trim()}](${src.trim()})\n\n`
+    );
+    fallback = fallback.replace(
+      /<figure[^>]*>\s*<img[^>]*src=["']([^"']+)["'][^>]*\/?>\s*(?:<figcaption[^>]*>(.*?)<\/figcaption>)?\s*<\/figure>/gi,
+      (_m, src, caption) => `\n\n![${(caption || 'Article illustration').replace(/[\[\]]/g, '').trim()}](${src.trim()})\n\n`
+    );
+    fallback = fallback.replace(
+      /<img[^>]*src=["']([^"']+)["'][^>]*alt=["']([^"']*)["'][^>]*\/?>/gi,
+      (_m, src, alt) => `\n\n![${(alt || 'Article illustration').replace(/[\[\]]/g, '').trim()}](${src.trim()})\n\n`
+    );
+    fallback = fallback.replace(
+      /<img[^>]*src=["']([^"']+)["'][^>]*\/?>/gi,
+      (_m, src) => `\n\n![Article illustration](${src.trim()})\n\n`
+    );
+    return fallback.replace(/\n{3,}/g, '\n\n').trim();
   }
 
   try {
@@ -215,9 +233,20 @@ function parseNodeToMarkdown(node: Node): string {
           break;
         case 'p':
         case 'div': {
-          const content = parseInlineChildren(el).trim();
-          if (content) {
-            output += `\n\n${content}\n\n`;
+          // If this element contains block-level elements or figures, recurse to preserve block boundaries
+          const hasBlockChildren = Array.from(el.children).some((c) =>
+            ['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'blockquote', 'figure'].includes(
+              c.tagName.toLowerCase()
+            )
+          );
+
+          if (hasBlockChildren) {
+            output += parseNodeToMarkdown(el);
+          } else {
+            const content = parseInlineChildren(el).trim();
+            if (content) {
+              output += `\n\n${content}\n\n`;
+            }
           }
           break;
         }
@@ -230,7 +259,7 @@ function parseNodeToMarkdown(node: Node): string {
         }
         case 'ul': {
           output += '\n\n';
-          el.querySelectorAll(':scope > li').forEach(li => {
+          el.querySelectorAll(':scope > li').forEach((li) => {
             output += `* ${parseInlineChildren(li).trim()}\n`;
           });
           output += '\n';
@@ -239,7 +268,7 @@ function parseNodeToMarkdown(node: Node): string {
         case 'ol': {
           output += '\n\n';
           let idx = 1;
-          el.querySelectorAll(':scope > li').forEach(li => {
+          el.querySelectorAll(':scope > li').forEach((li) => {
             output += `${idx}. ${parseInlineChildren(li).trim()}\n`;
             idx++;
           });
@@ -249,17 +278,23 @@ function parseNodeToMarkdown(node: Node): string {
         case 'figure': {
           const img = el.querySelector('img');
           if (img) {
-            const src = img.getAttribute('src') || '';
-            const figcaption = el.querySelector('figcaption');
-            const alt = figcaption?.textContent?.trim() || img.getAttribute('alt') || 'Article illustration';
-            output += `\n\n![${alt}](${src})\n\n`;
+            const src = (img.getAttribute('src') || (img as HTMLImageElement).src || '').trim();
+            if (src) {
+              const figcaption = el.querySelector('figcaption');
+              const rawAlt = figcaption?.textContent?.trim() || img.getAttribute('alt') || 'Article illustration';
+              const alt = rawAlt.replace(/[\[\]]/g, '').replace(/\s+/g, ' ').trim() || 'Article illustration';
+              output += `\n\n![${alt}](${src})\n\n`;
+            }
           }
           break;
         }
         case 'img': {
-          const src = el.getAttribute('src') || '';
-          const alt = el.getAttribute('alt') || 'Article illustration';
-          output += `\n\n![${alt}](${src})\n\n`;
+          const src = (el.getAttribute('src') || (el as HTMLImageElement).src || '').trim();
+          if (src) {
+            const rawAlt = el.getAttribute('alt') || 'Article illustration';
+            const alt = rawAlt.replace(/[\[\]]/g, '').replace(/\s+/g, ' ').trim() || 'Article illustration';
+            output += `\n\n![${alt}](${src})\n\n`;
+          }
           break;
         }
         case 'br':
@@ -316,19 +351,28 @@ function parseInlineChildren(node: Node): string {
         case 'figure': {
           const img = el.querySelector('img');
           if (img) {
-            const src = img.getAttribute('src') || '';
-            const figcaption = el.querySelector('figcaption');
-            const alt = figcaption?.textContent?.trim() || img.getAttribute('alt') || 'Article illustration';
-            output += `![${alt}](${src})`;
+            const src = (img.getAttribute('src') || (img as HTMLImageElement).src || '').trim();
+            if (src) {
+              const figcaption = el.querySelector('figcaption');
+              const rawAlt = figcaption?.textContent?.trim() || img.getAttribute('alt') || 'Article illustration';
+              const alt = rawAlt.replace(/[\[\]]/g, '').replace(/\s+/g, ' ').trim() || 'Article illustration';
+              output += `\n\n![${alt}](${src})\n\n`;
+            }
           }
           break;
         }
         case 'img': {
-          const src = el.getAttribute('src') || '';
-          const alt = el.getAttribute('alt') || 'Article illustration';
-          output += `![${alt}](${src})`;
+          const src = (el.getAttribute('src') || (el as HTMLImageElement).src || '').trim();
+          if (src) {
+            const rawAlt = el.getAttribute('alt') || 'Article illustration';
+            const alt = rawAlt.replace(/[\[\]]/g, '').replace(/\s+/g, ' ').trim() || 'Article illustration';
+            output += `\n\n![${alt}](${src})\n\n`;
+          }
           break;
         }
+        case 'figcaption':
+          // Figcaption content is extracted with the image as alt text; skip duplicate rendering
+          break;
         case 'br':
           output += '\n';
           break;
