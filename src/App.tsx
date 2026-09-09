@@ -26,6 +26,7 @@ import { PrivacyPolicyPage } from './components/legal/PrivacyPolicyPage';
 import { TermsAndConditionsPage } from './components/legal/TermsAndConditionsPage';
 import { RefundPolicyPage } from './components/legal/RefundPolicyPage';
 import { LegalPolicyType } from './components/legal/LegalPageLayout';
+import { PaymentSuccessPage, VerifiedPaymentReceipt } from './components/payment/PaymentSuccessPage';
 import { getServiceBySlug } from './data/websiteData';
 import { X } from 'lucide-react';
 import { useHealthReport } from './services/useHealthReport';
@@ -41,6 +42,7 @@ export default function App() {
   const [consultationService, setConsultationService] = useState('Private Limited Company Registration');
   const [isBuyNowOpen, setIsBuyNowOpen] = useState(false);
   const [buyNowItem, setBuyNowItem] = useState<BuyNowItem | null>(null);
+  const [verifiedPaymentReceipt, setVerifiedPaymentReceipt] = useState<VerifiedPaymentReceipt | null>(null);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
 
   // Apply dynamic Admin-selected font family on load
@@ -200,6 +202,15 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
+  const handlePaymentSuccess = useCallback(
+    (receipt: VerifiedPaymentReceipt) => {
+      setVerifiedPaymentReceipt(receipt);
+      setIsBuyNowOpen(false);
+      handleNavigatePath('/payment-success');
+    },
+    [handleNavigatePath]
+  );
+
   const handleNavigatePolicy = useCallback((policy: LegalPolicyType) => {
     setActiveServiceSlug(null);
     setActiveBlogSlug(null);
@@ -286,6 +297,12 @@ export default function App() {
       ) : currentPath === '/refund-policy' ? (
         <RefundPolicyPage
           onNavigatePolicy={handleNavigatePolicy}
+          onNavigateHome={handleNavigateHome}
+          onOpenConsultation={handleOpenConsultation}
+        />
+      ) : currentPath === '/payment-success' ? (
+        <PaymentSuccessPage
+          receipt={verifiedPaymentReceipt}
           onNavigateHome={handleNavigateHome}
           onOpenConsultation={handleOpenConsultation}
         />
@@ -401,6 +418,7 @@ export default function App() {
         isOpen={isBuyNowOpen}
         onClose={() => setIsBuyNowOpen(false)}
         item={buyNowItem}
+        onPaymentSuccess={handlePaymentSuccess}
       />
 
       {/* Floating WhatsApp Action Widget (Public Site-Wide) */}

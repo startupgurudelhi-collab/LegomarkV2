@@ -43,9 +43,22 @@ async function resolveAuthoritativeItemPrice(params: {
   const isExplicitPackage = itemType === 'package' || itemId === 'starter' || itemId === 'growth' || itemId === 'enterprise';
 
   // 1. If a service slug/context is provided along with a package reference, resolve service-scoped package first
-  if (slug && (isExplicitPackage || itemId)) {
+  let serviceSlug = slug;
+  if (!serviceSlug && itemName && (isExplicitPackage || itemType === 'package')) {
+    if (itemName.includes(' - ')) {
+      const candidateTitle = itemName.split(' - ')[0].trim().toLowerCase();
+      const matchedService = SERVICES.find(
+        (s) => s.title.toLowerCase() === candidateTitle || s.slug.toLowerCase() === candidateTitle
+      );
+      if (matchedService) {
+        serviceSlug = matchedService.slug;
+      }
+    }
+  }
+
+  if (serviceSlug && (isExplicitPackage || itemId)) {
     try {
-      const dbService = await serviceRepository.getPublicServiceBySlug(slug);
+      const dbService = await serviceRepository.getPublicServiceBySlug(serviceSlug);
       if (dbService && dbService.packages && dbService.packages.length > 0) {
         const matchedPkg = dbService.packages.find(
           (p) =>
@@ -53,7 +66,10 @@ async function resolveAuthoritativeItemPrice(params: {
             (itemName && p.name.toLowerCase() === itemName.toLowerCase()) ||
             (itemName && `${dbService.title} - ${p.name}`.toLowerCase() === itemName.toLowerCase()) ||
             (itemName && `${dbService.title} (${p.name})`.toLowerCase() === itemName.toLowerCase()) ||
-            (itemName && itemName.toLowerCase().includes(p.name.toLowerCase()))
+            (itemName && itemName.toLowerCase().includes(p.name.toLowerCase())) ||
+            (itemId && p.name.toLowerCase().includes(itemId.toLowerCase())) ||
+            (itemId && itemId.toLowerCase().includes(p.name.toLowerCase())) ||
+            (itemName && p.id.toLowerCase() === itemName.toLowerCase())
         );
         if (matchedPkg) {
           const num = matchedPkg.priceAmount > 0 ? matchedPkg.priceAmount : parsePriceToNumber(matchedPkg.price);
@@ -71,6 +87,33 @@ async function resolveAuthoritativeItemPrice(params: {
     } catch {
       // Fallback
     }
+
+    const staticService = getServiceBySlug(serviceSlug);
+    if (staticService && (staticService as any).packages && (staticService as any).packages.length > 0) {
+      const matchedPkg = (staticService as any).packages.find(
+        (p: any) =>
+          (itemId && p.id.toLowerCase() === itemId.toLowerCase()) ||
+          (itemName && p.name.toLowerCase() === itemName.toLowerCase()) ||
+          (itemName && `${staticService.title} - ${p.name}`.toLowerCase() === itemName.toLowerCase()) ||
+          (itemName && `${staticService.title} (${p.name})`.toLowerCase() === itemName.toLowerCase()) ||
+          (itemName && itemName.toLowerCase().includes(p.name.toLowerCase())) ||
+          (itemId && p.name.toLowerCase().includes(itemId.toLowerCase())) ||
+          (itemId && itemId.toLowerCase().includes(p.name.toLowerCase())) ||
+          (itemName && p.id.toLowerCase() === itemName.toLowerCase())
+      );
+      if (matchedPkg) {
+        const num = matchedPkg.priceAmount > 0 ? matchedPkg.priceAmount : parsePriceToNumber(matchedPkg.price);
+        if (num > 0) {
+          return {
+            resolvedName: `${staticService.title} - ${matchedPkg.name}`,
+            resolvedAmount: num,
+            itemType: 'package',
+            slug: staticService.slug,
+            id: matchedPkg.id,
+          };
+        }
+      }
+    }
   }
 
   // 2. Resolve as global Package if specified or if ID matches a known package
@@ -80,7 +123,8 @@ async function resolveAuthoritativeItemPrice(params: {
       const matched = activePackages.find(
         (p) =>
           (itemId && p.id.toLowerCase() === itemId.toLowerCase()) ||
-          (itemName && p.name.toLowerCase() === itemName.toLowerCase())
+          (itemName && p.name.toLowerCase() === itemName.toLowerCase()) ||
+          (itemName && itemName.toLowerCase().includes(p.name.toLowerCase()))
       );
       if (matched) {
         const rawPrice = matched.priceDisplayOverride || matched.priceAmount || '0';
@@ -101,7 +145,8 @@ async function resolveAuthoritativeItemPrice(params: {
     const staticPkg = PACKAGES.find(
       (p) =>
         (itemId && p.id.toLowerCase() === itemId.toLowerCase()) ||
-        (itemName && p.name.toLowerCase() === itemName.toLowerCase())
+        (itemName && p.name.toLowerCase() === itemName.toLowerCase()) ||
+        (itemName && itemName.toLowerCase().includes(p.name.toLowerCase()))
     );
     if (staticPkg) {
       const num = parsePriceToNumber(staticPkg.price);
@@ -116,7 +161,18 @@ async function resolveAuthoritativeItemPrice(params: {
     }
   }
 
-  // 2. Resolve as Service by Slug or ID
+  // 3. HARD GUARD: If this item was explicitly requested as a package (or has a package tier ID),
+  // NEVER fall back to service startingPrice. A package purchase must only resolve
+  // to an authoritative package price.
+  if (isExplicitPackage || itemType === 'package') {
+    logger.warn(
+      `Package price resolution failed for itemId=${itemId}, slug=${slug}, itemName=${itemName}. Refusing fallback to service startingPrice.`,
+      'PaymentController'
+    );
+    return null;
+  }
+
+  // 4. Resolve as Service by Slug or ID
   const targetSlug = slug || itemId;
   if (targetSlug) {
     try {

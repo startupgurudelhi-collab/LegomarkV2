@@ -17,14 +17,21 @@ import {
 import { BuyNowItem } from '../../types/website';
 import { parsePriceToNumber, formatINR } from '../../utils/pricing';
 import { loadRazorpayScript } from '../../services/payment.service';
+import { VerifiedPaymentReceipt } from './PaymentSuccessPage';
 
 interface BuyNowModalProps {
   isOpen: boolean;
   onClose: () => void;
   item: BuyNowItem | null;
+  onPaymentSuccess?: (receipt: VerifiedPaymentReceipt) => void;
 }
 
-export const BuyNowModal: React.FC<BuyNowModalProps> = ({ isOpen, onClose, item }) => {
+export const BuyNowModal: React.FC<BuyNowModalProps> = ({
+  isOpen,
+  onClose,
+  item,
+  onPaymentSuccess,
+}) => {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -146,11 +153,49 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({ isOpen, onClose, item 
               );
             }
 
-            setPaymentSuccess({
+            const rawItemName = verifyData.itemName || orderData.itemName || item.name || item.title || 'Corporate Service';
+            let resolvedServiceName = rawItemName;
+            let resolvedPackageName = 'Standard Professional Engagement';
+
+            if (item.itemType === 'package') {
+              if (rawItemName.includes(' - ')) {
+                const parts = rawItemName.split(' - ');
+                resolvedServiceName = parts[0].trim();
+                resolvedPackageName = parts.slice(1).join(' - ').trim();
+              } else if (rawItemName.includes(' (') && rawItemName.includes(')')) {
+                const parts = rawItemName.split(' (');
+                resolvedServiceName = parts[0].trim();
+                resolvedPackageName = parts[1].replace(/\)$/, '').trim();
+              } else if (item.title && item.name && item.title !== item.name) {
+                resolvedServiceName = item.title.trim();
+                resolvedPackageName = item.name.trim();
+              } else {
+                resolvedServiceName = 'Corporate Compliance & Legal Advisory';
+                resolvedPackageName = rawItemName;
+              }
+            } else {
+              resolvedServiceName = rawItemName;
+              resolvedPackageName = 'Direct Professional Engagement';
+            }
+
+            const verifiedAmount =
+              typeof verifyData.amount === 'number' && verifyData.amount > 0
+                ? verifyData.amount
+                : (typeof orderData.amount === 'number' ? orderData.amount / 100 : rawAmount);
+
+            const receipt: VerifiedPaymentReceipt = {
+              verified: true,
+              timestamp: Date.now(),
               paymentId: verifyData.paymentId || response.razorpay_payment_id,
-              orderId: response.razorpay_order_id,
-              amount: verifyData.amount || (typeof orderData.amount === 'number' ? orderData.amount / 100 : rawAmount),
-              itemName: verifyData.itemName || orderData.itemName || item.name || item.title,
+              orderId: verifyData.orderId || response.razorpay_order_id,
+              amount: verifiedAmount,
+              serviceName: resolvedServiceName,
+              packageName: resolvedPackageName,
+              itemName: rawItemName,
+              customerName: fullName.trim(),
+              customerEmail: email.trim() || undefined,
+              customerPhone: phone.trim(),
+              city: city.trim() || undefined,
               date: new Date().toLocaleDateString('en-IN', {
                 year: 'numeric',
                 month: 'short',
@@ -158,7 +203,30 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({ isOpen, onClose, item 
                 hour: '2-digit',
                 minute: '2-digit',
               }),
+            };
+
+            // Save verified payment to session storage
+            try {
+              sessionStorage.setItem('legomark_verified_payment', JSON.stringify(receipt));
+            } catch (storageErr) {
+              console.warn('Could not store verified payment in session:', storageErr);
+            }
+
+            setPaymentSuccess({
+              paymentId: receipt.paymentId,
+              orderId: receipt.orderId,
+              amount: receipt.amount,
+              itemName: receipt.itemName,
+              date: receipt.date,
             });
+
+            // Redirect customer to dedicated /payment-success route
+            if (onPaymentSuccess) {
+              onPaymentSuccess(receipt);
+            } else {
+              onClose();
+              window.location.href = '/payment-success';
+            }
           } catch (err: any) {
             console.error('Payment verification error:', err);
             setErrorMessage(err.message || 'Payment verification encountered an issue. Please contact support.');

@@ -190,6 +190,7 @@ export const ServicePackages: React.FC<ServicePackagesProps> = ({
                         title: `${service.title} (${pkg.name})`,
                         priceDisplay: ensureRupeePrice(pkg.price),
                         itemType: 'package',
+                        slug: service.slug,
                         category: service.category,
                         governmentFeeNote: service.governmentFeeNote,
                         features: pkg.features,
