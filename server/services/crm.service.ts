@@ -12,6 +12,8 @@ export interface ExtraLeadContext {
   message?: string;
   paymentId?: string;
   paymentOrderId?: string;
+  paymentStatus?: string;
+  paymentDetails?: string;
 }
 
 export interface CrmLeadPayload {
@@ -28,6 +30,14 @@ export interface CrmLeadPayload {
   submissionChannel: string;
   source: string;
   notes: string | null;
+  paymentStatus?: string | null;
+  paymentDetails?: string | null;
+  razorpayPaymentId?: string | null;
+  razorpayOrderId?: string | null;
+  paymentId?: string | null;
+  orderId?: string | null;
+  status?: string | null;
+  isPaid?: boolean;
 }
 
 export interface CrmSyncResult {
@@ -108,12 +118,15 @@ class CrmService {
    * Map a LEGOMARK lead and optional submission context to the CRM payload schema
    */
   buildCrmPayload(lead: Lead, context?: ExtraLeadContext): CrmLeadPayload {
+    const isPayment = Boolean(
+      context?.paymentId ||
+      context?.paymentStatus === 'PAID' ||
+      lead.serviceInterested?.startsWith('[PAID ORDER]') ||
+      lead.source === 'Razorpay Verified'
+    );
+
     // 1. Service required resolution:
     let rawService = (context?.selectedService || lead.serviceInterested || 'General Consultation').trim();
-    if (rawService.startsWith('[PAID ORDER]')) {
-      rawService = rawService.replace(/^\[PAID ORDER\]\s*/i, '').trim();
-    }
-
     let serviceRequired = rawService;
     let extractedPackage: string | null = null;
 
@@ -128,18 +141,22 @@ class CrmService {
       extractedPackage = pPart;
     }
 
+    if (isPayment && !serviceRequired.startsWith('[PAID ORDER]')) {
+      serviceRequired = `[PAID ORDER] ${serviceRequired}`;
+    }
+
     // 2. Package details: use explicit package details, or fall back to extracted package or selectedService
-    let packageDetails: string | null = null;
+    let basePackage: string | null = null;
     if (context?.packageDetails && context.packageDetails.trim().length > 0) {
-      packageDetails = context.packageDetails.trim();
+      basePackage = context.packageDetails.trim();
     } else if (extractedPackage && extractedPackage.length > 0) {
-      packageDetails = extractedPackage;
+      basePackage = extractedPackage;
     } else if (
       context?.selectedService &&
       context.selectedService.trim().length > 0 &&
       context.selectedService.trim() !== lead.serviceInterested.trim()
     ) {
-      packageDetails = context.selectedService.trim();
+      basePackage = context.selectedService.trim();
     }
 
     // 3. Package fee: numeric or clean string if available
@@ -155,6 +172,20 @@ class CrmService {
       }
     }
 
+    // For paid orders, packageDetails is the primary field visibly updated and displayed in EFILINGG CRM.
+    // Ensure it clearly carries the [PAID ORDER] tag along with amount and payment identifier.
+    let packageDetails = basePackage;
+    if (isPayment) {
+      const pkgName = (basePackage || rawService.replace(/^\[PAID ORDER\]\s*/i, '') || 'Direct Package').trim();
+      const cleanPkgName = pkgName.replace(/^\[PAID ORDER\]\s*/i, '').trim();
+      const feeStr = packageFee ? `Fee: ₹${packageFee}` : '';
+      const payIdStr = context?.paymentId ? `Payment ID: ${context.paymentId}` : '';
+      const meta = [feeStr, payIdStr].filter(Boolean).join(' | ');
+      const suffix = meta ? ` (${meta})` : '';
+
+      packageDetails = `[PAID ORDER] ${cleanPkgName}${suffix}`;
+    }
+
     // 4. Notes: aggregate lead message and notes
     const messagePart = (lead.message || context?.message || '').trim();
     const notesPart = (context?.notes || '').trim();
@@ -166,7 +197,19 @@ class CrmService {
     }
 
     // 5. Submission channel: default to lead source / form type
-    const channel = (context?.submissionChannel || lead.source || 'Website Consultation Modal').trim();
+    const channel = (
+      context?.submissionChannel ||
+      (isPayment ? 'Razorpay Direct Purchase' : lead.source) ||
+      'Website Consultation Modal'
+    ).trim();
+
+    // 6. Payment details
+    const paymentId = context?.paymentId || null;
+    const paymentOrderId = context?.paymentOrderId || null;
+    const paymentStatus = isPayment ? (context?.paymentStatus || 'PAID') : null;
+    const paymentDetails = isPayment
+      ? (context?.paymentDetails || `Online Payment Verified via Razorpay${packageFee ? ` (Amount: ₹${packageFee})` : ''}${paymentId ? ` (Payment ID: ${paymentId})` : ''}`)
+      : null;
 
     return {
       customerName: (lead.fullName || '').trim(),
@@ -182,6 +225,14 @@ class CrmService {
       submissionChannel: channel,
       source: this.crmSource,
       notes: combinedNotes,
+      paymentStatus,
+      paymentDetails,
+      razorpayPaymentId: paymentId,
+      razorpayOrderId: paymentOrderId,
+      paymentId,
+      orderId: paymentOrderId,
+      status: paymentStatus,
+      isPaid: isPayment,
     };
   }
 
@@ -194,8 +245,13 @@ class CrmService {
       return { success: false, error: 'Invalid lead provided to CRM sync' };
     }
 
-    const isPayment = Boolean(context?.paymentId);
-    const syncKey = context?.paymentId ? `pay_${context.paymentId}` : `lead_${lead.id}`;
+    const isPayment = Boolean(
+      context?.paymentId ||
+      context?.paymentStatus === 'PAID' ||
+      lead.serviceInterested?.startsWith('[PAID ORDER]') ||
+      lead.source === 'Razorpay Verified'
+    );
+    const syncKey = context?.paymentId ? `pay_${context.paymentId}` : (isPayment ? `paid_${lead.id}` : `lead_${lead.id}`);
 
     // 1. Payment Deduplication: If this exact payment ID was already synced to CRM, skip
     if (isPayment && context?.paymentId && this.syncedPaymentIds.has(context.paymentId)) {
@@ -265,9 +321,10 @@ class CrmService {
           this.syncedPaymentIds.add(context.paymentId);
         }
         const crmId = responseData?.lead?.id || responseData?.id;
+        const actionTaken = responseData?.message?.includes('updated') ? 'updated existing' : 'delivered';
 
         logger.info(
-          `Successfully delivered lead ${lead.id} to EFILINGG CRM (Status: ${response.status}${crmId ? `, CRM Lead ID: ${crmId}` : ''})`,
+          `Successfully ${actionTaken} lead ${lead.id} in EFILINGG CRM (Status: ${response.status}${crmId ? `, CRM Lead ID: ${crmId}` : ''})`,
           'CrmService'
         );
 
@@ -278,9 +335,9 @@ class CrmService {
         };
       } else {
         const errorMsg = responseData?.error || responseData?.message || response.statusText || 'CRM rejected payload';
-        // Note: We log the status and sanitized error without exposing any tokens or auth headers
+        const safeDetails = responseData ? JSON.stringify({ error: responseData.error, message: responseData.message, success: responseData.success }) : 'No JSON response body';
         logger.warn(
-          `EFILINGG CRM returned status ${response.status} for lead ${lead.id}: ${errorMsg}`,
+          `EFILINGG CRM returned HTTP ${response.status} for lead ${lead.id}: ${errorMsg} (Details: ${safeDetails})`,
           'CrmService'
         );
 

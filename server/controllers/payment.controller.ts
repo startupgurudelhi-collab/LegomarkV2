@@ -778,6 +778,8 @@ export class PaymentController {
           notes: paymentVerificationMessage,
           paymentId: razorpayPaymentId,
           paymentOrderId: razorpayOrderId,
+          paymentStatus: 'PAID',
+          paymentDetails: `Online Payment Verified via Razorpay HMAC-SHA256 (Amount: ₹${confirmedAmount}, Payment ID: ${razorpayPaymentId}, Order ID: ${razorpayOrderId})`,
         })
         .catch((crmErr) => {
           logger.warn('Non-blocking EFILINGG CRM sync notice for paid lead:', 'PaymentController', crmErr?.message || crmErr);
