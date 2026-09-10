@@ -23,6 +23,10 @@ export interface AppConfig {
     cookieSecure: boolean;
     sessionMaxAgeDays: number;
   };
+  crm: {
+    apiUrl: string;
+    apiToken?: string;
+  };
   uploadsDir: string;
   appUrl?: string;
 }
@@ -56,6 +60,17 @@ function resolveConfig(): AppConfig {
     sessionMaxAgeDays: parseInt(process.env.ADMIN_SESSION_MAX_AGE_DAYS || '7', 10),
   };
 
+  const crm = {
+    apiUrl: process.env.EFILINGG_CRM_API_URL?.trim() || 'https://efilingg.cloud/api/leads/website',
+    apiToken: (
+      process.env.EFILINGG_CRM_API_TOKEN ||
+      process.env.EFILINGG_CRM_TOKEN ||
+      process.env.CRM_BEARER_TOKEN ||
+      process.env.EFILINGG_API_TOKEN ||
+      process.env.CRM_API_TOKEN
+    )?.trim(),
+  };
+
   const hasDbUrl = Boolean(database.url && database.url.trim().length > 0);
   const hasDiscreteConfig = Boolean(database.host && database.user && database.name);
 
@@ -73,6 +88,7 @@ function resolveConfig(): AppConfig {
     corsOrigin,
     database,
     auth,
+    crm,
     uploadsDir,
     appUrl: process.env.APP_URL || `http://localhost:${port}`,
   };

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { leadRepository } from '../repositories/lead.repository';
+import { crmService } from '../services/crm.service';
 import { logger } from '../utils/logger';
 
 /**
@@ -13,7 +14,22 @@ export class LeadController {
    */
   async submitConsultation(req: Request, res: Response): Promise<void> {
     try {
-      const { fullName, phone, email, city, selectedService, serviceInterested, serviceId, notes, message, source } = req.body;
+      const {
+        fullName,
+        phone,
+        email,
+        city,
+        state,
+        selectedService,
+        serviceInterested,
+        serviceId,
+        packageDetails,
+        packageFee,
+        submissionChannel,
+        notes,
+        message,
+        source,
+      } = req.body;
 
       if (!fullName || typeof fullName !== 'string' || fullName.trim().length === 0) {
         res.status(400).json({
@@ -45,6 +61,23 @@ export class LeadController {
       });
 
       logger.info(`New consultation enquiry received from ${createdLead.fullName} for ${createdLead.serviceInterested}`, 'PublicLead');
+
+      // Forward lead to EFILINGG CRM server-side in a non-blocking flow
+      // This ensures LEGOMARK remains the primary lead record and stays saved even if CRM is unavailable
+      crmService
+        .sendLeadToCrm(createdLead, {
+          selectedService: typeof selectedService === 'string' ? selectedService : undefined,
+          packageDetails: typeof packageDetails === 'string' ? packageDetails : undefined,
+          packageFee: packageFee !== undefined ? packageFee : undefined,
+          city: typeof city === 'string' ? city : undefined,
+          state: typeof state === 'string' ? state : undefined,
+          submissionChannel: typeof submissionChannel === 'string' ? submissionChannel : undefined,
+          notes: typeof notes === 'string' ? notes : undefined,
+          message: typeof message === 'string' ? message : undefined,
+        })
+        .catch((crmErr) => {
+          logger.warn('Non-blocking EFILINGG CRM sync notice:', 'PublicLead', crmErr?.message || crmErr);
+        });
 
       res.status(201).json({
         success: true,
