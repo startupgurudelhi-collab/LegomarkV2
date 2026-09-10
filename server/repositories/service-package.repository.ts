@@ -131,6 +131,23 @@ export class ServicePackageRepository {
       throw new Error(`Service '${serviceId}' not found.`);
     }
 
+    // Sanitize price to strict numeric string for Postgres numeric(12,2)
+    const rawPriceDigits = String(payload.priceAmount ?? '').replace(/[^\d.]/g, '');
+    const cleanPrice = rawPriceDigits.length > 0 && !isNaN(parseFloat(rawPriceDigits))
+      ? parseFloat(rawPriceDigits).toFixed(2)
+      : '0.00';
+
+    const cleanName = (payload.name ?? '').trim().slice(0, 128);
+    const cleanTagline = (payload.tagline ?? '').trim().slice(0, 255) || null;
+    const cleanCurrency = (payload.currency ?? '').trim().toUpperCase().slice(0, 8) || 'INR';
+    const cleanBillingType = payload.billingType ? String(payload.billingType).trim().slice(0, 32) : 'one_time';
+    const cleanPriceDisplayOverride = (payload.priceDisplayOverride ?? '').trim().slice(0, 64) || null;
+    const cleanIdealFor = (payload.idealFor ?? '').trim() || null;
+    const cleanBadge = (payload.badge ?? '').trim().slice(0, 64) || null;
+    const cleanPopular = Boolean(payload.popular);
+    const cleanDisplayOrder = Number.isInteger(Number(payload.displayOrder)) ? Number(payload.displayOrder) : 0;
+    const cleanIsActive = Boolean(payload.isActive);
+
     // 2. Find or create service_packages record
     let [spRow] = await db
       .select()
@@ -145,79 +162,118 @@ export class ServicePackageRepository {
         // Create base package template first
         await db.insert(packages).values({
           id: packageId,
-          name: (payload.name ?? '').trim(),
-          tagline: (payload.tagline ?? '').trim() || null,
-          priceAmount: String(payload.priceAmount ?? '').trim() || '0',
-          currency: (payload.currency ?? '').trim() || 'INR',
-          billingType: payload.billingType,
-          priceDisplayOverride: (payload.priceDisplayOverride ?? '').trim() || null,
-          idealFor: (payload.idealFor ?? '').trim(),
-          popular: Boolean(payload.popular),
-          badge: (payload.badge ?? '').trim() || null,
-          isActive: Boolean(payload.isActive),
-          displayOrder: Number(payload.displayOrder) || 0,
+          name: cleanName || packageId,
+          tagline: cleanTagline,
+          priceAmount: cleanPrice,
+          currency: cleanCurrency,
+          billingType: cleanBillingType,
+          priceDisplayOverride: cleanPriceDisplayOverride,
+          idealFor: cleanIdealFor || '',
+          popular: cleanPopular,
+          badge: cleanBadge,
+          isActive: cleanIsActive,
+          displayOrder: cleanDisplayOrder,
         });
       }
 
       // Insert service_packages junction
-      const [insertedSp] = await db
-        .insert(servicePackages)
-        .values({
+      try {
+        const [insertedSp] = await db
+          .insert(servicePackages)
+          .values({
+            serviceId,
+            packageId,
+            customName: cleanName || null,
+            customTagline: cleanTagline,
+            priceAmount: cleanPrice,
+            currency: cleanCurrency,
+            billingType: cleanBillingType,
+            priceDisplayOverride: cleanPriceDisplayOverride,
+            customIdealFor: cleanIdealFor,
+            customBadge: cleanBadge,
+            popular: cleanPopular,
+            displayOrder: cleanDisplayOrder,
+            isActive: cleanIsActive,
+          })
+          .returning();
+
+        spRow = insertedSp;
+      } catch (insertErr: any) {
+        logger.error('Failed to insert service_packages junction row', 'ServicePackageRepo', {
           serviceId,
           packageId,
-          customName: (payload.name ?? '').trim(),
-          customTagline: (payload.tagline ?? '').trim() || null,
-          priceAmount: String(payload.priceAmount ?? '').trim() || '0',
-          currency: (payload.currency ?? '').trim() || 'INR',
-          billingType: payload.billingType,
-          priceDisplayOverride: (payload.priceDisplayOverride ?? '').trim() || null,
-          customIdealFor: (payload.idealFor ?? '').trim(),
-          customBadge: (payload.badge ?? '').trim() || null,
-          popular: Boolean(payload.popular),
-          displayOrder: Number(payload.displayOrder) || 0,
-          isActive: Boolean(payload.isActive),
-        })
-        .returning();
-
-      spRow = insertedSp;
+          code: insertErr?.code,
+          detail: insertErr?.detail,
+          column: insertErr?.column,
+          table: insertErr?.table,
+          message: insertErr?.message,
+        });
+        throw new Error(insertErr?.detail || insertErr?.message || 'Failed to link package to service');
+      }
     } else {
       // Update existing service_packages row
-      const [updatedSp] = await db
-        .update(servicePackages)
-        .set({
-          customName: (payload.name ?? '').trim(),
-          customTagline: (payload.tagline ?? '').trim() || null,
-          priceAmount: String(payload.priceAmount ?? '').trim() || '0',
-          currency: (payload.currency ?? '').trim() || 'INR',
-          billingType: payload.billingType,
-          priceDisplayOverride: (payload.priceDisplayOverride ?? '').trim() || null,
-          customIdealFor: (payload.idealFor ?? '').trim(),
-          customBadge: (payload.badge ?? '').trim() || null,
-          popular: Boolean(payload.popular),
-          displayOrder: Number(payload.displayOrder) || 0,
-          isActive: Boolean(payload.isActive),
-          updatedAt: new Date(),
-        })
-        .where(eq(servicePackages.id, spRow.id))
-        .returning();
+      try {
+        const [updatedSp] = await db
+          .update(servicePackages)
+          .set({
+            customName: cleanName || null,
+            customTagline: cleanTagline,
+            priceAmount: cleanPrice,
+            currency: cleanCurrency,
+            billingType: cleanBillingType,
+            priceDisplayOverride: cleanPriceDisplayOverride,
+            customIdealFor: cleanIdealFor,
+            customBadge: cleanBadge,
+            popular: cleanPopular,
+            displayOrder: cleanDisplayOrder,
+            isActive: cleanIsActive,
+            updatedAt: new Date(),
+          })
+          .where(eq(servicePackages.id, spRow.id))
+          .returning();
 
-      spRow = updatedSp;
+        spRow = updatedSp;
+      } catch (updateErr: any) {
+        logger.error('Failed to update service_packages row in PostgreSQL', 'ServicePackageRepo', {
+          serviceId,
+          packageId,
+          servicePackageId: spRow.id,
+          code: updateErr?.code,
+          detail: updateErr?.detail,
+          hint: updateErr?.hint,
+          column: updateErr?.column,
+          table: updateErr?.table,
+          constraint: updateErr?.constraint,
+          message: updateErr?.message,
+        });
+        throw new Error(updateErr?.detail || updateErr?.message || 'Failed to update service package details');
+      }
     }
 
     // 3. Synchronize service-specific deliverables in service_package_features
     if (payload.features && Array.isArray(payload.features)) {
-      // Delete old features for this service package
-      await db.delete(servicePackageFeatures).where(eq(servicePackageFeatures.servicePackageId, spRow.id));
+      try {
+        // Delete old features for this service package
+        await db.delete(servicePackageFeatures).where(eq(servicePackageFeatures.servicePackageId, spRow.id));
 
-      const validFeatures = payload.features.filter((f) => (f.featureText ?? '').trim().length > 0);
-      if (validFeatures.length > 0) {
-        await db.insert(servicePackageFeatures).values(
-          validFeatures.map((f, idx) => ({
-            servicePackageId: spRow.id,
-            featureText: (f.featureText ?? '').trim(),
-            displayOrder: idx,
-          }))
-        );
+        const validFeatures = payload.features.filter((f) => (f.featureText ?? '').trim().length > 0);
+        if (validFeatures.length > 0) {
+          await db.insert(servicePackageFeatures).values(
+            validFeatures.map((f, idx) => ({
+              servicePackageId: spRow.id,
+              featureText: (f.featureText ?? '').trim().slice(0, 255),
+              displayOrder: Number.isInteger(f.displayOrder) ? f.displayOrder : idx,
+            }))
+          );
+        }
+      } catch (featErr: any) {
+        logger.error('Failed to synchronize service_package_features', 'ServicePackageRepo', {
+          servicePackageId: spRow.id,
+          code: featErr?.code,
+          detail: featErr?.detail,
+          message: featErr?.message,
+        });
+        throw new Error(featErr?.detail || featErr?.message || 'Failed to save package deliverables');
       }
     }
 
@@ -247,30 +303,37 @@ export class ServicePackageRepository {
     // Check if template exists
     const [templatePkg] = await db.select().from(packages).where(eq(packages.id, packageId)).limit(1);
     if (!templatePkg) {
+      const rawPriceDigits = String(payload.priceAmount ?? '').replace(/[^\d.]/g, '');
+      const cleanPrice = rawPriceDigits.length > 0 && !isNaN(parseFloat(rawPriceDigits))
+        ? parseFloat(rawPriceDigits).toFixed(2)
+        : '0.00';
+
       // Create template package
       await db.insert(packages).values({
         id: packageId,
-        name: (payload.name ?? '').trim(),
-        tagline: (payload.tagline ?? '').trim() || null,
-        priceAmount: String(payload.priceAmount ?? '').trim() || '0',
-        currency: (payload.currency ?? '').trim() || 'INR',
-        billingType: payload.billingType,
-        priceDisplayOverride: (payload.priceDisplayOverride ?? '').trim() || null,
-        idealFor: (payload.idealFor ?? '').trim(),
+        name: (payload.name ?? '').trim().slice(0, 128) || packageId,
+        tagline: (payload.tagline ?? '').trim().slice(0, 255) || null,
+        priceAmount: cleanPrice,
+        currency: (payload.currency ?? '').trim().toUpperCase().slice(0, 8) || 'INR',
+        billingType: payload.billingType ? String(payload.billingType).trim().slice(0, 32) : 'one_time',
+        priceDisplayOverride: (payload.priceDisplayOverride ?? '').trim().slice(0, 64) || null,
+        idealFor: (payload.idealFor ?? '').trim() || '',
         popular: Boolean(payload.popular),
-        badge: (payload.badge ?? '').trim() || null,
+        badge: (payload.badge ?? '').trim().slice(0, 64) || null,
         isActive: Boolean(payload.isActive),
-        displayOrder: Number(payload.displayOrder) || 0,
+        displayOrder: Number.isInteger(Number(payload.displayOrder)) ? Number(payload.displayOrder) : 0,
       });
 
       // Insert template features
       if (payload.features && payload.features.length > 0) {
         await db.insert(packageFeatures).values(
-          payload.features.map((f, i) => ({
-            packageId,
-            featureText: (f.featureText ?? '').trim(),
-            displayOrder: i,
-          }))
+          payload.features
+            .filter((f) => (f.featureText ?? '').trim().length > 0)
+            .map((f, i) => ({
+              packageId,
+              featureText: (f.featureText ?? '').trim().slice(0, 255),
+              displayOrder: Number.isInteger(f.displayOrder) ? f.displayOrder : i,
+            }))
         );
       }
     }

@@ -10,8 +10,10 @@ import { adminServiceApi } from '../../services/adminService.service';
 import {
   fetchAdminPackages,
   updateAdminPackage,
+  createAdminPackage,
   fetchAdminServicePackages,
   updateAdminServicePackage,
+  createOrAssignAdminServicePackage,
 } from '../../services/adminPackage.service';
 import { AdminPackage, PackageFormData } from '../../types/admin';
 import { PACKAGES } from '../../data/websiteData';
@@ -320,13 +322,20 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
         } else {
           await updateAdminPackage(packageData.id, packageData);
         }
+      } else {
+        if (serviceId) {
+          await createOrAssignAdminServicePackage(serviceId, packageData);
+        } else {
+          await createAdminPackage(packageData);
+        }
       }
       // Refresh package catalogue in this modal so updated values reflect immediately
       await loadPackagesForService(serviceId);
       setIsPackageEditorOpen(false);
       setEditingPackage(null);
     } catch (err: any) {
-      alert(err.message || 'Failed to update package.');
+      const cleanMsg = err?.message?.replace(/^Failed query:.*error:\s*/s, '') || 'Failed to update package.';
+      alert(cleanMsg);
     } finally {
       setIsSavingPackage(false);
     }

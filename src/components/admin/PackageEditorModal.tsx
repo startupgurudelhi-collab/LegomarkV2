@@ -138,7 +138,7 @@ export const PackageEditorModal: React.FC<PackageEditorModalProps> = ({
           id: packageToEdit.id ?? '',
           name: packageToEdit.name ?? '',
           tagline: packageToEdit.tagline ?? '',
-          priceAmount: packageToEdit.priceAmount != null ? String(packageToEdit.priceAmount) : '',
+          priceAmount: packageToEdit.priceAmount != null ? String(packageToEdit.priceAmount).replace(/[^\d.]/g, '') : '',
           currency: packageToEdit.currency || 'INR',
           billingType: packageToEdit.billingType || 'one_time',
           priceDisplayOverride: packageToEdit.priceDisplayOverride ?? '',
@@ -292,12 +292,17 @@ export const PackageEditorModal: React.FC<PackageEditorModalProps> = ({
         sanitizedOverride = '';
       }
 
+      const rawPriceDigits = String(formData.priceAmount ?? '').replace(/[^\d.]/g, '');
+      const cleanPrice = rawPriceDigits.length > 0 && !isNaN(parseFloat(rawPriceDigits))
+        ? parseFloat(rawPriceDigits).toFixed(2)
+        : '0.00';
+
       const payloadToSave: PackageFormData = {
         ...formData,
         id: (formData.id ?? '').trim(),
         name: (formData.name ?? '').trim(),
         tagline: (formData.tagline ?? '').trim() || null,
-        priceAmount: String(formData.priceAmount ?? '').trim(),
+        priceAmount: cleanPrice,
         currency: (formData.currency ?? '').trim() || 'INR',
         idealFor: (formData.idealFor ?? '').trim(),
         badge: (formData.badge ?? '').trim() || null,

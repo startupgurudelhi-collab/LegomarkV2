@@ -1,13 +1,21 @@
 ALTER TABLE "service_packages" ADD COLUMN IF NOT EXISTS "custom_name" varchar(128);
+--> statement-breakpoint
 ALTER TABLE "service_packages" ADD COLUMN IF NOT EXISTS "custom_tagline" varchar(255);
+--> statement-breakpoint
 ALTER TABLE "service_packages" ADD COLUMN IF NOT EXISTS "price_amount" numeric(12, 2);
+--> statement-breakpoint
 ALTER TABLE "service_packages" ADD COLUMN IF NOT EXISTS "currency" varchar(8) DEFAULT 'INR';
+--> statement-breakpoint
 ALTER TABLE "service_packages" ADD COLUMN IF NOT EXISTS "billing_type" varchar(32);
+--> statement-breakpoint
 ALTER TABLE "service_packages" ADD COLUMN IF NOT EXISTS "price_display_override" varchar(64);
+--> statement-breakpoint
 ALTER TABLE "service_packages" ADD COLUMN IF NOT EXISTS "custom_ideal_for" text;
+--> statement-breakpoint
 ALTER TABLE "service_packages" ADD COLUMN IF NOT EXISTS "custom_badge" varchar(64);
+--> statement-breakpoint
 ALTER TABLE "service_packages" ADD COLUMN IF NOT EXISTS "popular" boolean;
-
+--> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "service_package_features" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"service_package_id" uuid NOT NULL,
@@ -15,15 +23,15 @@ CREATE TABLE IF NOT EXISTS "service_package_features" (
 	"display_order" integer DEFAULT 0 NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
-
+--> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "service_package_features" ADD CONSTRAINT "service_package_features_service_package_id_fk" FOREIGN KEY ("service_package_id") REFERENCES "public"."service_packages"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
-
+--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "service_pkg_feat_service_pkg_id_idx" ON "service_package_features" USING btree ("service_package_id");
-
+--> statement-breakpoint
 -- Data migration: Copy global template package commercial defaults into service_packages
 UPDATE "service_packages" sp
 SET 
@@ -37,7 +45,7 @@ SET
   "popular" = COALESCE(sp."popular", p."popular")
 FROM "packages" p
 WHERE sp."package_id" = p."id" AND sp."price_amount" IS NULL;
-
+--> statement-breakpoint
 -- Data migration: Seed existing package features into service_package_features for existing service_packages if not already present
 INSERT INTO "service_package_features" ("service_package_id", "feature_text", "display_order")
 SELECT sp."id", pf."feature_text", pf."display_order"

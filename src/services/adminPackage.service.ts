@@ -273,34 +273,38 @@ export async function updateAdminServicePackage(
   packageId: string,
   payload: PackageFormData
 ): Promise<AdminPackage> {
-  const response = await fetch(
-    `/api/admin/services/${encodeURIComponent(serviceId)}/packages/${encodeURIComponent(packageId)}`,
-    {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify({
-        id: (payload.id ?? '').trim(),
-        name: (payload.name ?? '').trim(),
-        tagline: (payload.tagline ?? '').trim() || null,
-        priceAmount: String(payload.priceAmount ?? '').trim(),
-        currency: (payload.currency ?? '').trim() || 'INR',
-        billingType: payload.billingType,
-        priceDisplayOverride: (payload.priceDisplayOverride ?? '').trim() || null,
-        idealFor: (payload.idealFor ?? '').trim(),
-        popular: Boolean(payload.popular),
-        badge: (payload.badge ?? '').trim() || null,
-        isActive: Boolean(payload.isActive),
-        displayOrder: Number(payload.displayOrder) || 0,
-        features: (payload.features || []).map((f, idx) => ({
-          featureText: (f.featureText ?? '').trim(),
-          displayOrder: idx,
-        })),
-      }),
-    }
-  );
+    const rawPrice = payload.priceAmount ?? '';
+    const digits = String(rawPrice).replace(/[^\d.]/g, '');
+    const cleanPrice = digits.length > 0 && !isNaN(parseFloat(digits)) ? parseFloat(digits).toFixed(2) : '0.00';
+
+    const response = await fetch(
+      `/api/admin/services/${encodeURIComponent(serviceId)}/packages/${encodeURIComponent(packageId)}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          id: (payload.id ?? '').trim(),
+          name: (payload.name ?? '').trim(),
+          tagline: (payload.tagline ?? '').trim() || null,
+          priceAmount: cleanPrice,
+          currency: (payload.currency ?? '').trim() || 'INR',
+          billingType: payload.billingType || 'one_time',
+          priceDisplayOverride: (payload.priceDisplayOverride ?? '').trim() || null,
+          idealFor: (payload.idealFor ?? '').trim(),
+          popular: Boolean(payload.popular),
+          badge: (payload.badge ?? '').trim() || null,
+          isActive: Boolean(payload.isActive),
+          displayOrder: Number(payload.displayOrder) || 0,
+          features: (payload.features || []).map((f, idx) => ({
+            featureText: (f.featureText ?? '').trim(),
+            displayOrder: idx,
+          })),
+        }),
+      }
+    );
 
   if (response.status === 401) {
     throw new AdminApiError('Your session has expired. Please sign in again.', 401);
@@ -326,6 +330,10 @@ export async function createOrAssignAdminServicePackage(
   serviceId: string,
   payload: PackageFormData
 ): Promise<AdminPackage> {
+  const rawPrice = payload.priceAmount ?? '';
+  const digits = String(rawPrice).replace(/[^\d.]/g, '');
+  const cleanPrice = digits.length > 0 && !isNaN(parseFloat(digits)) ? parseFloat(digits).toFixed(2) : '0.00';
+
   const response = await fetch(`/api/admin/services/${encodeURIComponent(serviceId)}/packages`, {
     method: 'POST',
     headers: {
@@ -336,9 +344,9 @@ export async function createOrAssignAdminServicePackage(
       id: (payload.id ?? '').trim(),
       name: (payload.name ?? '').trim(),
       tagline: (payload.tagline ?? '').trim() || null,
-      priceAmount: String(payload.priceAmount ?? '').trim(),
+      priceAmount: cleanPrice,
       currency: (payload.currency ?? '').trim() || 'INR',
-      billingType: payload.billingType,
+      billingType: payload.billingType || 'one_time',
       priceDisplayOverride: (payload.priceDisplayOverride ?? '').trim() || null,
       idealFor: (payload.idealFor ?? '').trim(),
       popular: Boolean(payload.popular),
