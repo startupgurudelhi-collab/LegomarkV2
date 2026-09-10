@@ -5,6 +5,8 @@ import { serviceRepository } from '../repositories/service.repository';
 import { packageRepository } from '../repositories/package.repository';
 import { SERVICES, PACKAGES, getServiceBySlug } from '../../src/data/websiteData';
 import { logger } from '../utils/logger';
+import { crmService } from '../services/crm.service';
+import { Lead } from '../../db/schema/index';
 
 /**
  * Safely parse a display price string (e.g. '₹6,999', '₹14,999 / year', '₹1,499') into a numeric INR amount
@@ -457,6 +459,8 @@ export class PaymentController {
         customerEmail,
         customerPhone,
         city,
+        state,
+        leadId,
       } = req.body;
 
       if (!razorpayPaymentId || typeof razorpayPaymentId !== 'string') {
@@ -539,20 +543,95 @@ export class PaymentController {
         'PaymentController'
       );
 
-      // Record the confirmed paid order as a high-priority lead in the database
+      // Look for an existing LEGOMARK lead for this customer (by leadId, phone, or email)
+      // to reuse the existing LEGOMARK lead ID as externalLeadId and prevent unnecessary duplicates
+      let existingLead: Lead | null = null;
       try {
-        await leadRepository.createLead({
-          fullName: (customerName || 'Online Client').trim(),
-          phone: (customerPhone || 'N/A').trim(),
-          email: customerEmail && typeof customerEmail === 'string' ? customerEmail.trim() : undefined,
-          city: city && typeof city === 'string' ? city.trim() : undefined,
-          serviceInterested: `[PAID ORDER] ${confirmedItemName}`,
-          message: `Online Payment Verified via Razorpay HMAC-SHA256.\nPayment ID: ${razorpayPaymentId}\nOrder ID: ${razorpayOrderId}\nVerified Amount: ₹${confirmedAmount}\nItem Type: ${confirmedItemType}\nTimestamp: ${new Date().toISOString()}`,
-          source: 'Razorpay Direct Purchase',
+        existingLead = await leadRepository.findExistingLead({
+          id: typeof leadId === 'string' ? leadId : undefined,
+          phone: typeof customerPhone === 'string' ? customerPhone : undefined,
+          email: typeof customerEmail === 'string' ? customerEmail : undefined,
         });
+      } catch (findErr) {
+        logger.warn('Could not query existing lead for payment (non-blocking):', 'PaymentController', findErr);
+      }
+
+      const paymentVerificationMessage = `Online Payment Verified via Razorpay HMAC-SHA256.\nPayment ID: ${razorpayPaymentId}\nOrder ID: ${razorpayOrderId}\nVerified Amount: ₹${confirmedAmount}\nItem Type: ${confirmedItemType}\nTimestamp: ${new Date().toISOString()}`;
+
+      let targetLead: Lead | null = null;
+
+      try {
+        if (existingLead) {
+          // Update existing lead with paid order details
+          targetLead = await leadRepository.recordPaymentOnLead(existingLead.id, {
+            serviceInterested: `[PAID ORDER] ${confirmedItemName}`,
+            source: 'Razorpay Direct Purchase',
+            additionalMessage: paymentVerificationMessage,
+          });
+          if (!targetLead) {
+            targetLead = existingLead;
+          }
+          logger.info(`Updated existing LEGOMARK lead ${targetLead.id} with verified payment ${razorpayPaymentId}`, 'PaymentController');
+        } else {
+          // Create new high-priority paid lead record in LEGOMARK database
+          targetLead = await leadRepository.createLead({
+            fullName: (customerName || 'Online Client').trim(),
+            phone: (customerPhone || 'N/A').trim(),
+            email: customerEmail && typeof customerEmail === 'string' ? customerEmail.trim() : undefined,
+            city: city && typeof city === 'string' ? city.trim() : undefined,
+            serviceInterested: `[PAID ORDER] ${confirmedItemName}`,
+            message: paymentVerificationMessage,
+            source: 'Razorpay Direct Purchase',
+          });
+          logger.info(`Created new LEGOMARK paid lead ${targetLead.id} for payment ${razorpayPaymentId}`, 'PaymentController');
+        }
       } catch (dbErr) {
         logger.warn('Could not record paid lead to database (non-blocking):', 'PaymentController', dbErr);
       }
+
+      // Extract clean service and package info for CRM
+      let resolvedServiceName = confirmedItemName;
+      let resolvedPackageDetails: string | undefined = undefined;
+      if (confirmedItemName.includes(' - ')) {
+        const [sName, ...pParts] = confirmedItemName.split(' - ');
+        resolvedServiceName = sName.trim();
+        resolvedPackageDetails = pParts.join(' - ').trim();
+      }
+
+      // Forward paid lead to EFILINGG CRM server-side in a non-blocking flow
+      // LEGOMARK remains the primary lead record and CRM failure never breaks payment response
+      const leadToSync = targetLead || {
+        id: existingLead?.id || crypto.randomUUID(),
+        fullName: (customerName || 'Online Client').trim(),
+        phone: (customerPhone || 'N/A').trim(),
+        email: customerEmail && typeof customerEmail === 'string' ? customerEmail.trim() : null,
+        city: city && typeof city === 'string' ? city.trim() : null,
+        serviceInterested: `[PAID ORDER] ${confirmedItemName}`,
+        serviceId: null,
+        message: paymentVerificationMessage,
+        source: 'Razorpay Direct Purchase',
+        status: 'NEW' as const,
+        adminNotes: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        updatedBy: null,
+      };
+
+      crmService
+        .sendLeadToCrm(leadToSync, {
+          selectedService: resolvedServiceName,
+          packageDetails: resolvedPackageDetails || (confirmedItemType === 'package' ? confirmedItemName : undefined),
+          packageFee: confirmedAmount > 0 ? confirmedAmount : undefined,
+          city: (city && typeof city === 'string' ? city.trim() : undefined) || leadToSync.city || undefined,
+          state: typeof state === 'string' ? state.trim() : undefined,
+          submissionChannel: 'Razorpay Direct Purchase',
+          notes: paymentVerificationMessage,
+          paymentId: razorpayPaymentId,
+          paymentOrderId: razorpayOrderId,
+        })
+        .catch((crmErr) => {
+          logger.warn('Non-blocking EFILINGG CRM sync notice for paid lead:', 'PaymentController', crmErr?.message || crmErr);
+        });
 
       res.status(200).json({
         success: true,

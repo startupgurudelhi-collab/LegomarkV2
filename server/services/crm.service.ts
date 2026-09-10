@@ -10,6 +10,8 @@ export interface ExtraLeadContext {
   submissionChannel?: string;
   notes?: string;
   message?: string;
+  paymentId?: string;
+  paymentOrderId?: string;
 }
 
 export interface CrmLeadPayload {
@@ -47,7 +49,9 @@ class CrmService {
 
   // In-memory set of lead IDs already synced to prevent duplicate CRM submissions
   private syncedLeadIds = new Set<string>();
-  // In-flight tracking to prevent concurrent duplicate submissions for the same lead
+  // In-memory set of payment IDs already synced to prevent duplicate payment deliveries
+  private syncedPaymentIds = new Set<string>();
+  // In-flight tracking to prevent concurrent duplicate submissions for the same lead or payment
   private inFlightSyncs = new Set<string>();
 
   /**
@@ -87,13 +91,49 @@ class CrmService {
   }
 
   /**
+   * Check if a specific payment has already been synced to the CRM
+   */
+  isPaymentSynced(paymentId: string): boolean {
+    return this.syncedPaymentIds.has(paymentId);
+  }
+
+  /**
+   * Mark a payment as synced
+   */
+  markPaymentSynced(paymentId: string): void {
+    this.syncedPaymentIds.add(paymentId);
+  }
+
+  /**
    * Map a LEGOMARK lead and optional submission context to the CRM payload schema
    */
   buildCrmPayload(lead: Lead, context?: ExtraLeadContext): CrmLeadPayload {
-    // 1. Package details: use explicit package details, or fall back to selectedService if it differs from serviceInterested
+    // 1. Service required resolution:
+    let rawService = (context?.selectedService || lead.serviceInterested || 'General Consultation').trim();
+    if (rawService.startsWith('[PAID ORDER]')) {
+      rawService = rawService.replace(/^\[PAID ORDER\]\s*/i, '').trim();
+    }
+
+    let serviceRequired = rawService;
+    let extractedPackage: string | null = null;
+
+    if (serviceRequired.includes(' - ')) {
+      const [sPart, ...pParts] = serviceRequired.split(' - ');
+      serviceRequired = sPart.trim();
+      extractedPackage = pParts.join(' - ').trim();
+    } else if (serviceRequired.includes(' (') && serviceRequired.includes(')')) {
+      const sPart = serviceRequired.split(' (')[0].trim();
+      const pPart = serviceRequired.split(' (')[1].replace(/\)$/, '').trim();
+      serviceRequired = sPart;
+      extractedPackage = pPart;
+    }
+
+    // 2. Package details: use explicit package details, or fall back to extracted package or selectedService
     let packageDetails: string | null = null;
     if (context?.packageDetails && context.packageDetails.trim().length > 0) {
       packageDetails = context.packageDetails.trim();
+    } else if (extractedPackage && extractedPackage.length > 0) {
+      packageDetails = extractedPackage;
     } else if (
       context?.selectedService &&
       context.selectedService.trim().length > 0 &&
@@ -102,7 +142,7 @@ class CrmService {
       packageDetails = context.selectedService.trim();
     }
 
-    // 2. Package fee: numeric or clean string if available
+    // 3. Package fee: numeric or clean string if available
     let packageFee: string | number | null = null;
     if (context?.packageFee !== undefined && context.packageFee !== null) {
       if (typeof context.packageFee === 'number' && !isNaN(context.packageFee)) {
@@ -115,7 +155,7 @@ class CrmService {
       }
     }
 
-    // 3. Notes: aggregate lead message and notes
+    // 4. Notes: aggregate lead message and notes
     const messagePart = (lead.message || context?.message || '').trim();
     const notesPart = (context?.notes || '').trim();
     let combinedNotes: string | null = null;
@@ -125,14 +165,14 @@ class CrmService {
       combinedNotes = messagePart || notesPart || null;
     }
 
-    // 4. Submission channel: default to lead source / form type
+    // 5. Submission channel: default to lead source / form type
     const channel = (context?.submissionChannel || lead.source || 'Website Consultation Modal').trim();
 
     return {
       customerName: (lead.fullName || '').trim(),
       mobile: (lead.phone || '').trim(),
       email: lead.email ? lead.email.trim() : null,
-      serviceRequired: (lead.serviceInterested || 'General Consultation').trim(),
+      serviceRequired: serviceRequired || 'General Consultation',
       packageDetails,
       packageFee,
       city: lead.city?.trim() || context?.city?.trim() || null,
@@ -154,8 +194,20 @@ class CrmService {
       return { success: false, error: 'Invalid lead provided to CRM sync' };
     }
 
-    // Check if already synced or currently in-flight to prevent duplicate CRM submissions
-    if (this.syncedLeadIds.has(lead.id)) {
+    const isPayment = Boolean(context?.paymentId);
+    const syncKey = context?.paymentId ? `pay_${context.paymentId}` : `lead_${lead.id}`;
+
+    // 1. Payment Deduplication: If this exact payment ID was already synced to CRM, skip
+    if (isPayment && context?.paymentId && this.syncedPaymentIds.has(context.paymentId)) {
+      logger.info(
+        `Payment ${context.paymentId} for lead ${lead.id} was already forwarded to EFILINGG CRM. Skipping duplicate delivery.`,
+        'CrmService'
+      );
+      return { success: true, skipped: true };
+    }
+
+    // 2. Unpaid Lead Deduplication: If this unpaid lead ID was already synced to CRM, skip
+    if (!isPayment && this.syncedLeadIds.has(lead.id)) {
       logger.info(
         `Lead ${lead.id} was already forwarded to EFILINGG CRM. Skipping duplicate delivery.`,
         'CrmService'
@@ -163,15 +215,16 @@ class CrmService {
       return { success: true, skipped: true };
     }
 
-    if (this.inFlightSyncs.has(lead.id)) {
+    // 3. In-flight guard: If a sync for this exact payment or unpaid lead is already in progress, skip concurrent duplicate
+    if (this.inFlightSyncs.has(syncKey)) {
       logger.info(
-        `Lead ${lead.id} CRM sync is already in flight. Skipping concurrent duplicate.`,
+        `CRM sync for ${syncKey} is already in flight. Skipping concurrent duplicate.`,
         'CrmService'
       );
       return { success: true, skipped: true };
     }
 
-    this.inFlightSyncs.add(lead.id);
+    this.inFlightSyncs.add(syncKey);
 
     try {
       const apiUrl = this.getApiUrl();
@@ -208,6 +261,9 @@ class CrmService {
 
       if (response.ok && (responseData?.success !== false)) {
         this.syncedLeadIds.add(lead.id);
+        if (context?.paymentId) {
+          this.syncedPaymentIds.add(context.paymentId);
+        }
         const crmId = responseData?.lead?.id || responseData?.id;
 
         logger.info(
@@ -249,7 +305,7 @@ class CrmService {
         error: msg,
       };
     } finally {
-      this.inFlightSyncs.delete(lead.id);
+      this.inFlightSyncs.delete(syncKey);
     }
   }
 }

@@ -250,6 +250,128 @@ class LeadRepository {
   }
 
   /**
+   * Find an existing lead by ID, phone, or email to prevent duplicate lead creation.
+   * Matches by ID first, then by matching normalized 10-digit phone, then by email.
+   */
+  async findExistingLead(params: { id?: string; phone?: string; email?: string }): Promise<Lead | null> {
+    const isConnected = await pingDatabase();
+    const cleanId = params.id?.trim();
+    const cleanPhone = (params.phone || '').replace(/[^0-9]/g, '');
+    const cleanEmail = (params.email || '').toLowerCase().trim();
+
+    if (cleanId) {
+      const byId = await this.getLeadById(cleanId);
+      if (byId) return byId;
+    }
+
+    if (!cleanPhone && !cleanEmail) {
+      return null;
+    }
+
+    const matchesContact = (l: Lead): boolean => {
+      const lPhone = (l.phone || '').replace(/[^0-9]/g, '');
+      const lEmail = (l.email || '').toLowerCase().trim();
+
+      if (cleanPhone && lPhone) {
+        if (cleanPhone === lPhone) return true;
+        if (cleanPhone.length >= 10 && lPhone.length >= 10 && cleanPhone.slice(-10) === lPhone.slice(-10)) {
+          return true;
+        }
+      }
+
+      if (cleanEmail && lEmail && cleanEmail === lEmail) {
+        return true;
+      }
+
+      return false;
+    };
+
+    if (isConnected) {
+      try {
+        const db = getDatabase();
+        const allDb = await db.select().from(leads).orderBy(desc(leads.createdAt));
+        const matched = allDb.find(matchesContact);
+        if (matched) return matched;
+      } catch (err) {
+        logger.error('Error finding existing lead in database', 'LeadRepo', err);
+      }
+    }
+
+    const memMatched = this.memoryLeads.find(matchesContact);
+    return memMatched || null;
+  }
+
+  /**
+   * Record verified payment on an existing lead
+   */
+  async recordPaymentOnLead(
+    id: string,
+    paymentDetails: {
+      serviceInterested?: string;
+      source?: string;
+      additionalMessage?: string;
+      status?: LeadStatus;
+      updatedBy?: string;
+    }
+  ): Promise<Lead | null> {
+    const isConnected = await pingDatabase();
+    const now = new Date();
+
+    const existingLead = await this.getLeadById(id);
+    if (!existingLead) return null;
+
+    const newServiceInterested = paymentDetails.serviceInterested || existingLead.serviceInterested;
+    const newSource = paymentDetails.source || existingLead.source;
+    const newStatus = paymentDetails.status || existingLead.status;
+
+    let updatedMessage = existingLead.message;
+    if (paymentDetails.additionalMessage) {
+      updatedMessage = existingLead.message
+        ? `${existingLead.message}\n\n${paymentDetails.additionalMessage}`
+        : paymentDetails.additionalMessage;
+    }
+
+    if (isConnected) {
+      try {
+        const db = getDatabase();
+        const [updated] = await db
+          .update(leads)
+          .set({
+            serviceInterested: newServiceInterested,
+            source: newSource,
+            status: newStatus,
+            message: updatedMessage,
+            updatedAt: now,
+            updatedBy: paymentDetails.updatedBy || 'Payment Gateway',
+          })
+          .where(eq(leads.id, id))
+          .returning();
+
+        if (updated) {
+          const idx = this.memoryLeads.findIndex((l) => l.id === id);
+          if (idx !== -1) {
+            this.memoryLeads[idx] = updated;
+          }
+          return updated;
+        }
+      } catch (err) {
+        logger.error('Error updating lead with payment details in database', 'LeadRepo', err);
+      }
+    }
+
+    const memLead = this.memoryLeads.find((l) => l.id === id);
+    if (!memLead) return null;
+
+    memLead.serviceInterested = newServiceInterested;
+    memLead.source = newSource;
+    memLead.status = newStatus;
+    memLead.message = updatedMessage;
+    memLead.updatedAt = now;
+    memLead.updatedBy = paymentDetails.updatedBy || 'Payment Gateway';
+    return memLead;
+  }
+
+  /**
    * Update lead status
    */
   async updateLeadStatus(id: string, status: LeadStatus, updatedBy?: string): Promise<Lead | null> {
