@@ -878,3 +878,10 @@ export const associationLogos = pgTable(
 
 export type AssociationLogo = typeof associationLogos.$inferSelect;
 export type NewAssociationLogo = typeof associationLogos.$inferInsert;
+
+/**
+ * ============================================================================
+ * STAGE 12: WEBSITE VISITOR ANALYTICS SCHEMA
+ * ============================================================================
+ */
+export * from './analytics.schema';

@@ -14,6 +14,7 @@ import { AdminMediaLibrary } from './AdminMediaLibrary';
 import { AdminBlogCMS } from './AdminBlogCMS';
 import { AdminWebsiteSettingsCMS } from './AdminWebsiteSettingsCMS';
 import { AdminClientLogosCMS } from './AdminClientLogosCMS';
+import { AdminAnalyticsPage } from './AdminAnalyticsPage';
 import { AdminPlaceholderView } from './AdminPlaceholderView';
 import { AdminErrorBoundary } from './AdminErrorBoundary';
 import { Loader2 } from 'lucide-react';
@@ -70,6 +71,7 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
     if (currentPath.includes('/admin/media') || currentPath.includes('/admin/assets')) {
       return 'media';
     }
+    if (currentPath.includes('/admin/analytics')) return 'analytics';
     if (currentPath.includes('/admin/blogs')) return 'blogs';
     if (currentPath.includes('/admin/settings')) return 'settings';
     return 'dashboard';
@@ -78,6 +80,7 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
   const handleNavigateSection = (section: AdminNavSection) => {
     const routeMap: Record<AdminNavSection, string> = {
       dashboard: '/admin/dashboard',
+      analytics: '/admin/analytics',
       website: '/admin/website',
       'client-logos': '/admin/client-logos',
       services: '/admin/services',
@@ -184,6 +187,7 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
               onNavigateHome={onNavigateHome}
             />
           )}
+          {activeSection === 'analytics' && <AdminAnalyticsPage />}
           {activeSection === 'website' && (
             <AdminWebsiteCMS
               initialTab={

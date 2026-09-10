@@ -24,6 +24,8 @@ import adminClientLogoRoutes from './admin-client-logo.routes';
 import associationLogoRoutes from './association-logo.routes';
 import adminAssociationLogoRoutes from './admin-association-logo.routes';
 import paymentRoutes from './payment.routes';
+import analyticsRoutes from './analytics.routes';
+import adminAnalyticsRoutes from './admin-analytics.routes';
 
 const apiRouter = Router();
 
@@ -31,6 +33,7 @@ const apiRouter = Router();
 apiRouter.use('/', healthRoutes);
 apiRouter.use('/auth', authRoutes);
 apiRouter.use('/payment', paymentRoutes);
+apiRouter.use('/analytics', analyticsRoutes);
 apiRouter.use('/packages', packageRoutes);
 apiRouter.use('/services', serviceRoutes);
 apiRouter.use('/testimonials', testimonialRoutes);
@@ -40,6 +43,7 @@ apiRouter.use('/client-logos', clientLogoRoutes);
 apiRouter.use('/association-logos', associationLogoRoutes);
 apiRouter.use('/leads', leadRoutes);
 apiRouter.use('/consultations', leadRoutes);
+apiRouter.use('/admin/analytics', adminAnalyticsRoutes);
 apiRouter.use('/admin/packages', adminPackageRoutes);
 apiRouter.use('/admin/service-categories', adminServiceCategoryRoutes);
 apiRouter.use('/admin/services', adminServiceRoutes);

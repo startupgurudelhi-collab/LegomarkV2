@@ -25,6 +25,10 @@ const SECTION_TITLES: Record<AdminNavSection, { title: string; subtitle: string 
     title: 'Executive Dashboard',
     subtitle: 'High-level business activity & catalog overview',
   },
+  analytics: {
+    title: 'Website Analytics',
+    subtitle: 'Traffic intelligence, daily unique visitors, and page views',
+  },
   website: {
     title: 'Website & CMS Management',
     subtitle: 'Homepage content, founder bio, and registered offices',

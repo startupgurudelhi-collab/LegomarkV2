@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   LayoutDashboard,
+  BarChart3,
   Globe,
   Briefcase,
   Package,
@@ -19,6 +20,7 @@ import { AdminUser } from '../../types/admin';
 
 export type AdminNavSection =
   | 'dashboard'
+  | 'analytics'
   | 'website'
   | 'client-logos'
   | 'services'
@@ -64,6 +66,12 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       label: 'Dashboard',
       description: 'Overview & Activity',
       icon: LayoutDashboard,
+    },
+    {
+      id: 'analytics',
+      label: 'Website Analytics',
+      description: 'Traffic & Visitor Metrics',
+      icon: BarChart3,
     },
     {
       id: 'website',

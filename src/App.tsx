@@ -34,6 +34,7 @@ import { openConsultationBooking } from './utils/consultation';
 import { usePublicServicesData, usePublicServiceDetail } from './services/publicService.service';
 import { fetchPublicSettings } from './services/settings.service';
 import { applyWebsiteFont } from './utils/fontLoader';
+import { useVisitorTracking } from './hooks/useVisitorTracking';
 import { BuyNowItem, PackageTier, ServiceItem } from './types/website';
 
 export default function App() {
@@ -91,6 +92,9 @@ export default function App() {
 
   const { health, loading, lastChecked, refreshHealth } = useHealthReport();
   const { service: currentServiceDetail } = usePublicServiceDetail(activeServiceSlug);
+
+  // Non-blocking privacy-safe public website visitor tracking
+  useVisitorTracking(currentPath);
 
   // Listen to browser popstate (back/forward)
   useEffect(() => {
