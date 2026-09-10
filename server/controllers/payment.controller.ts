@@ -633,17 +633,76 @@ export class PaymentController {
         'PaymentController'
       );
 
-      // Look for an existing LEGOMARK lead for this customer (by leadId, phone, or email)
-      // to reuse the existing LEGOMARK lead ID as externalLeadId and prevent unnecessary duplicates
+      // 1. Resolve exact leadId from request body or authoritative Razorpay order notes
+      let effectiveLeadId = typeof leadId === 'string' && leadId.trim() ? leadId.trim() : undefined;
+      let orderCustomerName: string | undefined;
+      let orderCustomerPhone: string | undefined;
+      let orderCustomerEmail: string | undefined;
+
+      if (!effectiveLeadId && razorpayOrderId) {
+        try {
+          const keyId = process.env.RAZORPAY_KEY_ID;
+          const keySecret = process.env.RAZORPAY_KEY_SECRET;
+          if (keyId && keySecret) {
+            const authHeader = `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString('base64')}`;
+            const rzpOrderRes = await fetch(`https://api.razorpay.com/v1/orders/${razorpayOrderId}`, {
+              headers: { Authorization: authHeader },
+            });
+            if (rzpOrderRes.ok) {
+              const rzpOrder = (await rzpOrderRes.json()) as any;
+              if (rzpOrder?.notes?.leadId) {
+                effectiveLeadId = String(rzpOrder.notes.leadId).trim();
+              }
+              if (rzpOrder?.notes?.customerName) {
+                orderCustomerName = String(rzpOrder.notes.customerName).trim();
+              }
+              if (rzpOrder?.notes?.customerPhone) {
+                orderCustomerPhone = String(rzpOrder.notes.customerPhone).trim();
+              }
+              if (rzpOrder?.notes?.customerEmail) {
+                orderCustomerEmail = String(rzpOrder.notes.customerEmail).trim();
+              }
+            }
+          }
+        } catch (fetchErr) {
+          logger.warn('Could not fetch Razorpay order notes (non-blocking):', 'PaymentController', fetchErr);
+        }
+      }
+
+      // 2. Primary lookup: Look up existing lead directly by exact leadId
       let existingLead: Lead | null = null;
-      try {
-        existingLead = await leadRepository.findExistingLead({
-          id: typeof leadId === 'string' ? leadId : undefined,
-          phone: typeof customerPhone === 'string' ? customerPhone : undefined,
-          email: typeof customerEmail === 'string' ? customerEmail : undefined,
-        });
-      } catch (findErr) {
-        logger.warn('Could not query existing lead for payment (non-blocking):', 'PaymentController', findErr);
+      if (effectiveLeadId) {
+        try {
+          existingLead = await leadRepository.getLeadById(effectiveLeadId);
+          if (existingLead) {
+            logger.info(
+              `Found existing LEGOMARK lead ${existingLead.id} directly by exact leadId for payment ${razorpayPaymentId}`,
+              'PaymentController'
+            );
+          }
+        } catch (idErr) {
+          logger.warn(`Could not lookup lead by ID ${effectiveLeadId}:`, 'PaymentController', idErr);
+        }
+      }
+
+      // 3. Fallback lookup: If leadId was missing, invalid, or not found, fall back to phone/email lookup
+      if (!existingLead) {
+        const queryPhone = (typeof customerPhone === 'string' && customerPhone.trim()) || orderCustomerPhone;
+        const queryEmail = (typeof customerEmail === 'string' && customerEmail.trim()) || orderCustomerEmail;
+        try {
+          existingLead = await leadRepository.findExistingLead({
+            phone: queryPhone || undefined,
+            email: queryEmail || undefined,
+          });
+          if (existingLead) {
+            logger.info(
+              `Found existing LEGOMARK lead ${existingLead.id} via contact fallback for payment ${razorpayPaymentId}`,
+              'PaymentController'
+            );
+          }
+        } catch (findErr) {
+          logger.warn('Could not query existing lead by contact for payment (non-blocking):', 'PaymentController', findErr);
+        }
       }
 
       const paymentVerificationMessage = `Online Payment Verified via Razorpay HMAC-SHA256.\nPayment ID: ${razorpayPaymentId}\nOrder ID: ${razorpayOrderId}\nVerified Amount: ₹${confirmedAmount}\nItem Type: ${confirmedItemType}\nTimestamp: ${new Date().toISOString()}`;
@@ -652,10 +711,11 @@ export class PaymentController {
 
       try {
         if (existingLead) {
-          // Update existing lead with paid order details
+          // Update the SAME existing lead with paid order details
           targetLead = await leadRepository.recordPaymentOnLead(existingLead.id, {
             serviceInterested: `[PAID ORDER] ${confirmedItemName}`,
-            source: 'Razorpay Direct Purchase',
+            source: 'Razorpay Verified',
+            status: 'NEW',
             additionalMessage: paymentVerificationMessage,
           });
           if (!targetLead) {
@@ -663,15 +723,15 @@ export class PaymentController {
           }
           logger.info(`Updated existing LEGOMARK lead ${targetLead.id} with verified payment ${razorpayPaymentId}`, 'PaymentController');
         } else {
-          // Create new high-priority paid lead record in LEGOMARK database
+          // Create new high-priority paid lead record in LEGOMARK database if no existing lead could be matched
           targetLead = await leadRepository.createLead({
-            fullName: (customerName || 'Online Client').trim(),
-            phone: (customerPhone || 'N/A').trim(),
-            email: customerEmail && typeof customerEmail === 'string' ? customerEmail.trim() : undefined,
-            city: city && typeof city === 'string' ? city.trim() : undefined,
+            fullName: (customerName || orderCustomerName || 'Online Client').trim(),
+            phone: (customerPhone || orderCustomerPhone || 'N/A').trim(),
+            email: (customerEmail || orderCustomerEmail || '').trim() || undefined,
+            city: (city || '').trim() || undefined,
             serviceInterested: `[PAID ORDER] ${confirmedItemName}`,
             message: paymentVerificationMessage,
-            source: 'Razorpay Direct Purchase',
+            source: 'Razorpay Verified',
           });
           logger.info(`Created new LEGOMARK paid lead ${targetLead.id} for payment ${razorpayPaymentId}`, 'PaymentController');
         }
@@ -690,16 +750,16 @@ export class PaymentController {
 
       // Forward paid lead to EFILINGG CRM server-side in a non-blocking flow
       // LEGOMARK remains the primary lead record and CRM failure never breaks payment response
-      const leadToSync = targetLead || {
-        id: existingLead?.id || crypto.randomUUID(),
-        fullName: (customerName || 'Online Client').trim(),
-        phone: (customerPhone || 'N/A').trim(),
-        email: customerEmail && typeof customerEmail === 'string' ? customerEmail.trim() : null,
-        city: city && typeof city === 'string' ? city.trim() : null,
+      const leadToSync: Lead = targetLead || {
+        id: existingLead?.id || effectiveLeadId || crypto.randomUUID(),
+        fullName: (customerName || orderCustomerName || 'Online Client').trim(),
+        phone: (customerPhone || orderCustomerPhone || 'N/A').trim(),
+        email: (customerEmail || orderCustomerEmail || '').trim() || null,
+        city: (city || '').trim() || null,
         serviceInterested: `[PAID ORDER] ${confirmedItemName}`,
         serviceId: null,
         message: paymentVerificationMessage,
-        source: 'Razorpay Direct Purchase',
+        source: 'Razorpay Verified',
         status: 'NEW' as const,
         adminNotes: null,
         createdAt: new Date(),
@@ -730,6 +790,7 @@ export class PaymentController {
         orderId: razorpayOrderId,
         itemName: confirmedItemName,
         amount: confirmedAmount,
+        leadId: targetLead?.id || leadToSync.id,
       });
     } catch (error) {
       logger.error('Failed to verify payment', 'PaymentController', error);

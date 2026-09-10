@@ -345,6 +345,8 @@ class LeadRepository {
           const idx = this.memoryLeads.findIndex((l) => l.id === id);
           if (idx !== -1) {
             this.memoryLeads[idx] = updated;
+          } else {
+            this.memoryLeads.unshift(updated);
           }
           return updated;
         }
@@ -354,13 +356,23 @@ class LeadRepository {
     }
 
     const memLead = this.memoryLeads.find((l) => l.id === id);
-    if (!memLead) return null;
+    if (memLead) {
+      memLead.serviceInterested = details.serviceInterested;
+      memLead.message = updatedMessage;
+      memLead.city = newCity;
+      memLead.updatedAt = now;
+      return memLead;
+    }
 
-    memLead.serviceInterested = details.serviceInterested;
-    memLead.message = updatedMessage;
-    memLead.city = newCity;
-    memLead.updatedAt = now;
-    return memLead;
+    const fallbackRecord: Lead = {
+      ...existingLead,
+      serviceInterested: details.serviceInterested,
+      message: updatedMessage,
+      city: newCity,
+      updatedAt: now,
+    };
+    this.memoryLeads.unshift(fallbackRecord);
+    return fallbackRecord;
   }
 
   /**
@@ -413,6 +425,8 @@ class LeadRepository {
           const idx = this.memoryLeads.findIndex((l) => l.id === id);
           if (idx !== -1) {
             this.memoryLeads[idx] = updated;
+          } else {
+            this.memoryLeads.unshift(updated);
           }
           return updated;
         }
@@ -422,15 +436,27 @@ class LeadRepository {
     }
 
     const memLead = this.memoryLeads.find((l) => l.id === id);
-    if (!memLead) return null;
+    if (memLead) {
+      memLead.serviceInterested = newServiceInterested;
+      memLead.source = newSource;
+      memLead.status = newStatus;
+      memLead.message = updatedMessage;
+      memLead.updatedAt = now;
+      memLead.updatedBy = paymentDetails.updatedBy || 'Payment Gateway';
+      return memLead;
+    }
 
-    memLead.serviceInterested = newServiceInterested;
-    memLead.source = newSource;
-    memLead.status = newStatus;
-    memLead.message = updatedMessage;
-    memLead.updatedAt = now;
-    memLead.updatedBy = paymentDetails.updatedBy || 'Payment Gateway';
-    return memLead;
+    const fallbackPaymentRecord: Lead = {
+      ...existingLead,
+      serviceInterested: newServiceInterested,
+      source: newSource,
+      status: newStatus,
+      message: updatedMessage,
+      updatedAt: now,
+      updatedBy: paymentDetails.updatedBy || 'Payment Gateway',
+    };
+    this.memoryLeads.unshift(fallbackPaymentRecord);
+    return fallbackPaymentRecord;
   }
 
   /**

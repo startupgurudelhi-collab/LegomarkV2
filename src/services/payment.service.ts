@@ -25,6 +25,7 @@ export interface VerifyPaymentParams {
   customerEmail?: string;
   customerPhone: string;
   city?: string;
+  leadId?: string;
 }
 
 declare global {
