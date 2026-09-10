@@ -302,6 +302,68 @@ class LeadRepository {
   }
 
   /**
+   * Record direct package purchase intent on an existing lead
+   */
+  async recordPurchaseIntentOnLead(
+    id: string,
+    details: {
+      serviceInterested: string;
+      additionalMessage?: string;
+      city?: string;
+    }
+  ): Promise<Lead | null> {
+    const isConnected = await pingDatabase();
+    const now = new Date();
+
+    const existingLead = await this.getLeadById(id);
+    if (!existingLead) return null;
+
+    let updatedMessage = existingLead.message;
+    if (details.additionalMessage) {
+      updatedMessage = existingLead.message
+        ? `${existingLead.message}\n\n${details.additionalMessage}`
+        : details.additionalMessage;
+    }
+
+    const newCity = details.city || existingLead.city;
+
+    if (isConnected) {
+      try {
+        const db = getDatabase();
+        const [updated] = await db
+          .update(leads)
+          .set({
+            serviceInterested: details.serviceInterested,
+            message: updatedMessage,
+            city: newCity,
+            updatedAt: now,
+          })
+          .where(eq(leads.id, id))
+          .returning();
+
+        if (updated) {
+          const idx = this.memoryLeads.findIndex((l) => l.id === id);
+          if (idx !== -1) {
+            this.memoryLeads[idx] = updated;
+          }
+          return updated;
+        }
+      } catch (err) {
+        logger.error('Error updating lead with purchase intent in database', 'LeadRepo', err);
+      }
+    }
+
+    const memLead = this.memoryLeads.find((l) => l.id === id);
+    if (!memLead) return null;
+
+    memLead.serviceInterested = details.serviceInterested;
+    memLead.message = updatedMessage;
+    memLead.city = newCity;
+    memLead.updatedAt = now;
+    return memLead;
+  }
+
+  /**
    * Record verified payment on an existing lead
    */
   async recordPaymentOnLead(

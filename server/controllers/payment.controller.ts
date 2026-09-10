@@ -321,6 +321,8 @@ export class PaymentController {
         customerEmail,
         customerPhone,
         city,
+        state,
+        leadId,
       } = req.body;
 
       if (!itemName && !slug && !itemId) {
@@ -357,6 +359,92 @@ export class PaymentController {
         return;
       }
 
+      // 1. Immediately record or reuse customer lead in LEGOMARK Admin Leads & Enquiries
+      // This ensures EVERY genuine package purchase attempt is captured even if payment is later abandoned/cancelled
+      let targetLead: Lead | null = null;
+      const cleanPhone = typeof customerPhone === 'string' ? customerPhone.trim() : '';
+      const cleanEmail = typeof customerEmail === 'string' ? customerEmail.trim() : '';
+      const cleanName = typeof customerName === 'string' ? customerName.trim() : '';
+      const cleanCity = typeof city === 'string' ? city.trim() : undefined;
+      const cleanState = typeof state === 'string' ? state.trim() : undefined;
+      const providedLeadId = typeof leadId === 'string' ? leadId.trim() : undefined;
+
+      // Extract clean service and package info for CRM & LEGOMARK
+      let resolvedServiceName = resolvedName;
+      let resolvedPackageDetails: string | undefined = undefined;
+      if (resolvedName.includes(' - ')) {
+        const [sName, ...pParts] = resolvedName.split(' - ');
+        resolvedServiceName = sName.trim();
+        resolvedPackageDetails = pParts.join(' - ').trim();
+      } else if (resolvedType === 'package') {
+        resolvedPackageDetails = resolvedName;
+      }
+
+      if (cleanPhone || cleanEmail || providedLeadId) {
+        try {
+          const existingLead = await leadRepository.findExistingLead({
+            id: providedLeadId,
+            phone: cleanPhone || undefined,
+            email: cleanEmail || undefined,
+          });
+
+          if (existingLead) {
+            targetLead = await leadRepository.recordPurchaseIntentOnLead(existingLead.id, {
+              serviceInterested: resolvedName,
+              city: cleanCity,
+              additionalMessage: `Direct Package Purchase Initiated: ${resolvedName} (Fee: ₹${resolvedAmount}). Payment in progress via Razorpay.`,
+            });
+            if (!targetLead) {
+              targetLead = existingLead;
+            }
+            logger.info(
+              `Reused existing LEGOMARK lead ${targetLead.id} for package purchase attempt [${resolvedName}]`,
+              'PaymentController'
+            );
+          }
+        } catch (findErr) {
+          logger.warn('Could not query existing lead for purchase attempt (non-blocking):', 'PaymentController', findErr);
+        }
+
+        if (!targetLead && (cleanPhone || cleanName)) {
+          try {
+            targetLead = await leadRepository.createLead({
+              fullName: cleanName || 'Online Client',
+              phone: cleanPhone || 'N/A',
+              email: cleanEmail || undefined,
+              city: cleanCity,
+              serviceInterested: resolvedName,
+              message: `Direct package purchase initiated for ${resolvedName} (Fee: ₹${resolvedAmount}). Payment in progress via Razorpay.`,
+              source: 'Website Package Purchase Form',
+            });
+            logger.info(
+              `Created new LEGOMARK unpaid lead ${targetLead.id} for package purchase attempt [${resolvedName}]`,
+              'PaymentController'
+            );
+          } catch (dbErr) {
+            logger.warn('Could not record purchase intent lead to database (non-blocking):', 'PaymentController', dbErr);
+          }
+        }
+      }
+
+      // 2. Send newly created/updated lead through the EXISTING crmService to EFILINGG CRM (non-blocking)
+      // CRM failure will never prevent the lead from being saved or prevent the payment flow from continuing
+      if (targetLead) {
+        crmService
+          .sendLeadToCrm(targetLead, {
+            selectedService: resolvedServiceName,
+            packageDetails: resolvedPackageDetails,
+            packageFee: resolvedAmount,
+            city: cleanCity || targetLead.city || undefined,
+            state: cleanState,
+            submissionChannel: 'Website Package Purchase Form',
+            notes: `Direct package purchase initiated for ${resolvedName}. Awaiting Razorpay payment.`,
+          })
+          .catch((crmErr) => {
+            logger.warn('Non-blocking EFILINGG CRM sync notice on order creation:', 'PaymentController', crmErr?.message || crmErr);
+          });
+      }
+
       const keyId = process.env.RAZORPAY_KEY_ID;
       const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
@@ -365,6 +453,7 @@ export class PaymentController {
         res.status(503).json({
           success: false,
           error: 'Online payment gateway is temporarily unavailable. Please request a consultation to proceed with this service.',
+          leadId: targetLead?.id,
         });
         return;
       }
@@ -429,6 +518,7 @@ export class PaymentController {
         currency: 'INR',
         itemName: resolvedName,
         itemType: resolvedType,
+        leadId: targetLead?.id,
       });
     } catch (error) {
       logger.error('Failed to create payment order', 'PaymentController', error);

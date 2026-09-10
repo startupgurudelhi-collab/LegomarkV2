@@ -36,6 +36,7 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [city, setCity] = useState('');
+  const [currentLeadId, setCurrentLeadId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -51,6 +52,7 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({
     if (isOpen) {
       setErrorMessage(null);
       setPaymentSuccess(null);
+      setCurrentLeadId(null);
       // Preload Razorpay script
       loadRazorpayScript().catch((err) => console.warn('Razorpay preload notice:', err));
     }
@@ -93,10 +95,15 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({
           customerEmail: email.trim() || undefined,
           customerPhone: phone.trim(),
           city: city.trim() || undefined,
+          leadId: currentLeadId || undefined,
         }),
       });
 
       const orderData = await res.json().catch(() => ({}));
+
+      if (orderData?.leadId) {
+        setCurrentLeadId(orderData.leadId);
+      }
 
       if (!res.ok || !orderData.success || !orderData.orderId || !orderData.keyId) {
         throw new Error(
@@ -141,6 +148,7 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({
                 customerEmail: email.trim() || undefined,
                 customerPhone: phone.trim(),
                 city: city.trim() || undefined,
+                leadId: orderData.leadId || currentLeadId || undefined,
               }),
             });
 
