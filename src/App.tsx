@@ -425,9 +425,13 @@ export default function App() {
         onPaymentSuccess={handlePaymentSuccess}
       />
 
-      {/* Floating WhatsApp Action Widget (Public Site-Wide) */}
+      {/* Floating WhatsApp / Chat Us Action Widget (Public Site-Wide) */}
       <FloatingWhatsApp
         serviceName={currentServiceItem?.title}
+        onRequestCallback={() => {
+          setConsultationService(currentServiceItem?.title || undefined);
+          setIsConsultationOpen(true);
+        }}
       />
 
       {/* Diagnostic Overlay */}
