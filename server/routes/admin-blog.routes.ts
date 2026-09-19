@@ -8,6 +8,7 @@ const router = Router();
 router.use(requireAuth);
 
 router.get('/', (req, res) => adminBlogController.getBlogs(req, res));
+router.post('/generate-ai', (req, res) => adminBlogController.generateAiBlog(req, res));
 router.get('/:id', (req, res) => adminBlogController.getBlogById(req, res));
 router.post('/', (req, res) => adminBlogController.createBlog(req, res));
 router.put('/:id', (req, res) => adminBlogController.updateBlog(req, res));

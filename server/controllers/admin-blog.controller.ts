@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { blogRepository } from '../repositories/blog.repository';
+import { aiBlogService } from '../services/ai-blog.service';
 import { logger } from '../utils/logger';
 
 export class AdminBlogController {
@@ -274,6 +275,37 @@ export class AdminBlogController {
       res.status(500).json({
         success: false,
         error: 'Failed to delete blog article',
+      });
+    }
+  }
+
+  /**
+   * POST /api/admin/blogs/generate-ai
+   * AI Blog Factory generation endpoint
+   */
+  async generateAiBlog(req: Request, res: Response): Promise<void> {
+    try {
+      const { topic, targetService } = req.body;
+
+      if (!topic || typeof topic !== 'string' || topic.trim().length === 0) {
+        res.status(400).json({
+          success: false,
+          error: 'Topic / Keyword is required for AI Blog Generation',
+        });
+        return;
+      }
+
+      const generated = await aiBlogService.generateBlog(topic, targetService || '');
+
+      res.json({
+        success: true,
+        data: generated,
+      });
+    } catch (err: any) {
+      logger.error('Error in AdminBlogController.generateAiBlog', 'AdminBlogCtrl', err);
+      res.status(500).json({
+        success: false,
+        error: err.message || 'Failed to generate AI blog article',
       });
     }
   }

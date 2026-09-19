@@ -60,3 +60,22 @@ export interface UpdateBlogPostInput {
   isPublished?: boolean;
   publishedAt?: string | null;
 }
+
+export interface GeneratedBlogDraft {
+  title: string;
+  seoTitle: string;
+  metaDescription: string;
+  slug: string;
+  focusKeyword: string;
+  relatedKeywords: string[];
+  summary: string;
+  faq: Array<{ question: string; answer: string }>;
+  blogContent: string;
+  category: string;
+}
+
+export interface AiBlogGenerateInput {
+  topic: string;
+  targetService?: string;
+}
+

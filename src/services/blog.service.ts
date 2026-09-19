@@ -4,6 +4,7 @@ import {
   BlogFilterOptions,
   CreateBlogPostInput,
   UpdateBlogPostInput,
+  GeneratedBlogDraft,
 } from '../types/blog';
 
 /**
@@ -164,3 +165,29 @@ export async function deleteBlogPost(id: string): Promise<boolean> {
   const data = await res.json();
   return Boolean(res.ok && data && data.success);
 }
+
+/**
+ * Admin: Generate AI Blog Draft using Gemini
+ */
+export async function generateAiBlog(
+  topic: string,
+  targetService?: string
+): Promise<GeneratedBlogDraft> {
+  const res = await fetch('/api/admin/blogs/generate-ai', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({ topic, targetService }),
+  });
+
+  const data = await res.json();
+
+  if (res.ok && data && data.success && data.data) {
+    return data.data;
+  }
+
+  throw new Error(data?.error || 'Failed to generate AI blog article');
+}
+

@@ -24,7 +24,7 @@ import {
   Layers,
   ArrowUpRight,
 } from 'lucide-react';
-import { BlogPost, BlogStats, CreateBlogPostInput, UpdateBlogPostInput } from '../../types/blog';
+import { BlogPost, BlogStats, CreateBlogPostInput, UpdateBlogPostInput, GeneratedBlogDraft } from '../../types/blog';
 import {
   fetchAdminBlogs,
   createBlogPost,
@@ -36,6 +36,7 @@ import { MediaUploadDropzone } from './MediaUploadDropzone';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { RichTextEditor } from './RichTextEditor';
 import { RichContentRenderer } from '../blog/RichContentRenderer';
+import { AdminAiBlogFactory } from './AdminAiBlogFactory';
 
 const BLOG_CATEGORIES = [
   'Company Registration',
@@ -61,6 +62,9 @@ export const AdminBlogCMS: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [sortBy, setSortBy] = useState<'createdAt' | 'updatedAt' | 'title' | 'publishedAt'>('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  // Main navigation tab: 'articles' or 'ai-factory'
+  const [activeMainTab, setActiveMainTab] = useState<'articles' | 'ai-factory'>('articles');
 
   // Modal states
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -133,6 +137,32 @@ export const AdminBlogCMS: React.FC = () => {
       seoTitle: '',
       metaDescription: '',
       seoSlug: '',
+      isPublished: false,
+    });
+    setIsEditorOpen(true);
+  };
+
+  const handleOpenFromAiDraft = (draft: GeneratedBlogDraft) => {
+    setEditingBlog(null);
+    let fullContent = draft.blogContent;
+    if (draft.faq && draft.faq.length > 0) {
+      fullContent += '\n\n## Frequently Asked Questions (FAQs)\n\n';
+      draft.faq.forEach((faqItem, idx) => {
+        fullContent += `### Q${idx + 1}: ${faqItem.question}\n${faqItem.answer}\n\n`;
+      });
+    }
+
+    setFormData({
+      title: draft.title,
+      slug: draft.slug,
+      category: draft.category || 'Company Registration',
+      author: 'LEGOMARK Editorial Board',
+      content: fullContent,
+      excerpt: draft.summary,
+      featuredImage: '',
+      seoTitle: draft.seoTitle,
+      metaDescription: draft.metaDescription,
+      seoSlug: draft.slug,
       isPublished: false,
     });
     setIsEditorOpen(true);
@@ -283,6 +313,17 @@ export const AdminBlogCMS: React.FC = () => {
 
         <div className="flex items-center gap-3">
           <button
+            onClick={() => setActiveMainTab(activeMainTab === 'articles' ? 'ai-factory' : 'articles')}
+            className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all border flex items-center gap-2 ${
+              activeMainTab === 'ai-factory'
+                ? 'bg-orange-500 text-white border-orange-500 shadow-md shadow-orange-500/20'
+                : 'bg-slate-900 text-slate-300 border-slate-800 hover:text-white hover:border-slate-700'
+            }`}
+          >
+            <Sparkles className="w-4 h-4 text-orange-400" />
+            <span>AI Blog Factory</span>
+          </button>
+          <button
             onClick={() => loadBlogs()}
             disabled={isLoading}
             className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 transition-colors"
@@ -298,6 +339,40 @@ export const AdminBlogCMS: React.FC = () => {
             <span>Create Article</span>
           </button>
         </div>
+      </div>
+
+      {/* Module Navigation Tabs */}
+      <div className="flex items-center gap-2 border-b border-slate-800 pb-1">
+        <button
+          type="button"
+          onClick={() => setActiveMainTab('articles')}
+          className={`px-4 py-2.5 text-sm font-semibold rounded-xl transition-all flex items-center gap-2 ${
+            activeMainTab === 'articles'
+              ? 'bg-slate-800 text-white border border-slate-700'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+          }`}
+        >
+          <BookOpen className="w-4 h-4" />
+          <span>Articles Catalog</span>
+          <span className="px-2 py-0.5 text-xs rounded-full bg-slate-900 text-slate-400">
+            {stats.total}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveMainTab('ai-factory')}
+          className={`px-4 py-2.5 text-sm font-semibold rounded-xl transition-all flex items-center gap-2 ${
+            activeMainTab === 'ai-factory'
+              ? 'bg-orange-500/10 text-orange-400 border border-orange-500/30'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+          }`}
+        >
+          <Sparkles className="w-4 h-4 text-orange-400" />
+          <span>AI Blog Factory</span>
+          <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-md bg-orange-500/20 text-orange-400 border border-orange-500/30">
+            NEW
+          </span>
+        </button>
       </div>
 
       {/* Notifications */}
@@ -325,8 +400,11 @@ export const AdminBlogCMS: React.FC = () => {
         </div>
       )}
 
-      {/* Top Real Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* Tab 1: Articles Catalog */}
+      {activeMainTab === 'articles' && (
+        <>
+          {/* Top Real Metrics */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 relative overflow-hidden">
           <div className="flex items-center justify-between">
             <div>
@@ -613,6 +691,21 @@ export const AdminBlogCMS: React.FC = () => {
             </table>
           </div>
         </div>
+      )}
+        </>
+      )}
+
+      {/* Tab 2: AI Blog Factory */}
+      {activeMainTab === 'ai-factory' && (
+        <AdminAiBlogFactory
+          onBlogSaved={() => {
+            loadBlogs();
+            setActiveMainTab('articles');
+          }}
+          onOpenInEditor={(draft) => {
+            handleOpenFromAiDraft(draft);
+          }}
+        />
       )}
 
       {/* BLOG EDITOR MODAL */}
