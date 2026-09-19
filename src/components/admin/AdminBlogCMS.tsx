@@ -159,7 +159,7 @@ export const AdminBlogCMS: React.FC = () => {
       author: 'LEGOMARK Editorial Board',
       content: fullContent,
       excerpt: draft.summary,
-      featuredImage: '',
+      featuredImage: draft.featuredImage || '',
       seoTitle: draft.seoTitle,
       metaDescription: draft.metaDescription,
       seoSlug: draft.slug,

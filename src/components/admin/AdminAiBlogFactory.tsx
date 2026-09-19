@@ -15,6 +15,7 @@ import {
   Send,
   ExternalLink,
   Layers,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { GeneratedBlogDraft } from '../../types/blog';
 import { generateAiBlog, createBlogPost } from '../../services/blog.service';
@@ -102,6 +103,7 @@ export const AdminAiBlogFactory: React.FC<AdminAiBlogFactoryProps> = ({
         author: 'LEGOMARK Editorial Board',
         content: finalContent,
         excerpt: generatedDraft.summary,
+        featuredImage: generatedDraft.featuredImage || null,
         seoTitle: generatedDraft.seoTitle,
         metaDescription: generatedDraft.metaDescription,
         seoSlug: generatedDraft.slug,
@@ -347,6 +349,12 @@ export const AdminAiBlogFactory: React.FC<AdminAiBlogFactoryProps> = ({
                 <span className="text-slate-500">Slug: </span>
                 <span className="font-mono text-slate-300">/{generatedDraft.slug}</span>
               </div>
+              {generatedDraft.featuredImage && (
+                <div className="flex items-center gap-1 text-emerald-400 font-semibold">
+                  <ImageIcon className="w-3.5 h-3.5" />
+                  <span>Featured Image Attached</span>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
@@ -415,6 +423,34 @@ export const AdminAiBlogFactory: React.FC<AdminAiBlogFactoryProps> = ({
             {/* 1. Article Content View */}
             {activeTab === 'content' && (
               <div className="space-y-6">
+                {/* Generated Featured Image Preview */}
+                {generatedDraft.featuredImage && (
+                  <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-0.5 rounded-md bg-orange-500/10 text-orange-400 border border-orange-500/20 font-semibold flex items-center gap-1.5">
+                          <ImageIcon className="w-3.5 h-3.5" />
+                          <span>Generated Featured Image</span>
+                        </span>
+                        <span className="text-slate-400">16:9 Web-Optimized • LEGOMARK INDIA Branding</span>
+                      </div>
+                      <span className="font-mono text-slate-400 text-[11px] bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                        {generatedDraft.featuredImage}
+                      </span>
+                    </div>
+                    <div className="w-full aspect-[16/9] rounded-lg overflow-hidden border border-slate-800 bg-slate-900/80 relative">
+                      <img
+                        src={generatedDraft.featuredImage}
+                        alt={generatedDraft.title}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      Saved to Media storage (<code className="text-slate-300">/uploads/media/</code>) and attached to draft. Appears automatically when published on public blog pages.
+                    </p>
+                  </div>
+                )}
+
                 {/* Summary Card */}
                 <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
                   <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center justify-between">

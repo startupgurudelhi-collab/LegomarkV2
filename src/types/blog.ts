@@ -72,6 +72,7 @@ export interface GeneratedBlogDraft {
   faq: Array<{ question: string; answer: string }>;
   blogContent: string;
   category: string;
+  featuredImage?: string | null;
 }
 
 export interface AiBlogGenerateInput {
