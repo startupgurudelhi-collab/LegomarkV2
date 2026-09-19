@@ -309,6 +309,41 @@ export class AdminBlogController {
       });
     }
   }
+
+  /**
+   * POST /api/admin/blogs/generate-faqs
+   * AI FAQ Generator for the Blog Editor
+   */
+  async generateAiFaqs(req: Request, res: Response): Promise<void> {
+    try {
+      const { title, content, category } = req.body;
+
+      if (!title || typeof title !== 'string' || title.trim().length === 0) {
+        res.status(400).json({
+          success: false,
+          error: 'Article title is required to generate FAQs',
+        });
+        return;
+      }
+
+      const faqs = await aiBlogService.generateFaqs({
+        title: title.trim(),
+        content: typeof content === 'string' ? content : undefined,
+        category: typeof category === 'string' ? category : undefined,
+      });
+
+      res.json({
+        success: true,
+        data: faqs,
+      });
+    } catch (err: any) {
+      logger.error('Error in AdminBlogController.generateAiFaqs', 'AdminBlogCtrl', err);
+      res.status(500).json({
+        success: false,
+        error: err.message || 'Failed to generate FAQs with AI',
+      });
+    }
+  }
 }
 
 export const adminBlogController = new AdminBlogController();

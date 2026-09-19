@@ -23,14 +23,17 @@ import {
   ChevronRight,
   Layers,
   ArrowUpRight,
+  HelpCircle,
+  Check,
 } from 'lucide-react';
-import { BlogPost, BlogStats, CreateBlogPostInput, UpdateBlogPostInput, GeneratedBlogDraft } from '../../types/blog';
+import { BlogPost, BlogStats, CreateBlogPostInput, UpdateBlogPostInput, GeneratedBlogDraft, BlogFaqItem } from '../../types/blog';
 import {
   fetchAdminBlogs,
   createBlogPost,
   updateBlogPost,
   toggleBlogPublish,
   deleteBlogPost,
+  generateAiBlogFaqs,
 } from '../../services/blog.service';
 import { MediaUploadDropzone } from './MediaUploadDropzone';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
@@ -72,6 +75,13 @@ export const AdminBlogCMS: React.FC = () => {
   const [previewBlog, setPreviewBlog] = useState<BlogPost | null>(null);
   const [deletingBlog, setDeletingBlog] = useState<BlogPost | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  // AI FAQ Generator State inside Blog Editor
+  const [isGeneratingFaqs, setIsGeneratingFaqs] = useState(false);
+  const [faqError, setFaqError] = useState<string | null>(null);
+  const [generatedFaqs, setGeneratedFaqs] = useState<BlogFaqItem[]>([]);
+  const [showFaqReview, setShowFaqReview] = useState(false);
+  const [faqInsertedNotification, setFaqInsertedNotification] = useState(false);
 
   // Editor Form Data
   const [formData, setFormData] = useState<{
@@ -126,6 +136,10 @@ export const AdminBlogCMS: React.FC = () => {
 
   const handleOpenCreate = () => {
     setEditingBlog(null);
+    setGeneratedFaqs([]);
+    setShowFaqReview(false);
+    setFaqError(null);
+    setFaqInsertedNotification(false);
     setFormData({
       title: '',
       slug: '',
@@ -144,6 +158,10 @@ export const AdminBlogCMS: React.FC = () => {
 
   const handleOpenFromAiDraft = (draft: GeneratedBlogDraft) => {
     setEditingBlog(null);
+    setGeneratedFaqs([]);
+    setShowFaqReview(false);
+    setFaqError(null);
+    setFaqInsertedNotification(false);
     let fullContent = draft.blogContent;
     if (draft.faq && draft.faq.length > 0) {
       fullContent += '\n\n## Frequently Asked Questions (FAQs)\n\n';
@@ -170,6 +188,10 @@ export const AdminBlogCMS: React.FC = () => {
 
   const handleOpenEdit = (blog: BlogPost) => {
     setEditingBlog(blog);
+    setGeneratedFaqs([]);
+    setShowFaqReview(false);
+    setFaqError(null);
+    setFaqInsertedNotification(false);
     setFormData({
       title: blog.title,
       slug: blog.slug,
@@ -184,6 +206,89 @@ export const AdminBlogCMS: React.FC = () => {
       isPublished: blog.isPublished,
     });
     setIsEditorOpen(true);
+  };
+
+  // Generate FAQs using current blog title and content as context
+  const handleGenerateFaqs = async () => {
+    if (!formData.title.trim()) {
+      setFaqError('Please enter an Article Title first to generate relevant FAQs.');
+      return;
+    }
+
+    setIsGeneratingFaqs(true);
+    setFaqError(null);
+    setFaqInsertedNotification(false);
+
+    try {
+      const faqs = await generateAiBlogFaqs({
+        title: formData.title.trim(),
+        content: formData.content.trim() || formData.excerpt.trim() || undefined,
+        category: formData.category,
+      });
+
+      if (!faqs || faqs.length === 0) {
+        throw new Error('No FAQs generated. Please try again.');
+      }
+
+      setGeneratedFaqs(faqs);
+      setShowFaqReview(true);
+    } catch (err: any) {
+      setFaqError(err.message || 'Failed to generate FAQs with AI');
+    } finally {
+      setIsGeneratingFaqs(false);
+    }
+  };
+
+  // Update a single FAQ during review
+  const handleUpdateFaqItem = (index: number, field: 'question' | 'answer', value: string) => {
+    setGeneratedFaqs((prev) => {
+      const next = [...prev];
+      if (next[index]) {
+        next[index] = { ...next[index], [field]: value };
+      }
+      return next;
+    });
+  };
+
+  // Remove a single FAQ during review
+  const handleRemoveFaqItem = (index: number) => {
+    setGeneratedFaqs((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // Add a blank FAQ during review
+  const handleAddFaqItem = () => {
+    setGeneratedFaqs((prev) => [
+      ...prev,
+      { question: 'New Question?', answer: 'Authoritative answer...' },
+    ]);
+  };
+
+  // Insert reviewed and approved FAQs into existing article content
+  const handleInsertFaqsIntoContent = () => {
+    if (generatedFaqs.length === 0) return;
+
+    let faqMarkdown = '\n\n## Frequently Asked Questions (FAQs)\n\n';
+    generatedFaqs.forEach((item, idx) => {
+      const q = item.question.trim();
+      const a = item.answer.trim();
+      if (q && a) {
+        faqMarkdown += `### Q${idx + 1}: ${q}\n${a}\n\n`;
+      }
+    });
+
+    const updatedContent = formData.content.trim()
+      ? `${formData.content.trim()}${faqMarkdown}`
+      : faqMarkdown.trim();
+
+    setFormData((prev) => ({
+      ...prev,
+      content: updatedContent,
+    }));
+
+    setFaqInsertedNotification(true);
+    setTimeout(() => {
+      setFaqInsertedNotification(false);
+    }, 4000);
   };
 
   const handleAutoGenerateSlug = () => {
@@ -820,11 +925,161 @@ export const AdminBlogCMS: React.FC = () => {
                     />
                   </div>
 
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
-                      <span>Full Article Body & Rich Visual Content *</span>
-                      <span className="text-[11px] text-slate-500 font-normal">Headings, Lists, Quotes, Links & Native Inline Media</span>
-                    </label>
+                  <div className="md:col-span-2 space-y-3">
+                    {/* Primary Editor Header & Prominent AI FAQ Generator Bar */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-slate-950 border border-slate-800 rounded-xl">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-200">
+                          Full Article Body & Rich Visual Content *
+                        </label>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          Comprehensive article guide with headings, lists, quotes, and inline illustrations.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2.5 shrink-0">
+                        {faqInsertedNotification && (
+                          <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg animate-fadeIn">
+                            <Check className="w-3.5 h-3.5" />
+                            <span>FAQs inserted into article!</span>
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          id="btn-generate-faqs-ai"
+                          onClick={handleGenerateFaqs}
+                          disabled={isGeneratingFaqs}
+                          className="px-3.5 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-lg text-xs font-bold flex items-center gap-2 transition-all shadow-md shadow-orange-500/10 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border border-amber-400/30"
+                          title="Generate 5-10 context-aware FAQs and answers based on this article"
+                        >
+                          {isGeneratingFaqs ? (
+                            <>
+                              <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                              <span>Generating FAQs with AI...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="w-4 h-4 text-amber-200" />
+                              <span>Generate FAQs with AI</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    {faqError && (
+                      <div className="mb-2 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-400 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 shrink-0" />
+                          <span>{faqError}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setFaqError(null)}
+                          className="text-rose-400 hover:text-rose-300 p-0.5"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* AI FAQ Review & Editor Box */}
+                    {showFaqReview && (
+                      <div className="mb-4 bg-slate-950/90 border border-amber-500/30 rounded-xl p-4 space-y-3.5 shadow-lg">
+                        <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                          <div className="flex items-center gap-2">
+                            <HelpCircle className="w-4 h-4 text-amber-400" />
+                            <span className="text-xs font-semibold text-white">
+                              AI Generated FAQs ({generatedFaqs.length} Items) — Review & Edit
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={handleAddFaqItem}
+                              className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] flex items-center gap-1 transition-colors"
+                            >
+                              <Plus className="w-3 h-3" />
+                              <span>Add FAQ</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleInsertFaqsIntoContent}
+                              className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[11px] font-semibold flex items-center gap-1 transition-colors shadow-sm cursor-pointer"
+                              title="Append these approved FAQs to the blog content below"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Insert into Article</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setShowFaqReview(false)}
+                              className="text-slate-400 hover:text-white p-1 rounded"
+                              title="Close FAQ Review"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <p className="text-[11px] text-slate-400">
+                          Review, edit question phrasing, or refine answers before inserting. Clicking <strong>Insert into Article</strong> will append these formatted FAQs with standard Markdown headings to your article body below.
+                        </p>
+
+                        <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                          {generatedFaqs.map((faq, index) => (
+                            <div
+                              key={index}
+                              className="bg-slate-900 border border-slate-800 rounded-lg p-3 space-y-2 relative group"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1.5 flex-1">
+                                  <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
+                                    Q{index + 1}
+                                  </span>
+                                  <input
+                                    type="text"
+                                    value={faq.question}
+                                    onChange={(e) => handleUpdateFaqItem(index, 'question', e.target.value)}
+                                    placeholder="Question..."
+                                    className="w-full px-2.5 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-white focus:outline-hidden focus:border-amber-500"
+                                  />
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveFaqItem(index)}
+                                  className="text-slate-500 hover:text-rose-400 p-1 rounded transition-colors"
+                                  title="Remove this FAQ"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                              <textarea
+                                rows={2}
+                                value={faq.answer}
+                                onChange={(e) => handleUpdateFaqItem(index, 'answer', e.target.value)}
+                                placeholder="Authoritative answer..."
+                                className="w-full px-2.5 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-hidden focus:border-amber-500 resize-y"
+                              />
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+                          <span className="text-[11px] text-slate-400">
+                            Tip: You can re-generate with AI anytime or manually edit any answer.
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleInsertFaqsIntoContent}
+                            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span>Insert into Article</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     <RichTextEditor
                       value={formData.content}
                       onChange={(newContent) => setFormData({ ...formData, content: newContent })}

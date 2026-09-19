@@ -80,3 +80,9 @@ export interface AiBlogGenerateInput {
   targetService?: string;
 }
 
+export interface BlogFaqItem {
+  question: string;
+  answer: string;
+}
+
+

@@ -191,3 +191,30 @@ export async function generateAiBlog(
   throw new Error(data?.error || 'Failed to generate AI blog article');
 }
 
+/**
+ * Admin: Generate FAQs with AI for the current blog editor content
+ */
+export async function generateAiBlogFaqs(params: {
+  title: string;
+  content?: string;
+  category?: string;
+}): Promise<Array<{ question: string; answer: string }>> {
+  const res = await fetch('/api/admin/blogs/generate-faqs', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify(params),
+  });
+
+  const data = await res.json();
+
+  if (res.ok && data && data.success && Array.isArray(data.data)) {
+    return data.data;
+  }
+
+  throw new Error(data?.error || 'Failed to generate FAQs with AI');
+}
+
+

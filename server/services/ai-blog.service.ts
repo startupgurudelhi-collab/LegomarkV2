@@ -493,6 +493,99 @@ Follow these strict guidelines:
 
     return parsed;
   }
+
+  /**
+   * Generates 5 to 10 context-aware FAQs with authoritative answers based on blog title, content, and category.
+   */
+  async generateFaqs(params: {
+    title: string;
+    content?: string;
+    category?: string;
+  }): Promise<Array<{ question: string; answer: string }>> {
+    const cleanTitle = (params.title || '').trim();
+    if (!cleanTitle) {
+      throw new Error('Blog title is required for generating FAQs');
+    }
+
+    const ai = this.getClient();
+
+    const prompt = `You are a senior corporate attorney, chartered accountant, and compliance expert for LEGOMARK INDIA (legomarkindia.com).
+
+Generate 5 to 10 highly relevant, authoritative Frequently Asked Questions (FAQs) and practical, clear answers for Indian entrepreneurs, directors, and taxpayers based on this article context:
+- Article Title: "${cleanTitle}"
+- Category: "${params.category || 'Company Registration & Compliance'}"
+${params.content ? `- Content Excerpt / Summary:\n${params.content.slice(0, 3000)}` : ''}
+
+Strict Guidelines:
+1. Generate between 5 and 10 question & answer pairs (aim for 6 to 8).
+2. Questions must reflect real-world practical queries that Indian business founders, startup directors, or taxpayers ask (e.g. timelines, documents required, government fees, compliance penalties, eligibility criteria, post-registration duties).
+3. Answers must be authoritative, concise, accurate according to Indian regulations (e.g., MCA SPICe+, Companies Act 2013, GST Council, Income Tax Act, DPIIT, Trademark Registry), and written in professional English.
+4. Do not mention other consulting firms. Refer to LEGOMARK INDIA where helpful.`;
+
+    const responseSchema: Schema = {
+      type: Type.OBJECT,
+      description: 'Frequently Asked Questions collection',
+      properties: {
+        faqs: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            description: 'Individual FAQ entry',
+            properties: {
+              question: { type: Type.STRING, description: 'Practical question asked by founders/taxpayers' },
+              answer: { type: Type.STRING, description: 'Clear, authoritative explanation and answer' },
+            },
+            required: ['question', 'answer'],
+          },
+          description: '5 to 10 relevant FAQ items',
+        },
+      },
+      required: ['faqs'],
+    };
+
+    logger.info(`Generating AI FAQs for blog: "${cleanTitle}"`, 'AiBlogService');
+
+    const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+    let response;
+    let lastError: any = null;
+
+    for (const modelName of candidateModels) {
+      try {
+        response = await ai.models.generateContent({
+          model: modelName,
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json',
+            responseSchema,
+            temperature: 0.7,
+          },
+        });
+        if (response && response.text) {
+          logger.info(`Successfully generated FAQs using model: ${modelName}`, 'AiBlogService');
+          break;
+        }
+      } catch (err: any) {
+        lastError = err;
+        logger.warn(`Model ${modelName} encountered issue generating FAQs (${err?.message || 'unknown error'}), trying next...`, 'AiBlogService');
+      }
+    }
+
+    if (!response || !response.text) {
+      throw lastError || new Error('All candidate AI models were unable to generate FAQs');
+    }
+
+    const rawText = response.text.trim();
+    try {
+      const parsed = JSON.parse(rawText) as { faqs: Array<{ question: string; answer: string }> };
+      if (!Array.isArray(parsed.faqs) || parsed.faqs.length === 0) {
+        throw new Error('AI returned an empty FAQ list');
+      }
+      return parsed.faqs;
+    } catch (parseErr) {
+      logger.error('Failed to parse AI FAQs JSON', 'AiBlogService', parseErr);
+      throw new Error('Failed to parse AI generated FAQs response');
+    }
+  }
 }
 
 export const aiBlogService = new AiBlogService();
