@@ -61,6 +61,10 @@ const SECTION_TITLES: Record<AdminNavSection, { title: string; subtitle: string 
     title: 'Blogs & Legal Insights',
     subtitle: 'Publish articles, guides, and tax compliance updates',
   },
+  'keyword-cluster': {
+    title: 'AI Keyword Cluster Generator',
+    subtitle: 'AI-driven keyword discovery, semantic search intent, and long-tail query clustering',
+  },
   settings: {
     title: 'Admin Settings',
     subtitle: 'Administrator profile and security credentials',

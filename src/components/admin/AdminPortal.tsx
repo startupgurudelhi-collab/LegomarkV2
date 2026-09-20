@@ -12,6 +12,7 @@ import { AdminWebsiteCMS } from './AdminWebsiteCMS';
 import { AdminTestimonialsCMS } from './AdminTestimonialsCMS';
 import { AdminMediaLibrary } from './AdminMediaLibrary';
 import { AdminBlogCMS } from './AdminBlogCMS';
+import { AdminKeywordClusterPage } from './AdminKeywordClusterPage';
 import { AdminWebsiteSettingsCMS } from './AdminWebsiteSettingsCMS';
 import { AdminClientLogosCMS } from './AdminClientLogosCMS';
 import { AdminAnalyticsPage } from './AdminAnalyticsPage';
@@ -73,6 +74,13 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
     }
     if (currentPath.includes('/admin/analytics')) return 'analytics';
     if (currentPath.includes('/admin/blogs')) return 'blogs';
+    if (
+      currentPath.includes('/admin/keyword-cluster') ||
+      currentPath.includes('/admin/keywordcluster') ||
+      currentPath.includes('/admin/keywords')
+    ) {
+      return 'keyword-cluster';
+    }
     if (currentPath.includes('/admin/settings')) return 'settings';
     return 'dashboard';
   };
@@ -89,6 +97,7 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
       testimonials: '/admin/testimonials',
       media: '/admin/media',
       blogs: '/admin/blogs',
+      'keyword-cluster': '/admin/keyword-cluster',
       settings: '/admin/settings',
     };
     navigateTo(routeMap[section]);
@@ -210,6 +219,7 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
           {activeSection === 'testimonials' && <AdminTestimonialsCMS />}
           {activeSection === 'media' && <AdminMediaLibrary />}
           {activeSection === 'blogs' && <AdminBlogCMS />}
+          {activeSection === 'keyword-cluster' && <AdminKeywordClusterPage />}
           {activeSection === 'settings' && (
             <AdminWebsiteSettingsCMS
               onNavigateToSection={(sec) => {

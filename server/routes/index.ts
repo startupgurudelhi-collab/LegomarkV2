@@ -26,6 +26,7 @@ import adminAssociationLogoRoutes from './admin-association-logo.routes';
 import paymentRoutes from './payment.routes';
 import analyticsRoutes from './analytics.routes';
 import adminAnalyticsRoutes from './admin-analytics.routes';
+import adminKeywordClusterRoutes from './admin-keyword-cluster.routes';
 
 const apiRouter = Router();
 
@@ -50,6 +51,7 @@ apiRouter.use('/admin/services', adminServiceRoutes);
 apiRouter.use('/admin/leads', adminLeadRoutes);
 apiRouter.use('/admin/testimonials', adminTestimonialRoutes);
 apiRouter.use('/admin/blogs', adminBlogRoutes);
+apiRouter.use('/admin/keyword-cluster', adminKeywordClusterRoutes);
 apiRouter.use('/admin/settings', adminSettingsRoutes);
 apiRouter.use('/admin/client-logos', adminClientLogoRoutes);
 apiRouter.use('/admin/association-logos', adminAssociationLogoRoutes);

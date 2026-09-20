@@ -10,6 +10,7 @@ import {
   Image as ImageIcon,
   BookOpen,
   Settings,
+  Sparkles,
   ChevronLeft,
   ChevronRight,
   ExternalLink,
@@ -29,6 +30,7 @@ export type AdminNavSection =
   | 'testimonials'
   | 'media'
   | 'blogs'
+  | 'keyword-cluster'
   | 'settings';
 
 interface AdminSidebarProps {
@@ -114,6 +116,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       label: 'Blogs & Articles',
       description: 'Legal & Tax Insights',
       icon: BookOpen,
+    },
+    {
+      id: 'keyword-cluster',
+      label: 'AI Keyword Cluster',
+      description: 'SEO Research & Intent',
+      icon: Sparkles,
+      badge: 'AI',
     },
     {
       id: 'settings',
