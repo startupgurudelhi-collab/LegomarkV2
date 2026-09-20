@@ -112,6 +112,7 @@ function getCategoryTheme(category: string): CategoryVisualTheme {
 interface MainVisualConcept {
   concept: string;
   subjectDescription: string;
+  supportingElements: string;
   svgFocalElement: 'trademark' | 'tax' | 'startup' | 'compliance' | 'licensing' | 'corporate';
 }
 
@@ -121,42 +122,48 @@ function getMainVisualConcept(category: string, title: string, keyword: string):
   if (combined.includes('trademark') || combined.includes('ip') || combined.includes('brand') || combined.includes('patent') || combined.includes('copyright')) {
     return {
       concept: 'Intellectual Property & Trademark Registry',
-      subjectDescription: 'A single, high-end solid brass official seal stamp with a polished wood handle resting on a crisp white parchment document with an embossed seal mark, surrounded by generous clean white and light grey space, soft morning daylight, realistic macro editorial photography.',
+      subjectDescription: 'an authentic solid brass trademark registry seal stamp with a polished turned wood handle standing on a crisp white parchment document with an embossed circular registry seal',
+      supportingElements: 'a luxury executive fountain pen with deep navy barrel, a clear crystal glass paperweight catching soft natural light, a slender brass desk ruler, an architectural window shadow with thin geometric lines, and a subtle orange silk ribbon bookmark',
       svgFocalElement: 'trademark',
     };
   }
   if (combined.includes('tax') || combined.includes('gst') || combined.includes('audit') || combined.includes('finance') || combined.includes('return')) {
     return {
       concept: 'Corporate Taxation & Financial Compliance',
-      subjectDescription: 'A clean, modern executive desk with a solitary sleek fountain pen resting across an open white statutory compliance ledger, subtle navy accents, soft natural daylight, bright off-white editorial composition.',
+      subjectDescription: 'a luxury executive fountain pen resting across an open white statutory compliance ledger and tax advisory dossier',
+      supportingElements: 'an architectural brass paperweight, a clean water tumbler with gentle light refraction, a discreet navy leather document folio edge, a slender desk stylus, and soft natural window reflections',
       svgFocalElement: 'tax',
     };
   }
   if (combined.includes('startup') || combined.includes('fund') || combined.includes('venture') || combined.includes('invest')) {
     return {
       concept: 'Corporate Enterprise & Formation Charter',
-      subjectDescription: 'A bright, sunlit modern executive suite with an airy white desk, a solitary white certificate folio with subtle navy trim, clean architectural glass reflections, and calm spacious white negative space.',
+      subjectDescription: 'an official white corporate incorporation charter folio with fine debossed border details on a bright white desk',
+      supportingElements: 'an elegant navy-and-brass executive pen, a geometric crystal prism block catching morning daylight, a minimal notebook with subtle orange spine trim, and soft architectural window frame reflections',
       svgFocalElement: 'startup',
     };
   }
   if (combined.includes('compliance') || combined.includes('roc') || combined.includes('annual') || combined.includes('director')) {
     return {
       concept: 'Corporate Governance & Statutory Oversight',
-      subjectDescription: 'A pristine, bright advisory suite with a white desk surface, a single bound white corporate registry dossier with a subtle orange ribbon bookmark, and soft natural window light.',
+      subjectDescription: 'a pristine bound white corporate registry folio and statutory filing dossier',
+      supportingElements: 'an authentic brass seal stamp, a sleek navy fountain pen, a discreet leather portfolio edge, a crystal desk cube, and soft morning sunlight',
       svgFocalElement: 'compliance',
     };
   }
   if (combined.includes('fssai') || combined.includes('licens') || combined.includes('food') || combined.includes('standard')) {
     return {
       concept: 'Statutory Licensing & Regulatory Governance',
-      subjectDescription: 'A clean executive desk in a bright, white-toned modern office with frosted architectural glass, a single official certificate binder, and soft ambient natural light.',
+      subjectDescription: 'an official white statutory accreditation dossier and regulatory certificate folio',
+      supportingElements: 'a fine brass stylus or pen, a turned-wood official stamp, a frosted acrylic stand, a minimal navy binder, and clean natural window light',
       svgFocalElement: 'licensing',
     };
   }
 
   return {
     concept: 'Corporate Advisory & Legal Consultation',
-    subjectDescription: 'An elegant, bright corporate advisory setting with a solitary executive fountain pen resting on a crisp white contract document, clean light grey background, and soft natural daylight.',
+    subjectDescription: 'a refined white corporate advisory dossier with a solitary executive fountain pen resting across it',
+    supportingElements: 'an architectural brass paperweight, a slender navy notebook, a minimalist water tumbler, soft daylight window lines, and a subtle orange accent ribbon',
     svgFocalElement: 'corporate',
   };
 }
@@ -325,97 +332,145 @@ export class AiBlogService {
     const logoOverlaySvg = this.renderLogoOverlaySvg(logoAsset);
     const visual = getMainVisualConcept(params.category, params.title, params.focusKeyword);
 
-    // Render ONE clean, realistic business/legal/compliance focal visual based on topic
+    // Render ONE clean, realistic business/legal/compliance focal visual based on topic, accompanied by 3–5 subtle supporting elements
     let focalVisualElement = '';
 
     if (visual.svgFocalElement === 'trademark') {
-      // Clean, authentic solid brass registry seal stamp and embossed white legal folio
+      // Clean, authentic solid brass registry seal stamp and embossed white legal folio + 3-5 supporting elements
       focalVisualElement = `
   <g id="editorial-focal-visual">
-    <!-- Soft Natural Shadow beneath Document -->
-    <ellipse cx="1200" cy="850" rx="340" ry="24" fill="#0F172A" fill-opacity="0.05" />
+    <!-- Soft Natural Shadow beneath Document & Elements -->
+    <ellipse cx="1200" cy="860" rx="420" ry="26" fill="#0F172A" fill-opacity="0.05" />
 
-    <!-- Crisp White Registry Document -->
-    <g transform="translate(940, 560) rotate(-2)">
-      <rect x="0" y="0" width="520" height="290" rx="4" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.2" />
-      <rect x="14" y="14" width="492" height="262" rx="2" fill="none" stroke="#F1F5F9" stroke-width="1" />
+    <!-- 1. Main Topic-Related Visual: Crisp White Trademark Registry Document -->
+    <g transform="translate(900, 550) rotate(-2)">
+      <rect x="0" y="0" width="540" height="300" rx="4" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.2" />
+      <rect x="14" y="14" width="512" height="272" rx="2" fill="none" stroke="#F1F5F9" stroke-width="1" />
       
       <!-- Minimal Hairline Document Structure (Whisper Quiet, No Heavy Text) -->
-      <line x1="48" y1="52" x2="220" y2="52" stroke="#CBD5E1" stroke-width="2.5" />
-      <line x1="48" y1="84" x2="440" y2="84" stroke="#E2E8F0" stroke-width="1.2" />
-      <line x1="48" y1="108" x2="400" y2="108" stroke="#E2E8F0" stroke-width="1.2" />
-      <line x1="48" y1="132" x2="360" y2="132" stroke="#E2E8F0" stroke-width="1.2" />
+      <line x1="48" y1="52" x2="240" y2="52" stroke="#CBD5E1" stroke-width="2.5" />
+      <line x1="48" y1="84" x2="460" y2="84" stroke="#E2E8F0" stroke-width="1.2" />
+      <line x1="48" y1="108" x2="420" y2="108" stroke="#E2E8F0" stroke-width="1.2" />
+      <line x1="48" y1="132" x2="380" y2="132" stroke="#E2E8F0" stroke-width="1.2" />
       
       <!-- Subtle Orange Embossed Official Seal Impression -->
-      <circle cx="120" cy="204" r="32" fill="none" stroke="#EA580C" stroke-width="1.5" stroke-opacity="0.45" stroke-dasharray="4 2" />
-      <circle cx="120" cy="204" r="23" fill="none" stroke="#EA580C" stroke-width="1" stroke-opacity="0.3" />
-      <path d="M 112,204 L 128,204 M 120,196 L 120,212" stroke="#EA580C" stroke-width="1" stroke-opacity="0.35" />
+      <circle cx="120" cy="214" r="34" fill="none" stroke="#EA580C" stroke-width="1.5" stroke-opacity="0.45" stroke-dasharray="4 2" />
+      <circle cx="120" cy="214" r="25" fill="none" stroke="#EA580C" stroke-width="1" stroke-opacity="0.3" />
+      <path d="M 112,214 L 128,214 M 120,206 L 120,222" stroke="#EA580C" stroke-width="1" stroke-opacity="0.35" />
     </g>
 
-    <!-- Solid Brass Seal Stamp with Turned Wood Handle -->
-    <g transform="translate(1320, 680)">
-      <!-- Soft Shadow under stamp -->
+    <!-- Supporting Element 1: Solid Brass Official Seal Stamp with Turned Wood Handle -->
+    <g transform="translate(1360, 680)">
       <ellipse cx="26" cy="74" rx="42" ry="14" fill="#0F172A" fill-opacity="0.10" />
-      
-      <!-- Brass Base Disc -->
       <ellipse cx="26" cy="64" rx="36" ry="12" fill="#D97706" />
       <rect x="-10" y="44" width="72" height="20" fill="#B45309" />
       <ellipse cx="26" cy="44" rx="36" ry="12" fill="#FBBF24" />
       <ellipse cx="26" cy="44" rx="32" ry="10" fill="#F59E0B" />
       <line x1="2" y1="44" x2="50" y2="44" stroke="#FEF3C7" stroke-width="1.5" stroke-opacity="0.8" />
-      
-      <!-- Turned Wood Handle -->
       <path d="M 12,44 C 12,25 18,15 20,0 C 22,-20 18,-60 26,-80 C 34,-60 30,-20 32,0 C 34,15 40,25 40,44 Z" fill="#1E293B" stroke="#0F172A" stroke-width="1" />
       <circle cx="26" cy="-80" r="16" fill="#1E293B" stroke="#0F172A" stroke-width="1" />
-      <!-- Subtle Brass Collar Ring -->
       <rect x="18" y="24" width="16" height="6" rx="1" fill="#F59E0B" />
     </g>
+
+    <!-- Supporting Element 2: Sleek Executive Fountain Pen with Navy Barrel -->
+    <g transform="translate(740, 710) rotate(-14)">
+      <rect x="4" y="6" width="280" height="12" rx="6" fill="#0F172A" fill-opacity="0.08" />
+      <rect x="0" y="0" width="280" height="12" rx="6" fill="#0F172A" stroke="#1E293B" stroke-width="1" />
+      <rect x="100" y="0" width="12" height="12" fill="#E2E8F0" />
+      <rect x="104" y="-2" width="70" height="3" rx="1.5" fill="#CBD5E1" />
+      <rect x="112" y="0" width="3" height="12" fill="#EA580C" />
+      <polygon points="0,6 -20,2 -20,10" fill="#E2E8F0" />
+      <line x1="16" y1="3" x2="260" y2="3" stroke="#FFFFFF" stroke-width="1" stroke-opacity="0.5" />
+    </g>
+
+    <!-- Supporting Element 3: Crystal Prism Paperweight with Soft Refraction -->
+    <g transform="translate(680, 580)">
+      <ellipse cx="25" cy="52" rx="34" ry="10" fill="#0F172A" fill-opacity="0.04" />
+      <polygon points="25,5 50,45 0,45" fill="#FFFFFF" fill-opacity="0.65" stroke="#CBD5E1" stroke-width="1" />
+      <polygon points="25,5 38,45 12,45" fill="#F8FAFC" fill-opacity="0.5" stroke="#E2E8F0" stroke-width="0.8" />
+      <line x1="25" y1="5" x2="25" y2="45" stroke="#94A3B8" stroke-width="0.8" stroke-opacity="0.4" />
+    </g>
+
+    <!-- Supporting Element 4: Slender Brass Desk Ruler -->
+    <g transform="translate(1120, 860) rotate(-4)">
+      <rect x="0" y="0" width="240" height="10" rx="1.5" fill="#F59E0B" fill-opacity="0.35" stroke="#D97706" stroke-width="0.8" />
+      <line x1="20" y1="0" x2="20" y2="5" stroke="#B45309" stroke-width="0.8" />
+      <line x1="40" y1="0" x2="40" y2="7" stroke="#B45309" stroke-width="0.8" />
+      <line x1="60" y1="0" x2="60" y2="5" stroke="#B45309" stroke-width="0.8" />
+      <line x1="80" y1="0" x2="80" y2="7" stroke="#B45309" stroke-width="0.8" />
+      <line x1="100" y1="0" x2="100" y2="5" stroke="#B45309" stroke-width="0.8" />
+      <line x1="120" y1="0" x2="120" y2="7" stroke="#B45309" stroke-width="0.8" />
+      <line x1="140" y1="0" x2="140" y2="5" stroke="#B45309" stroke-width="0.8" />
+      <line x1="160" y1="0" x2="160" y2="7" stroke="#B45309" stroke-width="0.8" />
+    </g>
+
+    <!-- Supporting Element 5: Orange Silk Ribbon Bookmark -->
+    <path d="M 1260,546 L 1260,710 L 1272,698 L 1284,710 L 1284,546 Z" fill="#EA580C" fill-opacity="0.75" />
   </g>`;
     } else {
-      // Clean Executive Fountain Pen resting on Crisp Statutory Portfolio Dossier
+      // Clean Executive Dossier with Fountain Pen, Crystal Paperweight, Brass Ruler, Ribbon & Folio Accents
       focalVisualElement = `
   <g id="editorial-focal-visual">
-    <!-- Soft Natural Shadow beneath Dossier -->
-    <ellipse cx="1200" cy="850" rx="380" ry="24" fill="#0F172A" fill-opacity="0.05" />
+    <!-- Soft Natural Shadow beneath Dossier & Elements -->
+    <ellipse cx="1200" cy="860" rx="440" ry="26" fill="#0F172A" fill-opacity="0.05" />
 
-    <!-- Crisp White Advisory Dossier -->
-    <g transform="translate(940, 580) rotate(-2)">
-      <rect x="0" y="0" width="540" height="280" rx="6" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.2" />
+    <!-- 1. Main Topic-Related Visual: Crisp White Statutory & Compliance Dossier -->
+    <g transform="translate(900, 560) rotate(-2)">
+      <rect x="0" y="0" width="550" height="290" rx="6" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.2" />
       <!-- Subtle Navy Spine Accent -->
-      <rect x="0" y="0" width="14" height="280" rx="2" fill="#1A2B6B" fill-opacity="0.85" />
+      <rect x="0" y="0" width="14" height="290" rx="2" fill="#1A2B6B" fill-opacity="0.85" />
       
       <!-- Minimal Hairline Lines on Sheet -->
-      <line x1="56" y1="50" x2="240" y2="50" stroke="#CBD5E1" stroke-width="2.5" />
-      <line x1="56" y1="80" x2="480" y2="80" stroke="#E2E8F0" stroke-width="1.2" />
-      <line x1="56" y1="104" x2="440" y2="104" stroke="#E2E8F0" stroke-width="1.2" />
-      <line x1="56" y1="128" x2="400" y2="128" stroke="#E2E8F0" stroke-width="1.2" />
-      
-      <!-- Subtle Orange Ribbon Bookmark Accent -->
-      <path d="M 380,0 L 380,180 L 392,168 L 404,180 L 404,0 Z" fill="#EA580C" fill-opacity="0.75" />
+      <line x1="56" y1="50" x2="250" y2="50" stroke="#CBD5E1" stroke-width="2.5" />
+      <line x1="56" y1="80" x2="490" y2="80" stroke="#E2E8F0" stroke-width="1.2" />
+      <line x1="56" y1="104" x2="450" y2="104" stroke="#E2E8F0" stroke-width="1.2" />
+      <line x1="56" y1="128" x2="410" y2="128" stroke="#E2E8F0" stroke-width="1.2" />
+      <line x1="56" y1="152" x2="470" y2="152" stroke="#E2E8F0" stroke-width="1.2" />
     </g>
 
-    <!-- Bespoke Executive Fountain Pen resting diagonally -->
-    <g transform="translate(1160, 680) rotate(22)">
-      <!-- Pen Shadow -->
+    <!-- Supporting Element 1: Bespoke Executive Fountain Pen resting diagonally -->
+    <g transform="translate(1140, 670) rotate(22)">
       <rect x="4" y="6" width="320" height="14" rx="7" fill="#0F172A" fill-opacity="0.08" />
-      
-      <!-- Deep Navy Barrel -->
       <rect x="0" y="0" width="320" height="14" rx="7" fill="#0F172A" stroke="#1E293B" stroke-width="1" />
-      
-      <!-- Subtle Center Band & Clip -->
       <rect x="120" y="0" width="14" height="14" fill="#E2E8F0" />
       <rect x="124" y="-2" width="80" height="3" rx="1.5" fill="#CBD5E1" />
-      
-      <!-- Subtle Orange Accent Ring -->
       <rect x="134" y="0" width="3" height="14" fill="#EA580C" />
-      
-      <!-- Polished Nib -->
       <polygon points="0,7 -24,2 -24,12" fill="#E2E8F0" />
       <line x1="0" y1="7" x2="-18" y2="7" stroke="#94A3B8" stroke-width="1" />
-      
-      <!-- Natural Highlight Reflection on Pen -->
       <line x1="16" y1="3" x2="300" y2="3" stroke="#FFFFFF" stroke-width="1.2" stroke-opacity="0.5" />
     </g>
+
+    <!-- Supporting Element 2: Solid Brass Registry Seal Stamp -->
+    <g transform="translate(1380, 710)">
+      <ellipse cx="22" cy="64" rx="34" ry="12" fill="#0F172A" fill-opacity="0.09" />
+      <ellipse cx="22" cy="54" rx="30" ry="10" fill="#D97706" />
+      <rect x="-8" y="38" width="60" height="16" fill="#B45309" />
+      <ellipse cx="22" cy="38" rx="30" ry="10" fill="#FBBF24" />
+      <ellipse cx="22" cy="38" rx="26" ry="8" fill="#F59E0B" />
+      <path d="M 10,38 C 10,22 16,12 18,0 C 20,-18 16,-52 22,-68 C 28,-52 24,-18 26,0 C 28,12 34,22 34,38 Z" fill="#1E293B" stroke="#0F172A" stroke-width="0.9" />
+      <circle cx="22" cy="-68" r="14" fill="#1E293B" stroke="#0F172A" stroke-width="0.9" />
+      <rect x="15" y="20" width="14" height="5" rx="1" fill="#F59E0B" />
+    </g>
+
+    <!-- Supporting Element 3: Crystal Prism Paperweight with Soft Refraction -->
+    <g transform="translate(690, 590)">
+      <ellipse cx="25" cy="52" rx="34" ry="10" fill="#0F172A" fill-opacity="0.04" />
+      <polygon points="25,5 50,45 0,45" fill="#FFFFFF" fill-opacity="0.65" stroke="#CBD5E1" stroke-width="1" />
+      <polygon points="25,5 38,45 12,45" fill="#F8FAFC" fill-opacity="0.5" stroke="#E2E8F0" stroke-width="0.8" />
+      <line x1="25" y1="5" x2="25" y2="45" stroke="#94A3B8" stroke-width="0.8" stroke-opacity="0.4" />
+    </g>
+
+    <!-- Supporting Element 4: Slender Brass Desk Ruler -->
+    <g transform="translate(740, 720) rotate(8)">
+      <rect x="0" y="0" width="220" height="9" rx="1.5" fill="#F59E0B" fill-opacity="0.30" stroke="#D97706" stroke-width="0.8" />
+      <line x1="20" y1="0" x2="20" y2="5" stroke="#B45309" stroke-width="0.8" />
+      <line x1="40" y1="0" x2="40" y2="7" stroke="#B45309" stroke-width="0.8" />
+      <line x1="60" y1="0" x2="60" y2="5" stroke="#B45309" stroke-width="0.8" />
+      <line x1="80" y1="0" x2="80" y2="7" stroke="#B45309" stroke-width="0.8" />
+    </g>
+
+    <!-- Supporting Element 5: Subtle Orange Ribbon Bookmark Accent -->
+    <path d="M 1260,556 L 1260,720 L 1272,708 L 1284,720 L 1284,556 Z" fill="#EA580C" fill-opacity="0.75" />
   </g>`;
     }
 
@@ -464,7 +519,7 @@ export class AiBlogService {
   <!-- Minimal Thin Orange Accent Line -->
   <line x1="64" y1="188" x2="128" y2="188" stroke="#EA580C" stroke-width="1.5" stroke-opacity="0.55" />
 
-  <!-- 3. ONE Clean, Realistic Business/Legal/Compliance Visual (No large text, no infographic clutter) -->
+  <!-- 3. One Main Topic-Related Visual + 3–5 Subtle Supporting Elements (Balanced composition, not empty) -->
   ${focalVisualElement}
 
   <!-- 4. Mandatory Official Website URL (Exactly: www.legomarkindia.com) -->
@@ -477,7 +532,7 @@ export class AiBlogService {
 
   /**
    * Generates ONE featured image for the blog and saves it into the existing Media storage system.
-   * Focuses on a minimal, elegant editorial photography hero image (with exactly ONE main visual concept),
+   * Focuses on a minimal, elegant editorial photography hero image (with one main visual concept and 3-5 supporting elements),
    * primarily WHITE / very light grey environment, subtle navy and orange accents,
    * overlays the authentic LEGOMARK logo asset programmatically, and guarantees a 16:9 full-width banner.
    * Returns the public URL (e.g. /uploads/media/blog_featured_...).
@@ -506,30 +561,35 @@ export class AiBlogService {
 
     // 1. Attempt with Gemini image generation model
     // Minimal, elegant, corporate/editorial photography style.
-    // Background primarily WHITE / very light grey.
-    // Use ONE main visual concept related to the blog topic.
-    // Strictly NO text, NO logos, NO infographics, NO badges, NO crowded icons.
+    // Background: white/light-grey premium background.
+    // One main topic-related visual.
+    // 3–5 subtle related supporting elements.
+    // Thin navy/orange lines, curves or dots.
+    // Balanced composition, not empty.
+    // Minimal and elegant, NOT an infographic.
+    // No large text, bullet points, banners, charts, badges or dark/vibrant backgrounds.
+    // Full-bleed 16:9.
     try {
       const visual = getMainVisualConcept(draft.category, draft.title, draft.focusKeyword);
       const ai = this.getClient();
-      const imagePrompt = `Editorial corporate photography for a prestigious business advisory publication (Harvard Business Review, Financial Times, Bloomberg).
+      const imagePrompt = `Minimal, elegant corporate editorial photography for a prestigious corporate and legal advisory journal (Harvard Business Review, Financial Times, Bloomberg).
 Article Topic: ${draft.title} (${draft.category}).
-Single Focal Subject: Exactly ONE clean, realistic business/legal/compliance object related to the topic: ${visual.subjectDescription}.
+Core Theme: ${visual.concept}.
 
-Art Direction & Composition:
-- Background: Primarily WHITE or very light grey (#FFFFFF, #F8FAFC). Clean, bright, airy modern executive office environment with abundant soft natural daylight.
-- Style: Minimal, elegant, realistic corporate editorial photography. Uncluttered, spacious, and sophisticated.
-- Palette: Dominantly crisp white and light grey tones, with very subtle navy (#1A2B6B) and discrete orange (#EA580C) accents only.
-- Elements: Minimal thin lines, natural architectural shadows, or soft reflections.
-- Composition: Exactly ONE central realistic subject occupying the focal area with generous, uncluttered light negative space surrounding it.
-- Perspective: Full-bleed 16:9 composition filling the entire canvas with edge-to-edge content (no white side gaps or artificial margins).
-- Lighting: Pure, soft, natural morning daylight. NO dark backgrounds. NO gold, neon, or vibrant glowing effects. NO excessive gradients or cinematic bloom.
-- STRICT NEGATIVE INSTRUCTIONS:
-  * ABSOLUTELY NO TEXT, NO HEADLINES, NO WORDS, NO LETTERS, NO NUMBERS (the image must contain zero typography).
-  * ABSOLUTELY NO LOGOS, NO WATERMARKS, NO EMBLEMS (the official logo is applied programmatically).
-  * ABSOLUTELY NO INFOGRAPHICS, NO BULLET POINTS, NO COMPARISON TABLES, NO GRAPHS, NO CHARTS.
-  * ABSOLUTELY NO BANNERS, NO BADGES, NO SHIELDS, NO ICONS, NO CLUSTERS OF SYMBOLS.
-  * ABSOLUTELY NO DARK NAVY OR BLACK BACKGROUNDS. The background must be clean, light, and airy.`;
+Composition & Visual Requirements:
+- Background: White or light-grey premium background (#FFFFFF to #F8FAFC) in a bright, modern executive office with soft natural morning daylight.
+- Main Visual: Exactly ONE main topic-related visual: ${visual.subjectDescription}.
+- Supporting Elements: Include 3–5 subtle related supporting elements to create a balanced, harmonious composition that is not empty: ${visual.supportingElements}.
+- Branding Accents: Thin navy (#1A2B6B) and orange (#EA580C) lines, gentle curves, or subtle micro geometric dots integrated naturally into the desk elements and lighting reflections.
+- Composition: Balanced composition, well-spaced and natural, not empty and not cluttered. Minimal and elegant, NOT an infographic.
+- Aspect Ratio: Full-bleed 16:9 composition filling the entire canvas from edge to edge with natural depth of field and no border gaps.
+
+STRICT NEGATIVE INSTRUCTIONS:
+- ABSOLUTELY NO large text, headlines, titles, letters, words, numbers, or labels inside the image.
+- ABSOLUTELY NO bullet points, banners, charts, comparison tables, graphs, or checklists.
+- ABSOLUTELY NO badges, shields, floating icons, or clustered symbols.
+- ABSOLUTELY NO dark navy, black, or neon/vibrant glowing backgrounds.
+- ABSOLUTELY NO AI-generated or drawn logos (the authentic LEGOMARK logo is overlaid programmatically).`;
 
       const imageRes = await ai.models.generateContent({
         model: 'gemini-3.1-flash-lite-image',
