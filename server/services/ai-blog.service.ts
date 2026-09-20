@@ -3,6 +3,7 @@ import fs from 'fs';
 import { GoogleGenAI, Type, Schema } from '@google/genai';
 import { logger } from '../utils/logger';
 import { config } from '../config/env';
+import { settingsRepository } from '../repositories/settings.repository';
 
 export interface GeneratedBlogDraft {
   title: string;
@@ -108,61 +109,56 @@ function getCategoryTheme(category: string): CategoryVisualTheme {
   };
 }
 
-function renderEmblem(iconType: CategoryVisualTheme['iconType'], primaryColor: string): string {
-  if (iconType === 'trademark') {
-    return `
-      <!-- Trademark Shield & Crest -->
-      <path d="M0 -55 L45 -35 L45 15 C45 45 0 70 0 70 C0 70 -45 45 -45 15 L-45 -35 Z" fill="#0F172A" stroke="${primaryColor}" stroke-width="3" />
-      <circle cx="0" cy="5" r="24" fill="none" stroke="${primaryColor}" stroke-width="2.5" />
-      <text x="0" y="14" text-anchor="middle" fill="${primaryColor}" font-family="system-ui, -apple-system, sans-serif" font-size="24" font-weight="900">®</text>
-      <text x="0" y="-18" text-anchor="middle" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="800" letter-spacing="1">TM</text>
-    `;
+interface MainVisualConcept {
+  concept: string;
+  subjectDescription: string;
+  svgFocalElement: 'trademark' | 'tax' | 'startup' | 'compliance' | 'licensing' | 'corporate';
+}
+
+function getMainVisualConcept(category: string, title: string, keyword: string): MainVisualConcept {
+  const combined = `${category} ${title} ${keyword}`.toLowerCase();
+
+  if (combined.includes('trademark') || combined.includes('ip') || combined.includes('brand') || combined.includes('patent') || combined.includes('copyright')) {
+    return {
+      concept: 'Intellectual Property & Trademark Registry',
+      subjectDescription: 'A single, high-end solid brass official seal stamp with a polished wood handle resting on a crisp white parchment document with an embossed seal mark, surrounded by generous clean white and light grey space, soft morning daylight, realistic macro editorial photography.',
+      svgFocalElement: 'trademark',
+    };
   }
-  if (iconType === 'tax') {
-    return `
-      <!-- Tax & Ledger Emblem -->
-      <rect x="-40" y="-50" width="80" height="100" rx="10" fill="#0F172A" stroke="${primaryColor}" stroke-width="3" />
-      <line x1="-25" y1="-30" x2="25" y2="-30" stroke="#94A3B8" stroke-width="3" stroke-linecap="round" />
-      <line x1="-25" y1="-15" x2="25" y2="-15" stroke="#94A3B8" stroke-width="3" stroke-linecap="round" />
-      <circle cx="-10" cy="15" r="10" fill="none" stroke="${primaryColor}" stroke-width="2.5" />
-      <line x1="-15" y1="35" x2="15" y2="-5" stroke="${primaryColor}" stroke-width="3" />
-      <circle cx="10" cy="15" r="10" fill="none" stroke="${primaryColor}" stroke-width="2.5" />
-    `;
+  if (combined.includes('tax') || combined.includes('gst') || combined.includes('audit') || combined.includes('finance') || combined.includes('return')) {
+    return {
+      concept: 'Corporate Taxation & Financial Compliance',
+      subjectDescription: 'A clean, modern executive desk with a solitary sleek fountain pen resting across an open white statutory compliance ledger, subtle navy accents, soft natural daylight, bright off-white editorial composition.',
+      svgFocalElement: 'tax',
+    };
   }
-  if (iconType === 'startup') {
-    return `
-      <!-- Startup Rocket & Growth -->
-      <path d="M0 -60 C20 -40 25 -10 25 25 L-25 25 C-25 -10 -20 -40 0 -60 Z" fill="#0F172A" stroke="${primaryColor}" stroke-width="3" />
-      <circle cx="0" cy="-15" r="12" fill="none" stroke="${primaryColor}" stroke-width="2" />
-      <path d="M-25 15 L-42 35 L-25 32 Z M25 15 L42 35 L25 32 Z" fill="${primaryColor}" />
-      <path d="M-12 25 L0 55 L12 25 Z" fill="#F97316" />
-    `;
+  if (combined.includes('startup') || combined.includes('fund') || combined.includes('venture') || combined.includes('invest')) {
+    return {
+      concept: 'Corporate Enterprise & Formation Charter',
+      subjectDescription: 'A bright, sunlit modern executive suite with an airy white desk, a solitary white certificate folio with subtle navy trim, clean architectural glass reflections, and calm spacious white negative space.',
+      svgFocalElement: 'startup',
+    };
   }
-  if (iconType === 'compliance') {
-    return `
-      <!-- ROC Compliance Shield & Checkmark -->
-      <path d="M0 -55 L45 -35 L45 15 C45 45 0 70 0 70 C0 70 -45 45 -45 15 L-45 -35 Z" fill="#0F172A" stroke="${primaryColor}" stroke-width="3" />
-      <path d="M-18 8 L-6 20 L22 -10" fill="none" stroke="${primaryColor}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
-      <line x1="-25" y1="-22" x2="25" y2="-22" stroke="#94A3B8" stroke-width="2" stroke-dasharray="3 3" />
-    `;
+  if (combined.includes('compliance') || combined.includes('roc') || combined.includes('annual') || combined.includes('director')) {
+    return {
+      concept: 'Corporate Governance & Statutory Oversight',
+      subjectDescription: 'A pristine, bright advisory suite with a white desk surface, a single bound white corporate registry dossier with a subtle orange ribbon bookmark, and soft natural window light.',
+      svgFocalElement: 'compliance',
+    };
   }
-  if (iconType === 'fssai') {
-    return `
-      <!-- FSSAI Food Safety Shield -->
-      <path d="M0 -55 L45 -35 L45 15 C45 45 0 70 0 70 C0 70 -45 45 -45 15 L-45 -35 Z" fill="#0F172A" stroke="${primaryColor}" stroke-width="3" />
-      <circle cx="0" cy="0" r="20" fill="none" stroke="${primaryColor}" stroke-width="2" />
-      <path d="M-10 0 C-10 -15 10 -15 10 0 C10 10 -10 10 -10 0 Z" fill="${primaryColor}" />
-    `;
+  if (combined.includes('fssai') || combined.includes('licens') || combined.includes('food') || combined.includes('standard')) {
+    return {
+      concept: 'Statutory Licensing & Regulatory Governance',
+      subjectDescription: 'A clean executive desk in a bright, white-toned modern office with frosted architectural glass, a single official certificate binder, and soft ambient natural light.',
+      svgFocalElement: 'licensing',
+    };
   }
-  // Default Company / Scales of Justice
-  return `
-    <!-- Scales of Justice / Corporate Pillars -->
-    <path d="M-35 25 L35 25 M0 -45 L0 40 M-45 40 L45 40" stroke="${primaryColor}" stroke-width="3.5" stroke-linecap="round" />
-    <circle cx="0" cy="-45" r="6" fill="${primaryColor}" />
-    <line x1="-30" y1="-20" x2="30" y2="-20" stroke="${primaryColor}" stroke-width="3" stroke-linecap="round" />
-    <path d="M-30 -20 L-45 10 L-15 10 Z" fill="#1E293B" stroke="${primaryColor}" stroke-width="2" />
-    <path d="M30 -20 L15 10 L45 10 Z" fill="#1E293B" stroke="${primaryColor}" stroke-width="2" />
-  `;
+
+  return {
+    concept: 'Corporate Advisory & Legal Consultation',
+    subjectDescription: 'An elegant, bright corporate advisory setting with a solitary executive fountain pen resting on a crisp white contract document, clean light grey background, and soft natural daylight.',
+    svgFocalElement: 'corporate',
+  };
 }
 
 export class AiBlogService {
@@ -175,119 +171,315 @@ export class AiBlogService {
   }
 
   /**
-   * Builds an authoritative, publication-ready, web-optimized 16:9 vector featured image
-   * tailored to LEGOMARK INDIA corporate branding and the blog article's content.
+   * Resolves the existing LEGOMARK logo asset from Settings or Media/Assets system.
+   * If a custom logo exists on disk, reads it as base64 data URI; otherwise returns metadata for the vector brand mark.
+   */
+  async getCompanyLogoAsset(): Promise<{
+    dataUri?: string;
+    width: number;
+    height: number;
+    isCustom: boolean;
+  }> {
+    try {
+      const settings = await settingsRepository.getSettings();
+      if (settings && settings.logoUrl) {
+        const cleanUrl = settings.logoUrl.trim();
+        const candidates = [
+          path.join(process.cwd(), 'public', cleanUrl.replace(/^\//, '')),
+          path.join(config.uploadsDir, '..', cleanUrl.replace(/^\//, '')),
+          path.join(config.uploadsDir, path.basename(cleanUrl)),
+          path.join(config.uploadsDir, 'logos', path.basename(cleanUrl)),
+          path.join(config.uploadsDir, 'media', path.basename(cleanUrl)),
+        ];
+
+        for (const candidate of candidates) {
+          if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+            const ext = path.extname(candidate).toLowerCase();
+            const mime = ext === '.svg' ? 'image/svg+xml' : ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : ext === '.webp' ? 'image/webp' : 'image/png';
+            const buf = fs.readFileSync(candidate);
+            const dataUri = `data:${mime};base64,${buf.toString('base64')}`;
+            logger.info(`Found custom logo asset on disk: ${candidate}`, 'AiBlogService');
+            return {
+              dataUri,
+              width: 120,
+              height: 105,
+              isCustom: true,
+            };
+          }
+        }
+      }
+
+      // Check media and logo directories for official logo file
+      const searchDirs = [
+        path.join(config.uploadsDir, 'logos'),
+        path.join(config.uploadsDir, 'media'),
+        path.join(process.cwd(), 'public', 'uploads', 'logos'),
+        path.join(process.cwd(), 'public', 'uploads', 'media'),
+      ];
+
+      for (const dir of searchDirs) {
+        if (fs.existsSync(dir)) {
+          const files = fs.readdirSync(dir);
+          const logoFile = files.find((f) => /logo/i.test(f) && /\.(png|jpg|jpeg|webp|svg)$/i.test(f));
+          if (logoFile) {
+            const fullPath = path.join(dir, logoFile);
+            const ext = path.extname(fullPath).toLowerCase();
+            const mime = ext === '.svg' ? 'image/svg+xml' : ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : ext === '.webp' ? 'image/webp' : 'image/png';
+            const buf = fs.readFileSync(fullPath);
+            const dataUri = `data:${mime};base64,${buf.toString('base64')}`;
+            logger.info(`Found logo in media directory: ${fullPath}`, 'AiBlogService');
+            return {
+              dataUri,
+              width: 120,
+              height: 105,
+              isCustom: true,
+            };
+          }
+        }
+      }
+    } catch (err) {
+      logger.warn('Error resolving company logo asset, using fallback vector mark', 'AiBlogService');
+    }
+
+    return {
+      width: 120,
+      height: 105,
+      isCustom: false,
+    };
+  }
+
+  /**
+   * Renders the authentic LEGOMARK INDIA logo overlay, kept small, elegant, and understated.
+   */
+  renderLogoOverlaySvg(logoAsset: {
+    dataUri?: string;
+    width: number;
+    height: number;
+    isCustom: boolean;
+  }): string {
+    if (logoAsset.isCustom && logoAsset.dataUri) {
+      return `
+  <!-- Programmatic Authentic LEGOMARK INDIA Logo Overlay (Small & Elegant) -->
+  <g id="legomark-editorial-logo" transform="translate(64, 52)">
+    <image href="${logoAsset.dataUri}" x="0" y="0" width="${logoAsset.width || 120}" height="${logoAsset.height || 105}" preserveAspectRatio="xMidYMid meet" />
+  </g>`;
+    }
+
+    // Inline authentic LEGOMARK INDIA vector mark (matching the exact official logo asset)
+    return `
+  <!-- Programmatic Authentic LEGOMARK INDIA Logo Overlay (Small & Elegant Vector Fallback) -->
+  <g id="legomark-editorial-logo" transform="translate(64, 52) scale(0.38)">
+    <!-- Scalloped Circular Medallion -->
+    <path d="M 250.00 105.00 L 249.20 109.84 L 247.01 114.71 L 243.83 119.50 L 240.23 124.08 L 236.78 128.34 L 233.99 132.14 L 232.22 135.39 L 231.68 137.98 L 232.39 139.88 L 234.19 141.05 L 236.77 141.53 L 239.73 141.40 L 242.60 140.80 L 244.93 139.89 L 246.33 138.86 L 246.46 137.94 L 245.12 137.33 L 242.26 137.24 L 238.00 137.83 L 232.58 139.23 L 226.37 141.51 L 219.78 144.66 L 213.23 148.62 L 207.13 153.27 L 201.87 158.45 L 197.77 163.95 L 195.04 169.51 L 193.84 174.88 L 194.20 179.77 L 195.96 183.91 L 198.86 187.05 L 202.51 188.98 L 206.45 189.54 L 210.15 188.66 L 213.11 186.37 L 214.90 182.84 L 215.19 178.33 L 213.79 173.18 L 210.63 167.76 L 205.80 162.47 L 199.50 157.69 L 192.05 153.76 L 183.83 150.97 L 175.25 149.52 L 166.72 149.52 L 158.67 150.99 L 151.48 153.84 L 145.47 157.89 L 140.87 162.80 L 137.86 168.21 L 136.49 173.74 L 136.67 178.96 L 138.21 183.47 L 140.80 186.91 L 144.07 189.00 L 147.57 189.52 L 150.81 188.35 L 153.30 178.33 Z" fill="none" stroke="#1A2B6B" stroke-width="3" />
+    <circle cx="160" cy="105" r="82" fill="none" stroke="#1A2B6B" stroke-width="1.5" stroke-opacity="0.5" />
+    
+    <!-- Stylized Leg in Orange -->
+    <path d="M 105,128 C 115,95 125,80 132,80 C 138,80 135,100 128,115 C 122,127 115,127 108,127 C 102,127 98,123 98,115" fill="none" stroke="#EA580C" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M 120,110 C 128,105 135,103 140,108 C 144,112 142,121 134,123 C 124,125 120,115 124,109" fill="none" stroke="#EA580C" stroke-width="5" stroke-linecap="round" />
+    <path d="M 138,123 C 142,127 148,120 150,113 C 152,103 148,90 154,90 C 160,90 156,117 158,123 C 160,129 168,125 172,117" fill="none" stroke="#EA580C" stroke-width="5" stroke-linecap="round" />
+    
+    <!-- o in Navy -->
+    <ellipse cx="180" cy="115" rx="9" ry="12" fill="none" stroke="#1A2B6B" stroke-width="4" />
+
+    <!-- Globe in Orange -->
+    <g transform="translate(202, 111)">
+      <circle cx="0" cy="0" r="13" fill="none" stroke="#EA580C" stroke-width="2" />
+      <line x1="-13" y1="0" x2="13" y2="0" stroke="#EA580C" stroke-width="1.8" />
+      <line x1="-11" y1="-5" x2="11" y2="-5" stroke="#EA580C" stroke-width="1.4" />
+      <line x1="-11" y1="5" x2="11" y2="5" stroke="#EA580C" stroke-width="1.4" />
+      <ellipse cx="0" cy="0" rx="6" ry="13" fill="none" stroke="#EA580C" stroke-width="1.6" />
+      <line x1="0" y1="-13" x2="0" y2="13" stroke="#EA580C" stroke-width="1.8" />
+    </g>
+
+    <!-- Upward swooping arrow in Orange -->
+    <path d="M 85,123 C 115,127 145,140 185,133 C 205,129 218,117 228,109" fill="none" stroke="#EA580C" stroke-width="6" stroke-linecap="round" />
+    <polygon points="228,109 214,107 222,119" fill="#EA580C" />
+
+    <!-- Rectangular LEGOMARK Box -->
+    <g transform="translate(24, 212)">
+      <rect x="0" y="0" width="272" height="42" fill="#FFFFFF" stroke="#1A2B6B" stroke-width="2.5" />
+      <rect x="0" y="0" width="128" height="42" fill="#1A2B6B" />
+      <text x="64" y="31" text-anchor="middle" fill="#FFFFFF" font-family="'Times New Roman', Times, Georgia, serif" font-size="30" font-weight="900" letter-spacing="1">LEGO</text>
+      <text x="200" y="31" text-anchor="middle" fill="#EA580C" font-family="'Times New Roman', Times, Georgia, serif" font-size="30" font-weight="900" letter-spacing="1">MARK</text>
+    </g>
+
+    <!-- Subtitle: I N D I A -->
+    <text x="160" y="274" text-anchor="middle" fill="#1A2B6B" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="900" letter-spacing="14">INDIA</text>
+  </g>`;
+  }
+
+  /**
+   * Builds an authoritative, minimal 16:9 editorial vector featured image.
+   * Full bleed without white borders or side gaps, primarily WHITE / very light grey background,
+   * subtle navy and orange accents, minimal thin lines/curves/dots, exactly ONE clean business visual,
+   * no large title text inside the image, exact website www.legomarkindia.com, and authentic small logo.
    */
   buildBrandedFeaturedImageSvg(params: {
     title: string;
     category: string;
     focusKeyword: string;
     summary: string;
+    logoAsset?: { dataUri?: string; width: number; height: number; isCustom: boolean };
   }): string {
-    const theme = getCategoryTheme(params.category);
-    const titleLines = wrapLines(params.title, 32, 3);
-    const safeFocus = escapeXml(params.focusKeyword || 'Corporate Compliance & Legal Advisory');
-    const safeAuthority = escapeXml(theme.authorityText);
+    const logoAsset = params.logoAsset || { width: 120, height: 105, isCustom: false };
+    const logoOverlaySvg = this.renderLogoOverlaySvg(logoAsset);
+    const visual = getMainVisualConcept(params.category, params.title, params.focusKeyword);
 
-    return `<svg width="1200" height="675" viewBox="0 0 1200 675" fill="none" xmlns="http://www.w3.org/2000/svg">
+    // Render ONE clean, realistic business/legal/compliance focal visual based on topic
+    let focalVisualElement = '';
+
+    if (visual.svgFocalElement === 'trademark') {
+      // Clean, authentic solid brass registry seal stamp and embossed white legal folio
+      focalVisualElement = `
+  <g id="editorial-focal-visual">
+    <!-- Soft Natural Shadow beneath Document -->
+    <ellipse cx="1200" cy="850" rx="340" ry="24" fill="#0F172A" fill-opacity="0.05" />
+
+    <!-- Crisp White Registry Document -->
+    <g transform="translate(940, 560) rotate(-2)">
+      <rect x="0" y="0" width="520" height="290" rx="4" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.2" />
+      <rect x="14" y="14" width="492" height="262" rx="2" fill="none" stroke="#F1F5F9" stroke-width="1" />
+      
+      <!-- Minimal Hairline Document Structure (Whisper Quiet, No Heavy Text) -->
+      <line x1="48" y1="52" x2="220" y2="52" stroke="#CBD5E1" stroke-width="2.5" />
+      <line x1="48" y1="84" x2="440" y2="84" stroke="#E2E8F0" stroke-width="1.2" />
+      <line x1="48" y1="108" x2="400" y2="108" stroke="#E2E8F0" stroke-width="1.2" />
+      <line x1="48" y1="132" x2="360" y2="132" stroke="#E2E8F0" stroke-width="1.2" />
+      
+      <!-- Subtle Orange Embossed Official Seal Impression -->
+      <circle cx="120" cy="204" r="32" fill="none" stroke="#EA580C" stroke-width="1.5" stroke-opacity="0.45" stroke-dasharray="4 2" />
+      <circle cx="120" cy="204" r="23" fill="none" stroke="#EA580C" stroke-width="1" stroke-opacity="0.3" />
+      <path d="M 112,204 L 128,204 M 120,196 L 120,212" stroke="#EA580C" stroke-width="1" stroke-opacity="0.35" />
+    </g>
+
+    <!-- Solid Brass Seal Stamp with Turned Wood Handle -->
+    <g transform="translate(1320, 680)">
+      <!-- Soft Shadow under stamp -->
+      <ellipse cx="26" cy="74" rx="42" ry="14" fill="#0F172A" fill-opacity="0.10" />
+      
+      <!-- Brass Base Disc -->
+      <ellipse cx="26" cy="64" rx="36" ry="12" fill="#D97706" />
+      <rect x="-10" y="44" width="72" height="20" fill="#B45309" />
+      <ellipse cx="26" cy="44" rx="36" ry="12" fill="#FBBF24" />
+      <ellipse cx="26" cy="44" rx="32" ry="10" fill="#F59E0B" />
+      <line x1="2" y1="44" x2="50" y2="44" stroke="#FEF3C7" stroke-width="1.5" stroke-opacity="0.8" />
+      
+      <!-- Turned Wood Handle -->
+      <path d="M 12,44 C 12,25 18,15 20,0 C 22,-20 18,-60 26,-80 C 34,-60 30,-20 32,0 C 34,15 40,25 40,44 Z" fill="#1E293B" stroke="#0F172A" stroke-width="1" />
+      <circle cx="26" cy="-80" r="16" fill="#1E293B" stroke="#0F172A" stroke-width="1" />
+      <!-- Subtle Brass Collar Ring -->
+      <rect x="18" y="24" width="16" height="6" rx="1" fill="#F59E0B" />
+    </g>
+  </g>`;
+    } else {
+      // Clean Executive Fountain Pen resting on Crisp Statutory Portfolio Dossier
+      focalVisualElement = `
+  <g id="editorial-focal-visual">
+    <!-- Soft Natural Shadow beneath Dossier -->
+    <ellipse cx="1200" cy="850" rx="380" ry="24" fill="#0F172A" fill-opacity="0.05" />
+
+    <!-- Crisp White Advisory Dossier -->
+    <g transform="translate(940, 580) rotate(-2)">
+      <rect x="0" y="0" width="540" height="280" rx="6" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.2" />
+      <!-- Subtle Navy Spine Accent -->
+      <rect x="0" y="0" width="14" height="280" rx="2" fill="#1A2B6B" fill-opacity="0.85" />
+      
+      <!-- Minimal Hairline Lines on Sheet -->
+      <line x1="56" y1="50" x2="240" y2="50" stroke="#CBD5E1" stroke-width="2.5" />
+      <line x1="56" y1="80" x2="480" y2="80" stroke="#E2E8F0" stroke-width="1.2" />
+      <line x1="56" y1="104" x2="440" y2="104" stroke="#E2E8F0" stroke-width="1.2" />
+      <line x1="56" y1="128" x2="400" y2="128" stroke="#E2E8F0" stroke-width="1.2" />
+      
+      <!-- Subtle Orange Ribbon Bookmark Accent -->
+      <path d="M 380,0 L 380,180 L 392,168 L 404,180 L 404,0 Z" fill="#EA580C" fill-opacity="0.75" />
+    </g>
+
+    <!-- Bespoke Executive Fountain Pen resting diagonally -->
+    <g transform="translate(1160, 680) rotate(22)">
+      <!-- Pen Shadow -->
+      <rect x="4" y="6" width="320" height="14" rx="7" fill="#0F172A" fill-opacity="0.08" />
+      
+      <!-- Deep Navy Barrel -->
+      <rect x="0" y="0" width="320" height="14" rx="7" fill="#0F172A" stroke="#1E293B" stroke-width="1" />
+      
+      <!-- Subtle Center Band & Clip -->
+      <rect x="120" y="0" width="14" height="14" fill="#E2E8F0" />
+      <rect x="124" y="-2" width="80" height="3" rx="1.5" fill="#CBD5E1" />
+      
+      <!-- Subtle Orange Accent Ring -->
+      <rect x="134" y="0" width="3" height="14" fill="#EA580C" />
+      
+      <!-- Polished Nib -->
+      <polygon points="0,7 -24,2 -24,12" fill="#E2E8F0" />
+      <line x1="0" y1="7" x2="-18" y2="7" stroke="#94A3B8" stroke-width="1" />
+      
+      <!-- Natural Highlight Reflection on Pen -->
+      <line x1="16" y1="3" x2="300" y2="3" stroke="#FFFFFF" stroke-width="1.2" stroke-opacity="0.5" />
+    </g>
+  </g>`;
+    }
+
+    return `<svg width="1920" height="1080" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
   <defs>
-    <linearGradient id="bgGrad" x1="0" y1="0" x2="1200" y2="675" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#080C18" />
-      <stop offset="55%" stop-color="#0F172A" />
-      <stop offset="100%" stop-color="#1E1B4B" />
+    <!-- Background: Primarily White / Very Light Grey Editorial Gradient -->
+    <linearGradient id="bgLight" x1="0" y1="0" x2="1920" y2="1080" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="60%" stop-color="#F8FAFC" />
+      <stop offset="100%" stop-color="#F1F5F9" />
     </linearGradient>
-    <pattern id="gridPattern" width="48" height="48" patternUnits="userSpaceOnUse">
-      <path d="M 48 0 L 0 0 0 48" fill="none" stroke="#334155" stroke-width="1" stroke-opacity="0.15" />
-      <circle cx="0" cy="0" r="1" fill="#64748B" fill-opacity="0.3" />
-    </pattern>
+
+    <!-- Light Surface Plane -->
+    <linearGradient id="deskSurface" x1="0" y1="620" x2="0" y2="1080" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#F1F5F9" />
+    </linearGradient>
   </defs>
 
-  <!-- Background Base -->
-  <rect width="1200" height="675" fill="url(#bgGrad)" />
-  <rect width="1200" height="675" fill="url(#gridPattern)" />
+  <!-- 1. Full-Bleed 16:9 Canvas (Primarily White / Very Light Grey) -->
+  <rect x="0" y="0" width="1920" height="1080" fill="url(#bgLight)" />
+  <polygon points="0,640 1920,640 1920,1080 0,1080" fill="url(#deskSurface)" />
+  <line x1="0" y1="640" x2="1920" y2="640" stroke="#E2E8F0" stroke-width="1" />
 
-  <!-- Atmospheric Glow Orbs -->
-  <circle cx="1080" cy="180" r="380" fill="${theme.primaryColor}" fill-opacity="0.09" />
-  <circle cx="120" cy="560" r="260" fill="${theme.secondaryColor}" fill-opacity="0.07" />
-
-  <!-- Outer Architectural Framing -->
-  <rect x="28" y="28" width="1144" height="619" rx="16" fill="none" stroke="#334155" stroke-width="1.5" stroke-opacity="0.4" />
-  <rect x="32" y="32" width="1136" height="611" rx="12" fill="none" stroke="${theme.primaryColor}" stroke-width="1" stroke-opacity="0.2" />
-
-  <!-- Corner Brackets -->
-  <path d="M44 60 L44 44 L60 44" stroke="${theme.primaryColor}" stroke-width="2.5" stroke-linecap="round" fill="none" />
-  <path d="M1156 60 L1156 44 L1140 44" stroke="${theme.primaryColor}" stroke-width="2.5" stroke-linecap="round" fill="none" />
-  <path d="M44 615 L44 631 L60 631" stroke="${theme.primaryColor}" stroke-width="2.5" stroke-linecap="round" fill="none" />
-  <path d="M1156 615 L1156 631 L1140 631" stroke="${theme.primaryColor}" stroke-width="2.5" stroke-linecap="round" fill="none" />
-
-  <!-- Top Header Section -->
-  <!-- Category Pill Badge -->
-  <g transform="translate(70, 68)">
-    <rect width="270" height="36" rx="18" fill="${theme.primaryColor}" fill-opacity="0.14" stroke="${theme.primaryColor}" stroke-width="1" stroke-opacity="0.4" />
-    <circle cx="18" cy="18" r="4" fill="${theme.primaryColor}" />
-    <text x="32" y="22" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="700" letter-spacing="1.5">${escapeXml(theme.badgeText)}</text>
+  <!-- 2. Minimal Thin Lines, Curves, Dots Only -->
+  <!-- Subtle architectural window lines -->
+  <g opacity="0.45">
+    <line x1="1280" y1="0" x2="1280" y2="640" stroke="#E2E8F0" stroke-width="1" />
+    <line x1="1620" y1="0" x2="1620" y2="640" stroke="#E2E8F0" stroke-width="1" />
+    <line x1="1100" y1="260" x2="1920" y2="260" stroke="#E2E8F0" stroke-width="1" />
   </g>
 
-  <!-- Brand Identity on Top Right -->
-  <g transform="translate(1130, 72)">
-    <text x="0" y="14" text-anchor="end" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="900" letter-spacing="2">LEGOMARK INDIA</text>
-    <text x="0" y="32" text-anchor="end" fill="#94A3B8" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="700" letter-spacing="1.5">LEGAL, TAXATION &amp; CORPORATE ADVISORY</text>
+  <!-- Subtle Navy Hairline Curve Accent -->
+  <path d="M 820,0 C 1120,160 1380,400 1920,520" fill="none" stroke="#1A2B6B" stroke-width="1" stroke-opacity="0.08" />
+
+  <!-- Subtle Minimal Geometric Dot Matrix (Subtle Detail) -->
+  <g opacity="0.30">
+    <circle cx="260" cy="880" r="1.5" fill="#94A3B8" />
+    <circle cx="290" cy="880" r="1.5" fill="#94A3B8" />
+    <circle cx="320" cy="880" r="1.5" fill="#94A3B8" />
+    <circle cx="260" cy="910" r="1.5" fill="#94A3B8" />
+    <circle cx="290" cy="910" r="1.5" fill="#94A3B8" />
+    <circle cx="320" cy="910" r="1.5" fill="#94A3B8" />
   </g>
 
-  <!-- Horizontal Separation Line -->
-  <line x1="70" y1="124" x2="1130" y2="124" stroke="#334155" stroke-width="1" stroke-opacity="0.35" />
+  <!-- Minimal Thin Orange Accent Line -->
+  <line x1="64" y1="188" x2="128" y2="188" stroke="#EA580C" stroke-width="1.5" stroke-opacity="0.55" />
 
-  <!-- Center Content Area -->
-  <!-- Regulatory Subheading -->
-  <text x="70" y="168" fill="${theme.primaryColor}" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="800" letter-spacing="2">${safeAuthority}</text>
+  <!-- 3. ONE Clean, Realistic Business/Legal/Compliance Visual (No large text, no infographic clutter) -->
+  ${focalVisualElement}
 
-  <!-- Dynamic Blog Title (Multi-line SVG Text) -->
-  <text x="70" y="230" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-size="42" font-weight="800" letter-spacing="-0.5">
-    ${titleLines.map((line, idx) => `<tspan x="70" dy="${idx === 0 ? 0 : 54}">${escapeXml(line)}</tspan>`).join('')}
-  </text>
+  <!-- 4. Mandatory Official Website URL (Exactly: www.legomarkindia.com) -->
+  <text x="1840" y="1030" text-anchor="end" fill="#94A3B8" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="600" letter-spacing="1">www.legomarkindia.com</text>
 
-  <!-- Focus Keyword Chip -->
-  <g transform="translate(70, 410)">
-    <rect width="460" height="34" rx="8" fill="#0F172A" stroke="#334155" stroke-width="1" />
-    <text x="16" y="21" fill="#94A3B8" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="600">Focus:</text>
-    <text x="62" y="21" fill="#F8FAFC" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="700">${safeFocus}</text>
-  </g>
-
-  <!-- Right Side Graphic Medallion / Authority Seal -->
-  <g transform="translate(960, 310)">
-    <!-- Outer dashed aura ring -->
-    <circle cx="0" cy="0" r="135" fill="none" stroke="${theme.primaryColor}" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="6 4" />
-    <!-- Secondary solid boundary -->
-    <circle cx="0" cy="0" r="120" fill="#0F172A" stroke="#334155" stroke-width="2" />
-    <circle cx="0" cy="0" r="102" fill="#080C18" stroke="${theme.primaryColor}" stroke-width="1.5" stroke-opacity="0.5" />
-
-    <!-- Core Thematic Icon -->
-    ${renderEmblem(theme.iconType, theme.primaryColor)}
-
-    <!-- Medallion Bottom Text Banner -->
-    <rect x="-80" y="72" width="160" height="22" rx="11" fill="#0F172A" stroke="${theme.primaryColor}" stroke-width="1" />
-    <text x="0" y="87" text-anchor="middle" fill="#CBD5E1" font-family="system-ui, -apple-system, sans-serif" font-size="9" font-weight="800" letter-spacing="1.2">OFFICIAL ADVISORY</text>
-  </g>
-
-  <!-- Bottom Trust Card / Footer -->
-  <g transform="translate(70, 520)">
-    <rect width="1060" height="76" rx="14" fill="#0F172A" fill-opacity="0.9" stroke="#334155" stroke-width="1" />
-    
-    <!-- Left badge icon -->
-    <circle cx="35" cy="38" r="16" fill="${theme.primaryColor}" fill-opacity="0.15" stroke="${theme.primaryColor}" stroke-width="1" />
-    <path d="M28 38 L33 43 L42 33" fill="none" stroke="${theme.primaryColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-
-    <text x="64" y="32" fill="#F8FAFC" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="700">Official Indian Statutory Guidance &amp; Practice Roadmap</text>
-    <text x="64" y="52" fill="#94A3B8" font-family="system-ui, -apple-system, sans-serif" font-size="12">Verified by Advocates, Chartered Accountants &amp; Company Secretaries • New Delhi, India</text>
-
-    <!-- Right link -->
-    <text x="1020" y="43" text-anchor="end" fill="${theme.primaryColor}" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="700">legomarkindia.com →</text>
-  </g>
+  <!-- 5. Small & Elegant Authentic Logo Overlay -->
+  ${logoOverlaySvg}
 </svg>`;
   }
 
   /**
    * Generates ONE featured image for the blog and saves it into the existing Media storage system.
+   * Focuses on a minimal, elegant editorial photography hero image (with exactly ONE main visual concept),
+   * primarily WHITE / very light grey environment, subtle navy and orange accents,
+   * overlays the authentic LEGOMARK logo asset programmatically, and guarantees a 16:9 full-width banner.
    * Returns the public URL (e.g. /uploads/media/blog_featured_...).
    */
   async generateFeaturedImage(draft: {
@@ -308,10 +500,37 @@ export class AiBlogService {
       .slice(0, 40);
     const uniqueSuffix = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
-    // 1. Optional attempt with Gemini image generation model (if paid key / billing is configured)
+    // Resolve existing LEGOMARK logo asset from Media/Assets system
+    const logoAsset = await this.getCompanyLogoAsset();
+    const logoOverlaySvg = this.renderLogoOverlaySvg(logoAsset);
+
+    // 1. Attempt with Gemini image generation model
+    // Minimal, elegant, corporate/editorial photography style.
+    // Background primarily WHITE / very light grey.
+    // Use ONE main visual concept related to the blog topic.
+    // Strictly NO text, NO logos, NO infographics, NO badges, NO crowded icons.
     try {
+      const visual = getMainVisualConcept(draft.category, draft.title, draft.focusKeyword);
       const ai = this.getClient();
-      const imagePrompt = `High-end corporate legal publication banner for article titled "${draft.title}". Practice: ${draft.category}. Style: LEGOMARK INDIA corporate branding, deep navy blue and warm amber gold tones, legal and corporate motifs, 16:9 ratio, high quality.`;
+      const imagePrompt = `Editorial corporate photography for a prestigious business advisory publication (Harvard Business Review, Financial Times, Bloomberg).
+Article Topic: ${draft.title} (${draft.category}).
+Single Focal Subject: Exactly ONE clean, realistic business/legal/compliance object related to the topic: ${visual.subjectDescription}.
+
+Art Direction & Composition:
+- Background: Primarily WHITE or very light grey (#FFFFFF, #F8FAFC). Clean, bright, airy modern executive office environment with abundant soft natural daylight.
+- Style: Minimal, elegant, realistic corporate editorial photography. Uncluttered, spacious, and sophisticated.
+- Palette: Dominantly crisp white and light grey tones, with very subtle navy (#1A2B6B) and discrete orange (#EA580C) accents only.
+- Elements: Minimal thin lines, natural architectural shadows, or soft reflections.
+- Composition: Exactly ONE central realistic subject occupying the focal area with generous, uncluttered light negative space surrounding it.
+- Perspective: Full-bleed 16:9 composition filling the entire canvas with edge-to-edge content (no white side gaps or artificial margins).
+- Lighting: Pure, soft, natural morning daylight. NO dark backgrounds. NO gold, neon, or vibrant glowing effects. NO excessive gradients or cinematic bloom.
+- STRICT NEGATIVE INSTRUCTIONS:
+  * ABSOLUTELY NO TEXT, NO HEADLINES, NO WORDS, NO LETTERS, NO NUMBERS (the image must contain zero typography).
+  * ABSOLUTELY NO LOGOS, NO WATERMARKS, NO EMBLEMS (the official logo is applied programmatically).
+  * ABSOLUTELY NO INFOGRAPHICS, NO BULLET POINTS, NO COMPARISON TABLES, NO GRAPHS, NO CHARTS.
+  * ABSOLUTELY NO BANNERS, NO BADGES, NO SHIELDS, NO ICONS, NO CLUSTERS OF SYMBOLS.
+  * ABSOLUTELY NO DARK NAVY OR BLACK BACKGROUNDS. The background must be clean, light, and airy.`;
+
       const imageRes = await ai.models.generateContent({
         model: 'gemini-3.1-flash-lite-image',
         contents: imagePrompt,
@@ -326,19 +545,31 @@ export class AiBlogService {
       for (const part of parts) {
         if (part.inlineData && part.inlineData.data) {
           const mimeType = part.inlineData.mimeType || 'image/png';
-          const ext = mimeType.includes('webp') ? 'webp' : mimeType.includes('jpeg') || mimeType.includes('jpg') ? 'jpg' : 'png';
-          const filename = `blog_featured_${safeSlug}_${uniqueSuffix}.${ext}`;
+          const filename = `blog_featured_${safeSlug}_${uniqueSuffix}.svg`;
           const filePath = path.join(mediaDir, filename);
-          fs.writeFileSync(filePath, Buffer.from(part.inlineData.data, 'base64'));
-          logger.info(`Generated and saved bitmap featured image: /uploads/media/${filename}`, 'AiBlogService');
+
+          // Composite the full-bleed 16:9 AI editorial photograph with discrete official website URL and small logo overlay
+          const compositeSvg = `<svg width="1920" height="1080" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <!-- Full 16:9 Bleed Generated Editorial Photograph -->
+  <image href="data:${mimeType};base64,${part.inlineData.data}" x="0" y="0" width="1920" height="1080" preserveAspectRatio="xMidYMid slice" />
+
+  <!-- Discrete Official Website URL (Exactly: www.legomarkindia.com) -->
+  <text x="1840" y="1030" text-anchor="end" fill="#64748B" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="600" letter-spacing="1">www.legomarkindia.com</text>
+
+  <!-- Programmatic Authentic LEGOMARK INDIA Logo Overlay (Small & Elegant) -->
+  ${logoOverlaySvg}
+</svg>`;
+
+          fs.writeFileSync(filePath, compositeSvg, 'utf-8');
+          logger.info(`Generated and saved editorial 16:9 featured banner with programmatic logo overlay: /uploads/media/${filename}`, 'AiBlogService');
           return `/uploads/media/${filename}`;
         }
       }
     } catch (imgErr) {
-      logger.info('Using high-fidelity LEGOMARK INDIA branded vector featured image', 'AiBlogService');
+      logger.info('Using minimal, premium 16:9 LEGOMARK branded editorial vector featured banner', 'AiBlogService');
     }
 
-    // 2. Generate publication-grade, web-optimized SVG styled in LEGOMARK INDIA branding
+    // 2. Minimal, premium, web-optimized 16:9 editorial vector featured banner with programmatic logo overlay
     const filename = `blog_featured_${safeSlug}_${uniqueSuffix}.svg`;
     const filePath = path.join(mediaDir, filename);
     const svgContent = this.buildBrandedFeaturedImageSvg({
@@ -346,10 +577,11 @@ export class AiBlogService {
       category: draft.category,
       focusKeyword: draft.focusKeyword,
       summary: draft.summary,
+      logoAsset,
     });
 
     fs.writeFileSync(filePath, svgContent, 'utf-8');
-    logger.info(`Generated and saved branded vector featured image: /uploads/media/${filename}`, 'AiBlogService');
+    logger.info(`Generated and saved minimal 16:9 branded vector featured banner: /uploads/media/${filename}`, 'AiBlogService');
     return `/uploads/media/${filename}`;
   }
 
