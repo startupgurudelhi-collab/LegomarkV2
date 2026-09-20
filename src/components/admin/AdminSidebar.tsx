@@ -12,6 +12,7 @@ import {
   Settings,
   Sparkles,
   ListOrdered,
+  Link2,
   ChevronLeft,
   ChevronRight,
   ExternalLink,
@@ -33,6 +34,7 @@ export type AdminNavSection =
   | 'blogs'
   | 'keyword-cluster'
   | 'blog-series'
+  | 'internal-linking'
   | 'settings';
 
 interface AdminSidebarProps {
@@ -131,6 +133,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       label: 'AI Blog Series',
       description: 'Multi-Part Content Planner',
       icon: ListOrdered,
+      badge: 'AI',
+    },
+    {
+      id: 'internal-linking',
+      label: 'AI Internal Linking',
+      description: 'Contextual Links & Routing',
+      icon: Link2,
       badge: 'AI',
     },
     {

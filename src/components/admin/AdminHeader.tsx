@@ -69,6 +69,10 @@ const SECTION_TITLES: Record<AdminNavSection, { title: string; subtitle: string 
     title: 'AI Blog Series Generator',
     subtitle: 'Strategic multi-part editorial series planning and progressive topic clustering',
   },
+  'internal-linking': {
+    title: 'AI Internal Linking',
+    subtitle: 'Contextual internal linking recommendations between blog articles and high-value service pages',
+  },
   settings: {
     title: 'Admin Settings',
     subtitle: 'Administrator profile and security credentials',
