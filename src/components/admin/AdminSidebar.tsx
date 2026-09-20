@@ -11,6 +11,7 @@ import {
   BookOpen,
   Settings,
   Sparkles,
+  ListOrdered,
   ChevronLeft,
   ChevronRight,
   ExternalLink,
@@ -31,6 +32,7 @@ export type AdminNavSection =
   | 'media'
   | 'blogs'
   | 'keyword-cluster'
+  | 'blog-series'
   | 'settings';
 
 interface AdminSidebarProps {
@@ -122,6 +124,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       label: 'AI Keyword Cluster',
       description: 'SEO Research & Intent',
       icon: Sparkles,
+      badge: 'AI',
+    },
+    {
+      id: 'blog-series',
+      label: 'AI Blog Series',
+      description: 'Multi-Part Content Planner',
+      icon: ListOrdered,
       badge: 'AI',
     },
     {

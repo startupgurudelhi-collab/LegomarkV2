@@ -65,6 +65,10 @@ const SECTION_TITLES: Record<AdminNavSection, { title: string; subtitle: string 
     title: 'AI Keyword Cluster Generator',
     subtitle: 'AI-driven keyword discovery, semantic search intent, and long-tail query clustering',
   },
+  'blog-series': {
+    title: 'AI Blog Series Generator',
+    subtitle: 'Strategic multi-part editorial series planning and progressive topic clustering',
+  },
   settings: {
     title: 'Admin Settings',
     subtitle: 'Administrator profile and security credentials',
