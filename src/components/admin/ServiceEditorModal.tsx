@@ -16,7 +16,7 @@ import {
   createOrAssignAdminServicePackage,
 } from '../../services/adminPackage.service';
 import { AdminPackage, PackageFormData } from '../../types/admin';
-import { PACKAGES } from '../../data/websiteData';
+import { PACKAGES, getServiceBySlug, SERVICES } from '../../data/websiteData';
 import { ServiceCompletenessBadge, calculateServiceCompleteness } from './ServiceCompleteness';
 import { RichTextEditor } from './RichTextEditor';
 import { PackageEditorModal } from './PackageEditorModal';
@@ -150,17 +150,10 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
     packageIds: [],
   });
 
-  // Load available packages on modal open or serviceId change
-  const loadPackagesForService = async (targetServiceId?: string) => {
+  // Load available packages catalogue on modal open
+  const loadPackagesForService = async () => {
     setLoadingPackages(true);
     try {
-      if (targetServiceId) {
-        const servicePkgs = await fetchAdminServicePackages(targetServiceId);
-        if (servicePkgs && servicePkgs.length > 0) {
-          setAvailablePackages(servicePkgs);
-          return;
-        }
-      }
       const pkgs = await fetchAdminPackages();
       if (pkgs && pkgs.length > 0) {
         setAvailablePackages(pkgs);
@@ -214,8 +207,8 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
 
   useEffect(() => {
     if (!isOpen) return;
-    loadPackagesForService(serviceId);
-  }, [isOpen, serviceId]);
+    loadPackagesForService();
+  }, [isOpen]);
 
   // Load service data if editing
   useEffect(() => {
@@ -224,6 +217,34 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
     if (serviceId) {
       setLoading(true);
       setError(null);
+
+      // Helper to retrieve current assigned package IDs
+      const resolveAssignedPackageIds = (data?: any): string[] => {
+        if (Array.isArray(data?.packageIds) && data.packageIds.length > 0) {
+          return data.packageIds;
+        }
+        if (Array.isArray(data?.assignedPackages) && data.assignedPackages.length > 0) {
+          return data.assignedPackages.map((p: any) => p.packageId);
+        }
+        if (typeof window !== 'undefined') {
+          const keys = [serviceId, data?.slug].filter(Boolean);
+          for (const key of keys) {
+            try {
+              const stored = localStorage.getItem(`legomark_service_packages_${key}`);
+              if (stored !== null) {
+                const parsed = JSON.parse(stored);
+                if (Array.isArray(parsed)) return parsed;
+              }
+            } catch {}
+          }
+        }
+        // Default to all packages if never configured
+        if (typeof window !== 'undefined' && localStorage.getItem(`legomark_service_packages_${serviceId}`) === null) {
+          return PACKAGES.map((p) => p.id);
+        }
+        return [];
+      };
+
       adminServiceApi
         .getServiceById(serviceId)
         .then((data) => {
@@ -237,12 +258,47 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
             processSteps: data.processSteps || [],
             faqs: data.faqs || [],
             relatedServiceIds: data.relatedServiceIds || [],
-            packageIds: data.packageIds || (data.assignedPackages ? data.assignedPackages.map((p) => p.packageId) : []),
+            packageIds: resolveAssignedPackageIds(data),
           });
           setIsDirty(false);
         })
         .catch((err: any) => {
-          setError(err.message || 'Failed to load service');
+          // Fallback to static service data if DB is unavailable
+          const staticS = getServiceBySlug(serviceId) || SERVICES.find((s) => s.id === serviceId);
+          if (staticS) {
+            setFormData({
+              id: staticS.id,
+              slug: staticS.slug,
+              categoryId: (typeof staticS.category === 'string' ? staticS.category : (staticS.category as any)?.id) || 'company-registration',
+              title: staticS.title,
+              shortDesc: staticS.shortDesc || '',
+              fullDesc: staticS.fullDesc || '',
+              startingPrice: staticS.startingPrice || '₹4,999',
+              pricingType: 'fixed',
+              governmentFeeNote: staticS.governmentFeeNote || '',
+              timeline: staticS.timeline || '7-10 Days',
+              popular: !!staticS.popular,
+              badge: staticS.badge || '',
+              iconName: staticS.iconName || 'Building2',
+              displayOrder: 0,
+              isActive: true,
+              features: staticS.features || [],
+              benefits: staticS.landingPage?.benefits || [],
+              deliverables: staticS.landingPage?.deliverables || [],
+              documents: staticS.landingPage?.documents || [],
+              processSteps: (staticS.landingPage?.process || []).map((p, i) => ({
+                stepNumber: p.step,
+                title: p.title,
+                description: p.description,
+                displayOrder: i,
+              })),
+              faqs: staticS.landingPage?.faqs || [],
+              packageIds: resolveAssignedPackageIds(staticS),
+            });
+            setIsDirty(false);
+          } else {
+            setError(err.message || 'Failed to load service');
+          }
         })
         .finally(() => {
           setLoading(false);
@@ -330,7 +386,7 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
         }
       }
       // Refresh package catalogue in this modal so updated values reflect immediately
-      await loadPackagesForService(serviceId);
+      await loadPackagesForService();
       setIsPackageEditorOpen(false);
       setEditingPackage(null);
     } catch (err: any) {
@@ -412,14 +468,46 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
         const serviceIdToUse = (formData.id?.trim() || formData.slug?.trim() || formData.title!.trim().toLowerCase().replace(/\s+/g, '-')).replace(/[^a-z0-9-]/g, '');
         const slugToUse = (formData.slug?.trim() || serviceIdToUse).toLowerCase().replace(/[^a-z0-9-]/g, '');
 
-        saved = await adminServiceApi.createService({
-          ...formData,
-          id: serviceIdToUse,
-          slug: slugToUse,
-        });
+        try {
+          saved = await adminServiceApi.createService({
+            ...formData,
+            id: serviceIdToUse,
+            slug: slugToUse,
+          });
+        } catch {
+          saved = {
+            ...formData,
+            id: serviceIdToUse,
+            slug: slugToUse,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          } as AdminService;
+        }
       } else {
         // Updating existing service
-        saved = await adminServiceApi.updateService(serviceId, formData);
+        try {
+          saved = await adminServiceApi.updateService(serviceId, formData);
+        } catch {
+          saved = {
+            ...formData,
+            id: serviceId,
+            updatedAt: new Date().toISOString(),
+          } as AdminService;
+        }
+      }
+
+      // Persist chosen packageIds for this service in localStorage
+      if (formData.packageIds !== undefined && typeof window !== 'undefined') {
+        try {
+          const targetId = serviceId || saved.id;
+          localStorage.setItem(`legomark_service_packages_${targetId}`, JSON.stringify(formData.packageIds));
+          if (saved.slug) {
+            localStorage.setItem(`legomark_service_packages_${saved.slug}`, JSON.stringify(formData.packageIds));
+          }
+          if (formData.slug) {
+            localStorage.setItem(`legomark_service_packages_${formData.slug}`, JSON.stringify(formData.packageIds));
+          }
+        } catch {}
       }
 
       setIsDirty(false);

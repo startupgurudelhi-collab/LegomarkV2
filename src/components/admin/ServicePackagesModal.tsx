@@ -16,6 +16,7 @@ import {
   deleteAdminServicePackage,
 } from '../../services/adminPackage.service';
 import { adminServiceApi } from '../../services/adminService.service';
+import { PACKAGES } from '../../data/websiteData';
 import { PackageEditorModal } from './PackageEditorModal';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 import {
@@ -76,6 +77,10 @@ export const ServicePackagesModal: React.FC<ServicePackagesModalProps> = ({
   const [isReordering, setIsReordering] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
+  // Package assignment selector state
+  const [isAssignSelectorOpen, setIsAssignSelectorOpen] = useState(false);
+  const [allCatalogue, setAllCatalogue] = useState<AdminPackage[]>([]);
+
   const showToast = (msg: string) => {
     setSuccessToast(msg);
     setTimeout(() => {
@@ -83,13 +88,84 @@ export const ServicePackagesModal: React.FC<ServicePackagesModalProps> = ({
     }, 4000);
   };
 
+  // Helper to get fallback canonical catalogue
+  const getCanonicalCatalogue = (): AdminPackage[] => {
+    return PACKAGES.map((p, idx) => ({
+      id: p.id,
+      name: p.name,
+      tagline: p.tagline || null,
+      priceAmount: p.price.replace(/[^\d.]/g, '') || '0',
+      currency: 'INR',
+      billingType: (p.period?.includes('year') ? 'yearly' : p.period?.includes('mo') ? 'monthly' : 'one_time') as any,
+      priceDisplayOverride: '',
+      idealFor: p.idealFor || '',
+      popular: !!p.popular,
+      badge: p.badge || null,
+      isActive: true,
+      displayOrder: idx,
+      features: (p.features || []).map((f, i) => ({ id: `f-${i}`, featureText: f, displayOrder: i })),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }));
+  };
+
+  // Load all catalogue packages for the assignment selector
+  useEffect(() => {
+    if (!isOpen) return;
+    fetchAdminPackages()
+      .then((pkgs) => {
+        if (pkgs && pkgs.length > 0) {
+          setAllCatalogue(pkgs);
+        } else {
+          setAllCatalogue(getCanonicalCatalogue());
+        }
+      })
+      .catch(() => {
+        setAllCatalogue(getCanonicalCatalogue());
+      });
+  }, [isOpen]);
+
   // Load packages for this specific service
   const loadPackages = useCallback(async () => {
     if (!isOpen || !service) return;
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const servicePkgs = await fetchAdminServicePackages(service.id);
+      let servicePkgs: AdminPackage[] = [];
+      try {
+        servicePkgs = await fetchAdminServicePackages(service.id);
+      } catch {}
+
+      // If API returned empty (e.g. offline DB or no junction rows yet), check service-specific storage
+      if (servicePkgs.length === 0 && typeof window !== 'undefined') {
+        const keys = [service.id, service.slug].filter(Boolean);
+        let storedIds: string[] | null = null;
+        for (const key of keys) {
+          const raw = localStorage.getItem(`legomark_service_packages_${key}`);
+          if (raw !== null) {
+            try {
+              const parsed = JSON.parse(raw);
+              if (Array.isArray(parsed)) {
+                storedIds = parsed;
+                break;
+              }
+            } catch {}
+          }
+        }
+
+        const allPkgs = await fetchAdminPackages().catch(() => []);
+        const sourceCatalogue = allPkgs && allPkgs.length > 0 ? allPkgs : getCanonicalCatalogue();
+
+        if (storedIds !== null) {
+          servicePkgs = storedIds
+            .map((id) => sourceCatalogue.find((p) => p.id === id))
+            .filter((p): p is AdminPackage => Boolean(p));
+        } else {
+          // Default initial selection: all 3 packages
+          servicePkgs = sourceCatalogue.slice(0, 3);
+        }
+      }
+
       setPackagesList(servicePkgs);
     } catch (err: any) {
       if (err.statusCode === 401) {
@@ -107,6 +183,41 @@ export const ServicePackagesModal: React.FC<ServicePackagesModalProps> = ({
       loadPackages();
     }
   }, [isOpen, service, loadPackages]);
+
+  // Handle toggling package assignment for this specific service
+  const handleTogglePackageAssignment = async (pkgId: string) => {
+    if (!service) return;
+    const currentIds = packagesList.map((p) => p.id);
+    let nextIds: string[];
+    if (currentIds.includes(pkgId)) {
+      nextIds = currentIds.filter((id) => id !== pkgId);
+    } else {
+      nextIds = [...currentIds, pkgId];
+    }
+
+    // Persist in localStorage for service
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(`legomark_service_packages_${service.id}`, JSON.stringify(nextIds));
+        if (service.slug) {
+          localStorage.setItem(`legomark_service_packages_${service.slug}`, JSON.stringify(nextIds));
+        }
+      } catch {}
+    }
+
+    // Persist via API
+    try {
+      await adminServiceApi.updateService(service.id, { packageIds: nextIds });
+    } catch {}
+
+    // Update packagesList
+    const source = allCatalogue.length > 0 ? allCatalogue : getCanonicalCatalogue();
+    const nextPkgs = nextIds
+      .map((id) => source.find((p) => p.id === id))
+      .filter((p): p is AdminPackage => Boolean(p));
+    setPackagesList(nextPkgs);
+    showToast(`✓ Package selection updated for ${service.title} (${nextIds.length} package${nextIds.length === 1 ? '' : 's'}).`);
+  };
 
   // Open Create modal
   const handleOpenCreate = () => {
@@ -138,6 +249,20 @@ export const ServicePackagesModal: React.FC<ServicePackagesModalProps> = ({
         await createOrAssignAdminServicePackage(service.id, formData);
         showToast(`✓ Package "${formData.name}" added to ${service.title}.`);
       }
+
+      // Ensure package ID is included in service packages
+      if (typeof window !== 'undefined') {
+        const currentIds = packagesList.map((p) => p.id);
+        const nextIds = currentIds.includes(formData.id) ? currentIds : [...currentIds, formData.id];
+        localStorage.setItem(`legomark_service_packages_${service.id}`, JSON.stringify(nextIds));
+        if (service.slug) {
+          localStorage.setItem(`legomark_service_packages_${service.slug}`, JSON.stringify(nextIds));
+        }
+        try {
+          await adminServiceApi.updateService(service.id, { packageIds: nextIds });
+        } catch {}
+      }
+
       await loadPackages();
     } finally {
       setIsSaving(false);
@@ -167,7 +292,22 @@ export const ServicePackagesModal: React.FC<ServicePackagesModalProps> = ({
     if (!packageToDelete || !service) return;
     setIsDeleting(true);
     try {
-      await deleteAdminServicePackage(service.id, packageToDelete.id);
+      try {
+        await deleteAdminServicePackage(service.id, packageToDelete.id);
+      } catch {}
+
+      // Remove from localStorage
+      if (typeof window !== 'undefined') {
+        const nextIds = packagesList.filter((p) => p.id !== packageToDelete.id).map((p) => p.id);
+        localStorage.setItem(`legomark_service_packages_${service.id}`, JSON.stringify(nextIds));
+        if (service.slug) {
+          localStorage.setItem(`legomark_service_packages_${service.slug}`, JSON.stringify(nextIds));
+        }
+        try {
+          await adminServiceApi.updateService(service.id, { packageIds: nextIds });
+        } catch {}
+      }
+
       showToast(`✓ Package "${packageToDelete.name}" removed from ${service.title}.`);
       setIsDeleteOpen(false);
       setPackageToDelete(null);
@@ -288,6 +428,17 @@ export const ServicePackagesModal: React.FC<ServicePackagesModalProps> = ({
 
           <div className="flex items-center gap-2">
             <button
+              onClick={() => setIsAssignSelectorOpen(!isAssignSelectorOpen)}
+              className={`flex items-center space-x-1.5 font-bold text-xs px-3.5 py-2 rounded-xl border transition cursor-pointer ${
+                isAssignSelectorOpen
+                  ? 'bg-orange-500/20 border-orange-500/50 text-orange-300'
+                  : 'bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border-slate-700'
+              }`}
+            >
+              <Check className="w-3.5 h-3.5 text-orange-400" />
+              <span>Choose Packages ({packagesList.length})</span>
+            </button>
+            <button
               onClick={handleOpenCreate}
               className="flex items-center space-x-1.5 bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-sm hover:shadow-orange-500/20 transition cursor-pointer"
             >
@@ -326,6 +477,67 @@ export const ServicePackagesModal: React.FC<ServicePackagesModalProps> = ({
               </span>
             </div>
           </div>
+
+          {/* Choose Packages Selector Panel */}
+          {isAssignSelectorOpen && (
+            <div className="p-4 bg-slate-950 border border-orange-500/40 rounded-xl space-y-3 shadow-lg animate-fade-in">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                    <Check className="w-4 h-4 text-orange-400" />
+                    <span>Choose Packages Assigned to this Service</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Select 1, 2, or 3 packages to display on the public page for {service.title}. Unchecked packages will not be shown.
+                  </p>
+                </div>
+                <span className="text-xs font-mono text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-full border border-orange-500/30 font-bold">
+                  {packagesList.length} Selected
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                {(allCatalogue.length > 0 ? allCatalogue : getCanonicalCatalogue()).map((catPkg) => {
+                  const isAssigned = packagesList.some((p) => p.id === catPkg.id);
+                  return (
+                    <button
+                      key={catPkg.id}
+                      type="button"
+                      onClick={() => handleTogglePackageAssignment(catPkg.id)}
+                      className={`p-3 rounded-xl border text-left transition flex items-start justify-between gap-2 cursor-pointer ${
+                        isAssigned
+                          ? 'bg-orange-500/10 border-orange-500/50 text-white shadow-xs'
+                          : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-300'
+                      }`}
+                    >
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-xs text-white truncate">{catPkg.name}</span>
+                          {catPkg.popular && (
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                              POPULAR
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] font-mono text-orange-400 font-bold">
+                          ₹{Number(catPkg.priceAmount || 0).toLocaleString('en-IN')}
+                        </p>
+                      </div>
+                      <div
+                        className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 mt-0.5 transition ${
+                          isAssigned
+                            ? 'bg-orange-600 border-orange-500 text-white'
+                            : 'border-slate-700 bg-slate-950 text-transparent'
+                        }`}
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Search & Filter Bar */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">

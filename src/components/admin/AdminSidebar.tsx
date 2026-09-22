@@ -13,6 +13,7 @@ import {
   Sparkles,
   ListOrdered,
   Link2,
+  ShieldAlert,
   ChevronLeft,
   ChevronRight,
   ExternalLink,
@@ -35,6 +36,7 @@ export type AdminNavSection =
   | 'keyword-cluster'
   | 'blog-series'
   | 'internal-linking'
+  | 'orphan-detector'
   | 'settings';
 
 interface AdminSidebarProps {
@@ -140,6 +142,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       label: 'AI Internal Linking',
       description: 'Contextual Links & Routing',
       icon: Link2,
+      badge: 'AI',
+    },
+    {
+      id: 'orphan-detector',
+      label: 'AI Orphan Detector',
+      description: 'Link Equity & Inbound Audit',
+      icon: ShieldAlert,
       badge: 'AI',
     },
     {

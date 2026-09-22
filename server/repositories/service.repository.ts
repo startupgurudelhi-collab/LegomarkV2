@@ -29,6 +29,8 @@ export interface PublicCategoryItem {
   count: string;
 }
 
+export const servicePackageAssignments = new Map<string, string[]>();
+
 export interface PublicServiceSummary {
   id: string;
   slug: string;
@@ -410,8 +412,9 @@ export class ServiceRepository {
           timeline: r.timeline,
           iconName: r.iconName,
         })),
-        packages: s.packages && s.packages.length > 0
-          ? s.packages.map((pkg, pIdx) => ({
+        packages: (() => {
+          if (s.packages && s.packages.length > 0) {
+            return s.packages.map((pkg, pIdx) => ({
               id: pkg.id,
               name: pkg.name,
               tagline: pkg.tagline || null,
@@ -424,23 +427,46 @@ export class ServiceRepository {
               badge: pkg.badge || null,
               features: pkg.features || [],
               displayOrder: pIdx,
-            }))
-          : (s.landingPage?.packages && s.landingPage.packages.length > 0
-              ? s.landingPage.packages.map((pkg, pIdx) => ({
-                  id: pkg.id,
-                  name: pkg.name,
-                  tagline: pkg.tagline || null,
-                  price: pkg.price,
-                  priceAmount: parseFloat(String(pkg.price).replace(/[^\d.]/g, '')) || 0,
-                  currency: 'INR',
-                  billingType: pkg.period?.includes('year') ? 'yearly' : pkg.period?.includes('mo') ? 'monthly' : 'one_time',
-                  idealFor: pkg.idealFor,
-                  popular: !!pkg.popular,
-                  badge: pkg.badge || null,
-                  features: pkg.features || [],
-                  displayOrder: pIdx,
-                }))
-              : []),
+            }));
+          }
+          if (s.landingPage?.packages && s.landingPage.packages.length > 0) {
+            return s.landingPage.packages.map((pkg, pIdx) => ({
+              id: pkg.id,
+              name: pkg.name,
+              tagline: pkg.tagline || null,
+              price: pkg.price,
+              priceAmount: parseFloat(String(pkg.price).replace(/[^\d.]/g, '')) || 0,
+              currency: 'INR',
+              billingType: pkg.period?.includes('year') ? 'yearly' : pkg.period?.includes('mo') ? 'monthly' : 'one_time',
+              idealFor: pkg.idealFor,
+              popular: !!pkg.popular,
+              badge: pkg.badge || null,
+              features: pkg.features || [],
+              displayOrder: pIdx,
+            }));
+          }
+          // Check assigned packages for this service
+          const assignedIds = servicePackageAssignments.get(s.id) || servicePackageAssignments.get(s.slug);
+          let targetList = PACKAGES;
+          if (assignedIds !== undefined) {
+            if (assignedIds.length === 0) return [];
+            targetList = assignedIds.map((id) => PACKAGES.find((p) => p.id === id)).filter(Boolean) as typeof PACKAGES;
+          }
+          return targetList.map((pkg, pIdx) => ({
+            id: pkg.id,
+            name: pkg.name,
+            tagline: pkg.tagline || null,
+            price: pkg.price,
+            priceAmount: parseFloat(String(pkg.price).replace(/[^\d.]/g, '')) || 0,
+            currency: 'INR',
+            billingType: pkg.period?.includes('year') ? 'yearly' : pkg.period?.includes('mo') ? 'monthly' : 'one_time',
+            idealFor: pkg.idealFor,
+            popular: !!pkg.popular,
+            badge: pkg.badge || null,
+            features: pkg.features || [],
+            displayOrder: pIdx,
+          }));
+        })(),
         seo: {
           title: `${s.title} | Corporate Legal & Tax Advisory | LEGOMARK INDIA`,
           metaDescription: s.shortDesc,

@@ -15,6 +15,7 @@ import { AdminBlogCMS } from './AdminBlogCMS';
 import { AdminKeywordClusterPage } from './AdminKeywordClusterPage';
 import { AdminBlogSeriesPage } from './AdminBlogSeriesPage';
 import { AdminInternalLinkingPage } from './AdminInternalLinkingPage';
+import { AdminOrphanPageDetector } from './AdminOrphanPageDetector';
 import { AdminWebsiteSettingsCMS } from './AdminWebsiteSettingsCMS';
 import { AdminClientLogosCMS } from './AdminClientLogosCMS';
 import { AdminAnalyticsPage } from './AdminAnalyticsPage';
@@ -97,6 +98,13 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
     ) {
       return 'internal-linking';
     }
+    if (
+      currentPath.includes('/admin/orphan-detector') ||
+      currentPath.includes('/admin/orphandetector') ||
+      currentPath.includes('/admin/orphan')
+    ) {
+      return 'orphan-detector';
+    }
     if (currentPath.includes('/admin/settings')) return 'settings';
     return 'dashboard';
   };
@@ -116,6 +124,7 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
       'keyword-cluster': '/admin/keyword-cluster',
       'blog-series': '/admin/blog-series',
       'internal-linking': '/admin/internal-linking',
+      'orphan-detector': '/admin/orphan-detector',
       settings: '/admin/settings',
     };
     navigateTo(routeMap[section]);
@@ -243,6 +252,9 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
           )}
           {activeSection === 'internal-linking' && (
             <AdminInternalLinkingPage onNavigateSection={handleNavigateSection} />
+          )}
+          {activeSection === 'orphan-detector' && (
+            <AdminOrphanPageDetector onNavigateSection={handleNavigateSection} />
           )}
           {activeSection === 'settings' && (
             <AdminWebsiteSettingsCMS

@@ -73,6 +73,10 @@ const SECTION_TITLES: Record<AdminNavSection, { title: string; subtitle: string 
     title: 'AI Internal Linking',
     subtitle: 'Contextual internal linking recommendations between blog articles and high-value service pages',
   },
+  'orphan-detector': {
+    title: 'AI Orphan Page Detector',
+    subtitle: 'Identify orphaned articles and services with zero or low inbound links, and review link injection candidates',
+  },
   settings: {
     title: 'Admin Settings',
     subtitle: 'Administrator profile and security credentials',

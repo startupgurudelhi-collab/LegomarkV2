@@ -18,6 +18,7 @@ import {
 import { eq, and, asc, inArray, count, sql } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 import { SERVICES, SERVICE_CATEGORIES, getServiceBySlug } from '../../src/data/websiteData';
+import { servicePackageAssignments } from './service.repository';
 
 export interface AdminServiceItem {
   id: string;
@@ -1033,6 +1034,10 @@ export class AdminServiceRepository {
     }
 
     if (input.packageIds !== undefined) {
+      servicePackageAssignments.set(id, input.packageIds);
+      if (updated.slug) {
+        servicePackageAssignments.set(updated.slug, input.packageIds);
+      }
       const existing = await db
         .select()
         .from(servicePackages)
