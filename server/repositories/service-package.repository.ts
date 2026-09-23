@@ -6,7 +6,7 @@ import {
   servicePackages,
   servicePackageFeatures,
 } from '../../db/schema/index';
-import { eq, and, asc, inArray, count } from 'drizzle-orm';
+import { eq, and, or, asc, inArray, count } from 'drizzle-orm';
 import { AdminPackage, PackageFormData, ReorderItem, BillingType } from '../../src/types/admin';
 import { logger } from '../utils/logger';
 import { SERVICES, PACKAGES } from '../../src/data/websiteData';
@@ -39,6 +39,15 @@ function initDefaultServicePackages(serviceKey: string): Map<string, AdminPackag
   const canon = canonicalizeServiceKey(normKey);
   const idKey = canon ? canon.id : normKey;
   const slugKey = canon ? canon.slug : normKey;
+
+  // If already loaded in store, return existing map without wiping overrides
+  if (servicePackagesStore.has(idKey)) {
+    const existing = servicePackagesStore.get(idKey)!;
+    if (!servicePackagesStore.has(slugKey)) {
+      servicePackagesStore.set(slugKey, existing);
+    }
+    return existing;
+  }
 
   const pkgMap = new Map<string, AdminPackage>();
   PACKAGES.forEach((p, idx) => {
@@ -108,7 +117,14 @@ export class ServicePackageRepository {
           })
           .from(servicePackages)
           .innerJoin(packages, eq(servicePackages.packageId, packages.id))
-          .where(eq(servicePackages.serviceId, lookupKey))
+          .where(
+            canon
+              ? or(
+                  eq(servicePackages.serviceId, canon.id),
+                  eq(servicePackages.serviceId, canon.slug)
+                )
+              : eq(servicePackages.serviceId, lookupKey)
+          )
           .orderBy(asc(servicePackages.displayOrder));
 
         if (rows.length > 0) {
@@ -163,6 +179,10 @@ export class ServicePackageRepository {
               ? String(sp.priceAmount)
               : String(pkg.priceAmount || '0');
 
+            const finalPriceDisplay = sp.priceDisplayOverride !== null && sp.priceDisplayOverride !== undefined && sp.priceDisplayOverride.trim().length > 0
+              ? sp.priceDisplayOverride.trim()
+              : (Number(finalPriceAmount) > 0 ? `₹${Number(finalPriceAmount).toLocaleString('en-IN')}` : pkg.priceDisplayOverride);
+
             return {
               id: pkg.id,
               name: sp.customName || pkg.name,
@@ -170,9 +190,7 @@ export class ServicePackageRepository {
               priceAmount: finalPriceAmount,
               currency: sp.currency || pkg.currency || 'INR',
               billingType: (sp.billingType || pkg.billingType || 'one_time') as BillingType,
-              priceDisplayOverride: sp.priceDisplayOverride !== null && sp.priceDisplayOverride !== undefined
-                ? sp.priceDisplayOverride
-                : pkg.priceDisplayOverride,
+              priceDisplayOverride: finalPriceDisplay,
               idealFor: sp.customIdealFor !== null && sp.customIdealFor !== undefined ? sp.customIdealFor : (pkg.idealFor || ''),
               popular: sp.popular !== null && sp.popular !== undefined ? Boolean(sp.popular) : Boolean(pkg.popular),
               badge: sp.customBadge !== null && sp.customBadge !== undefined ? sp.customBadge : pkg.badge,
@@ -190,6 +208,9 @@ export class ServicePackageRepository {
           servicePackagesStore.set(lookupKey, storeMap);
           if (canon?.slug) {
             servicePackagesStore.set(canon.slug, storeMap);
+          }
+          if (canon?.id) {
+            servicePackagesStore.set(canon.id, storeMap);
           }
 
           return result;
@@ -312,86 +333,108 @@ export class ServicePackageRepository {
         const db = getDatabase();
 
         // Check if service exists in DB
-        const [serviceRow] = await db.select().from(services).where(eq(services.id, idKey)).limit(1);
-        if (serviceRow) {
-          // Find or create service_packages record
-          let [spRow] = await db
-            .select()
-            .from(servicePackages)
-            .where(and(eq(servicePackages.serviceId, idKey), eq(servicePackages.packageId, packageId)))
-            .limit(1);
+        const [serviceRow] = await db
+          .select()
+          .from(services)
+          .where(
+            canon
+              ? or(
+                  eq(services.id, canon.id),
+                  eq(services.slug, canon.slug),
+                  eq(services.id, canon.slug)
+                )
+              : eq(services.id, idKey)
+          )
+          .limit(1);
 
-          if (!spRow) {
-            // Ensure template package exists
-            const [templatePkg] = await db.select().from(packages).where(eq(packages.id, packageId)).limit(1);
-            if (!templatePkg) {
-              await db.insert(packages).values({
-                id: packageId,
-                name: cleanName || packageId,
-                tagline: cleanTagline,
-                priceAmount: cleanPrice,
-                currency: cleanCurrency,
-                billingType: cleanBillingType,
-                priceDisplayOverride: formattedPriceDisplay,
-                idealFor: cleanIdealFor,
-                popular: cleanPopular,
-                badge: cleanBadge,
-                isActive: cleanIsActive,
-                displayOrder: cleanDisplayOrder,
-              });
-            }
+        const targetServiceId = serviceRow ? serviceRow.id : idKey;
 
-            const [insertedSp] = await db
-              .insert(servicePackages)
-              .values({
-                serviceId: idKey,
-                packageId,
-                customName: cleanName || null,
-                customTagline: cleanTagline,
-                priceAmount: cleanPrice,
-                currency: cleanCurrency,
-                billingType: cleanBillingType,
-                priceDisplayOverride: formattedPriceDisplay,
-                customIdealFor: cleanIdealFor,
-                customBadge: cleanBadge,
-                popular: cleanPopular,
-                displayOrder: cleanDisplayOrder,
-                isActive: cleanIsActive,
-              })
-              .returning();
-            spRow = insertedSp;
-          } else {
-            const [updatedSp] = await db
-              .update(servicePackages)
-              .set({
-                customName: cleanName || null,
-                customTagline: cleanTagline,
-                priceAmount: cleanPrice,
-                currency: cleanCurrency,
-                billingType: cleanBillingType,
-                priceDisplayOverride: formattedPriceDisplay,
-                customIdealFor: cleanIdealFor,
-                customBadge: cleanBadge,
-                popular: cleanPopular,
-                displayOrder: cleanDisplayOrder,
-                isActive: cleanIsActive,
-                updatedAt: new Date(),
-              })
-              .where(eq(servicePackages.id, spRow.id))
-              .returning();
-            spRow = updatedSp;
+        // Find or create service_packages record
+        let [spRow] = await db
+          .select()
+          .from(servicePackages)
+          .where(
+            and(
+              or(
+                eq(servicePackages.serviceId, targetServiceId),
+                eq(servicePackages.serviceId, idKey),
+                ...(canon ? [eq(servicePackages.serviceId, canon.slug)] : [])
+              ),
+              eq(servicePackages.packageId, packageId)
+            )
+          )
+          .limit(1);
+
+        if (!spRow) {
+          // Ensure template package exists
+          const [templatePkg] = await db.select().from(packages).where(eq(packages.id, packageId)).limit(1);
+          if (!templatePkg) {
+            await db.insert(packages).values({
+              id: packageId,
+              name: cleanName || packageId,
+              tagline: cleanTagline,
+              priceAmount: cleanPrice,
+              currency: cleanCurrency,
+              billingType: cleanBillingType,
+              priceDisplayOverride: formattedPriceDisplay,
+              idealFor: cleanIdealFor,
+              popular: cleanPopular,
+              badge: cleanBadge,
+              isActive: cleanIsActive,
+              displayOrder: cleanDisplayOrder,
+            });
           }
 
-          if (spRow && cleanFeatures.length > 0) {
-            await db.delete(servicePackageFeatures).where(eq(servicePackageFeatures.servicePackageId, spRow.id));
-            await db.insert(servicePackageFeatures).values(
-              cleanFeatures.map((f, idx) => ({
-                servicePackageId: spRow.id,
-                featureText: f.featureText,
-                displayOrder: f.displayOrder !== undefined ? f.displayOrder : idx,
-              }))
-            );
-          }
+          const [insertedSp] = await db
+            .insert(servicePackages)
+            .values({
+              serviceId: targetServiceId,
+              packageId,
+              customName: cleanName || null,
+              customTagline: cleanTagline,
+              priceAmount: cleanPrice,
+              currency: cleanCurrency,
+              billingType: cleanBillingType,
+              priceDisplayOverride: formattedPriceDisplay,
+              customIdealFor: cleanIdealFor,
+              customBadge: cleanBadge,
+              popular: cleanPopular,
+              displayOrder: cleanDisplayOrder,
+              isActive: cleanIsActive,
+            })
+            .returning();
+          spRow = insertedSp;
+        } else {
+          const [updatedSp] = await db
+            .update(servicePackages)
+            .set({
+              customName: cleanName || null,
+              customTagline: cleanTagline,
+              priceAmount: cleanPrice,
+              currency: cleanCurrency,
+              billingType: cleanBillingType,
+              priceDisplayOverride: formattedPriceDisplay,
+              customIdealFor: cleanIdealFor,
+              customBadge: cleanBadge,
+              popular: cleanPopular,
+              displayOrder: cleanDisplayOrder,
+              isActive: cleanIsActive,
+              updatedAt: new Date(),
+            })
+            .where(eq(servicePackages.id, spRow.id))
+            .returning();
+          spRow = updatedSp;
+        }
+
+        if (spRow && cleanFeatures.length > 0) {
+          await db.delete(servicePackageFeatures).where(eq(servicePackageFeatures.servicePackageId, spRow.id));
+          await db.insert(servicePackageFeatures).values(
+            cleanFeatures.map((f, idx) => ({
+              servicePackageId: spRow.id,
+              featureText: f.featureText,
+              displayOrder: f.displayOrder !== undefined ? f.displayOrder : idx,
+            }))
+          );
         }
       } catch (dbErr: any) {
         logger.warn(`DB write failed during updateServicePackage for ${serviceId}/${packageId}: ${dbErr?.message || dbErr}`);
@@ -439,7 +482,14 @@ export class ServicePackageRepository {
           await db
             .update(servicePackages)
             .set({ displayOrder: i, isActive: true, updatedAt: new Date() })
-            .where(and(eq(servicePackages.serviceId, idKey), eq(servicePackages.packageId, pkgId)));
+            .where(
+              and(
+                canon
+                  ? or(eq(servicePackages.serviceId, canon.id), eq(servicePackages.serviceId, canon.slug))
+                  : eq(servicePackages.serviceId, idKey),
+                eq(servicePackages.packageId, pkgId)
+              )
+            );
         }
       } catch (err: any) {
         logger.warn(`Could not sync assigned package order to DB for ${serviceId}: ${err?.message || err}`);
@@ -490,7 +540,14 @@ export class ServicePackageRepository {
         await db
           .update(servicePackages)
           .set({ isActive, updatedAt: new Date() })
-          .where(and(eq(servicePackages.serviceId, idKey), eq(servicePackages.packageId, packageId)));
+          .where(
+            and(
+              canon
+                ? or(eq(servicePackages.serviceId, canon.id), eq(servicePackages.serviceId, canon.slug))
+                : eq(servicePackages.serviceId, idKey),
+              eq(servicePackages.packageId, packageId)
+            )
+          );
       } catch (err: any) {
         logger.warn(`DB status update failed for ${serviceId}/${packageId}: ${err?.message || err}`);
       }
@@ -533,7 +590,14 @@ export class ServicePackageRepository {
                 displayOrder: item.displayOrder,
                 updatedAt: new Date(),
               })
-              .where(and(eq(servicePackages.serviceId, idKey), eq(servicePackages.packageId, item.id)));
+              .where(
+                and(
+                  canon
+                    ? or(eq(servicePackages.serviceId, canon.id), eq(servicePackages.serviceId, canon.slug))
+                    : eq(servicePackages.serviceId, idKey),
+                  eq(servicePackages.packageId, item.id)
+                )
+              );
           }
         });
       } catch (err: any) {
@@ -567,7 +631,14 @@ export class ServicePackageRepository {
         const db = getDatabase();
         await db
           .delete(servicePackages)
-          .where(and(eq(servicePackages.serviceId, idKey), eq(servicePackages.packageId, packageId)));
+          .where(
+            and(
+              canon
+                ? or(eq(servicePackages.serviceId, canon.id), eq(servicePackages.serviceId, canon.slug))
+                : eq(servicePackages.serviceId, idKey),
+              eq(servicePackages.packageId, packageId)
+            )
+          );
       } catch (err: any) {
         logger.warn(`DB delete failed for ${serviceId}/${packageId}: ${err?.message || err}`);
       }

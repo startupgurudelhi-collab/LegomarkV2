@@ -154,13 +154,15 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
   const loadPackagesForService = async () => {
     setLoadingPackages(true);
     try {
-      const pkgs = await fetchAdminPackages();
-      if (pkgs && pkgs.length > 0) {
-        setAvailablePackages(pkgs);
-      } else {
-        // Fallback to canonical packages if DB returned empty
-        setAvailablePackages(
-          PACKAGES.map((p, idx) => ({
+      // 1. Fetch global catalogue
+      let globalPkgs: AdminPackage[] = [];
+      try {
+        globalPkgs = await fetchAdminPackages();
+      } catch {}
+
+      const baseCatalogue: AdminPackage[] = globalPkgs && globalPkgs.length > 0
+        ? globalPkgs
+        : PACKAGES.map((p, idx) => ({
             id: p.id,
             name: p.name,
             tagline: p.tagline || null,
@@ -176,30 +178,37 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
             features: (p.features || []).map((f, i) => ({ id: `f-${i}`, featureText: f, displayOrder: i })),
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
-          }))
-        );
+          }));
+
+      // 2. If editing a service, fetch its service-specific packages (with all overrides)
+      let servicePkgs: AdminPackage[] = [];
+      if (serviceId) {
+        try {
+          servicePkgs = await fetchAdminServicePackages(serviceId);
+        } catch {}
       }
-    } catch (err) {
-      console.warn('Failed to load packages in ServiceEditorModal, using canonical fallback:', err);
-      setAvailablePackages(
-        PACKAGES.map((p, idx) => ({
-          id: p.id,
-          name: p.name,
-          tagline: p.tagline || null,
-          priceAmount: p.price.replace(/[^\d.]/g, '') || '0',
-          currency: 'INR',
-          billingType: (p.period?.includes('year') ? 'yearly' : p.period?.includes('mo') ? 'monthly' : 'one_time') as any,
-          priceDisplayOverride: '',
-          idealFor: p.idealFor || '',
-          popular: !!p.popular,
-          badge: p.badge || null,
-          isActive: true,
-          displayOrder: idx,
-          features: (p.features || []).map((f, i) => ({ id: `f-${i}`, featureText: f, displayOrder: i })),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }))
+
+      // 3. For any package with a service-specific override, the service-specific version is authoritative!
+      // Do NOT fall back to the global Package CMS/catalog values when a service-specific package override exists.
+      const servicePkgMap = new Map<string, AdminPackage>(
+        servicePkgs.map((sp) => [sp.id, sp])
       );
+
+      const merged = baseCatalogue.map((bp) => {
+        const override = servicePkgMap.get(bp.id);
+        return override || bp;
+      });
+
+      // Also include any service-specific package that wasn't in baseCatalogue
+      for (const sp of servicePkgs) {
+        if (!merged.some((m) => m.id === sp.id)) {
+          merged.push(sp);
+        }
+      }
+
+      setAvailablePackages(merged);
+    } catch (err) {
+      console.warn('Failed to load packages in ServiceEditorModal:', err);
     } finally {
       setLoadingPackages(false);
     }
@@ -208,7 +217,7 @@ export const ServiceEditorModal: React.FC<ServiceEditorModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     loadPackagesForService();
-  }, [isOpen]);
+  }, [isOpen, serviceId]);
 
   // Load service data if editing
   useEffect(() => {

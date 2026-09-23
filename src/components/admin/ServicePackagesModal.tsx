@@ -166,6 +166,14 @@ export const ServicePackagesModal: React.FC<ServicePackagesModalProps> = ({
         }
       }
 
+      if (servicePkgs.length > 0) {
+        setAllCatalogue((prev) => {
+          const map = new Map<string, AdminPackage>(prev.map((p) => [p.id, p]));
+          servicePkgs.forEach((sp) => map.set(sp.id, sp));
+          return Array.from(map.values());
+        });
+      }
+
       setPackagesList(servicePkgs);
     } catch (err: any) {
       if (err.statusCode === 401) {
@@ -208,12 +216,18 @@ export const ServicePackagesModal: React.FC<ServicePackagesModalProps> = ({
     // Persist via API
     try {
       await adminServiceApi.updateService(service.id, { packageIds: nextIds });
+      await fetch(`/api/admin/services/${encodeURIComponent(service.id)}/packages`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ packageIds: nextIds }),
+      });
     } catch {}
 
-    // Update packagesList
-    const source = allCatalogue.length > 0 ? allCatalogue : getCanonicalCatalogue();
+    // Update packagesList without falling back to global catalog when service overrides exist
+    const sourceCatalogue = allCatalogue.length > 0 ? allCatalogue : getCanonicalCatalogue();
     const nextPkgs = nextIds
-      .map((id) => source.find((p) => p.id === id))
+      .map((id) => packagesList.find((p) => p.id === id) || sourceCatalogue.find((p) => p.id === id) || getCanonicalCatalogue().find((p) => p.id === id))
       .filter((p): p is AdminPackage => Boolean(p));
     setPackagesList(nextPkgs);
     showToast(`✓ Package selection updated for ${service.title} (${nextIds.length} package${nextIds.length === 1 ? '' : 's'}).`);

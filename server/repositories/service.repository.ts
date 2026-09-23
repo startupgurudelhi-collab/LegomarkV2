@@ -15,7 +15,7 @@ import {
   packages as packagesTable,
   packageFeatures as packageFeaturesTable,
 } from '../../db/schema/index';
-import { eq, and, asc, inArray } from 'drizzle-orm';
+import { eq, and, or, asc, inArray } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 import { SERVICES, SERVICE_CATEGORIES, PACKAGES, getServiceBySlug, getRelatedServices } from '../../src/data/websiteData';
 import { servicePackageRepository } from './service-package.repository';
@@ -536,7 +536,10 @@ export class ServiceRepository {
           .innerJoin(packagesTable, eq(servicePackages.packageId, packagesTable.id))
           .where(
             and(
-              eq(servicePackages.serviceId, serviceId),
+              or(
+                eq(servicePackages.serviceId, serviceId),
+                eq(servicePackages.serviceId, s.slug)
+              ),
               eq(servicePackages.isActive, true),
               eq(packagesTable.isActive, true)
             )
