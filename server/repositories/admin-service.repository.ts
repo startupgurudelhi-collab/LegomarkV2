@@ -19,6 +19,7 @@ import { eq, and, asc, inArray, count, sql } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 import { SERVICES, SERVICE_CATEGORIES, getServiceBySlug } from '../../src/data/websiteData';
 import { servicePackageAssignments } from './service.repository';
+import { servicePackageRepository } from './service-package.repository';
 
 export interface AdminServiceItem {
   id: string;
@@ -516,6 +517,12 @@ export class AdminServiceRepository {
         processSteps,
         faqs,
         relatedServiceIds: [],
+        packageIds:
+          servicePackageRepository.getAssignedPackageIds(s.id) ||
+          servicePackageRepository.getAssignedPackageIds(s.slug) ||
+          servicePackageAssignments.get(s.id) ||
+          servicePackageAssignments.get(s.slug) ||
+          ['starter', 'growth', 'enterprise'],
       };
     }
 
@@ -886,6 +893,21 @@ export class AdminServiceRepository {
    * Update service metadata and child entity tables
    */
   async updateService(id: string, input: UpdateServiceInput, updatedBy?: string): Promise<AdminServiceItem | null> {
+    const isConnected = await pingDatabase();
+    if (!isConnected.connected) {
+      if (input.packageIds !== undefined) {
+        await servicePackageRepository.setAssignedPackageIds(id, input.packageIds);
+        servicePackageAssignments.set(id, input.packageIds);
+        const norm = id.toLowerCase().trim();
+        const s = SERVICES.find((item) => item.id.toLowerCase() === norm || item.slug.toLowerCase() === norm);
+        if (s) {
+          servicePackageAssignments.set(s.slug, input.packageIds);
+          await servicePackageRepository.setAssignedPackageIds(s.slug, input.packageIds);
+        }
+      }
+      return await this.findById(id);
+    }
+
     const db = getDatabase();
     const parsed = parseStartingPrice(input.startingPrice);
 
@@ -1034,9 +1056,11 @@ export class AdminServiceRepository {
     }
 
     if (input.packageIds !== undefined) {
+      await servicePackageRepository.setAssignedPackageIds(id, input.packageIds);
       servicePackageAssignments.set(id, input.packageIds);
       if (updated.slug) {
         servicePackageAssignments.set(updated.slug, input.packageIds);
+        await servicePackageRepository.setAssignedPackageIds(updated.slug, input.packageIds);
       }
       const existing = await db
         .select()

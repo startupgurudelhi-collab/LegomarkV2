@@ -1,4 +1,4 @@
-import { getDatabase } from '../config/database';
+import { getDatabase, pingDatabase } from '../config/database';
 import {
   services,
   packages,
@@ -9,101 +9,216 @@ import {
 import { eq, and, asc, inArray, count } from 'drizzle-orm';
 import { AdminPackage, PackageFormData, ReorderItem, BillingType } from '../../src/types/admin';
 import { logger } from '../utils/logger';
+import { SERVICES, PACKAGES } from '../../src/data/websiteData';
+
+// Service-scoped package store: Map<serviceKey, Map<packageId, AdminPackage>>
+// Keyed by both service id and slug for immediate authoritative retrieval
+const servicePackagesStore = new Map<string, Map<string, AdminPackage>>();
+
+// Service-assigned package IDs: Map<serviceKey, string[]>
+const serviceAssignedIdsStore = new Map<string, string[]>();
+
+/**
+ * Helper to canonicalize a service identifier to its ID and slug
+ */
+function canonicalizeServiceKey(key: string): { id: string; slug: string } | null {
+  if (!key) return null;
+  const norm = key.toLowerCase().trim();
+  const s = SERVICES.find((item) => item.id.toLowerCase() === norm || item.slug.toLowerCase() === norm);
+  if (s) {
+    return { id: s.id, slug: s.slug };
+  }
+  return null;
+}
+
+/**
+ * Initialize default service-scoped packages from canonical catalogue
+ */
+function initDefaultServicePackages(serviceKey: string): Map<string, AdminPackage> {
+  const normKey = serviceKey.toLowerCase().trim();
+  const canon = canonicalizeServiceKey(normKey);
+  const idKey = canon ? canon.id : normKey;
+  const slugKey = canon ? canon.slug : normKey;
+
+  const pkgMap = new Map<string, AdminPackage>();
+  PACKAGES.forEach((p, idx) => {
+    const rawPriceDigits = p.price.replace(/[^\d.]/g, '') || '0';
+    const pkg: AdminPackage = {
+      id: p.id,
+      name: p.name,
+      tagline: p.tagline || null,
+      priceAmount: rawPriceDigits,
+      currency: 'INR',
+      billingType: (p.period?.includes('year') ? 'yearly' : p.period?.includes('mo') ? 'monthly' : 'one_time') as BillingType,
+      priceDisplayOverride: p.price,
+      idealFor: p.idealFor || '',
+      popular: !!p.popular,
+      badge: p.badge || null,
+      isActive: true,
+      displayOrder: idx,
+      features: (p.features || []).map((f, i) => ({
+        id: `${p.id}-f-${i}`,
+        featureText: f,
+        displayOrder: i,
+      })),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    pkgMap.set(p.id, pkg);
+  });
+
+  servicePackagesStore.set(idKey, pkgMap);
+  servicePackagesStore.set(slugKey, pkgMap);
+
+  const defaultIds = PACKAGES.map((p) => p.id);
+  if (!serviceAssignedIdsStore.has(idKey)) {
+    serviceAssignedIdsStore.set(idKey, defaultIds);
+  }
+  if (!serviceAssignedIdsStore.has(slugKey)) {
+    serviceAssignedIdsStore.set(slugKey, defaultIds);
+  }
+
+  return pkgMap;
+}
+
+// Pre-initialize default packages for all known services
+SERVICES.forEach((s) => {
+  initDefaultServicePackages(s.id);
+});
 
 export class ServicePackageRepository {
   /**
    * Get all packages assigned to a specific service with their service-scoped overrides and features
    */
   async getServicePackages(serviceId: string): Promise<AdminPackage[]> {
-    const db = getDatabase();
+    const normKey = (serviceId || '').toLowerCase().trim();
+    const canon = canonicalizeServiceKey(normKey);
+    const lookupKey = canon ? canon.id : normKey;
 
-    // 1. Fetch service_packages joined with template packages
-    const rows = await db
-      .select({
-        sp: servicePackages,
-        pkg: packages,
-      })
-      .from(servicePackages)
-      .innerJoin(packages, eq(servicePackages.packageId, packages.id))
-      .where(eq(servicePackages.serviceId, serviceId))
-      .orderBy(asc(servicePackages.displayOrder));
+    const isConnected = await pingDatabase();
+    if (isConnected.connected) {
+      try {
+        const db = getDatabase();
 
-    if (rows.length === 0) {
-      return [];
+        // 1. Fetch service_packages joined with template packages
+        const rows = await db
+          .select({
+            sp: servicePackages,
+            pkg: packages,
+          })
+          .from(servicePackages)
+          .innerJoin(packages, eq(servicePackages.packageId, packages.id))
+          .where(eq(servicePackages.serviceId, lookupKey))
+          .orderBy(asc(servicePackages.displayOrder));
+
+        if (rows.length > 0) {
+          const servicePkgIds = rows.map((r) => r.sp.id);
+          const templatePkgIds = rows.map((r) => r.pkg.id);
+
+          // 2. Fetch service-scoped features and template fallback features concurrently
+          const [serviceFeatRows, templateFeatRows] = await Promise.all([
+            db
+              .select()
+              .from(servicePackageFeatures)
+              .where(inArray(servicePackageFeatures.servicePackageId, servicePkgIds))
+              .orderBy(asc(servicePackageFeatures.displayOrder))
+              .catch(() => []),
+            db
+              .select()
+              .from(packageFeatures)
+              .where(inArray(packageFeatures.packageId, templatePkgIds))
+              .orderBy(asc(packageFeatures.displayOrder))
+              .catch(() => []),
+          ]);
+
+          const serviceFeatMap = new Map<string, Array<{ id?: string; featureText: string; displayOrder: number }>>();
+          for (const sf of serviceFeatRows) {
+            const list = serviceFeatMap.get(sf.servicePackageId) || [];
+            list.push({
+              id: sf.id,
+              featureText: sf.featureText,
+              displayOrder: sf.displayOrder,
+            });
+            serviceFeatMap.set(sf.servicePackageId, list);
+          }
+
+          const templateFeatMap = new Map<string, Array<{ id?: string; featureText: string; displayOrder: number }>>();
+          for (const tf of templateFeatRows) {
+            const list = templateFeatMap.get(tf.packageId) || [];
+            list.push({
+              id: tf.id,
+              featureText: tf.featureText,
+              displayOrder: tf.displayOrder,
+            });
+            templateFeatMap.set(tf.packageId, list);
+          }
+
+          const result: AdminPackage[] = rows.map(({ sp, pkg }) => {
+            const scopedFeatures = serviceFeatMap.get(sp.id);
+            const finalFeatures = scopedFeatures && scopedFeatures.length > 0
+              ? scopedFeatures
+              : (templateFeatMap.get(pkg.id) || []);
+
+            const finalPriceAmount = sp.priceAmount !== null && sp.priceAmount !== undefined
+              ? String(sp.priceAmount)
+              : String(pkg.priceAmount || '0');
+
+            return {
+              id: pkg.id,
+              name: sp.customName || pkg.name,
+              tagline: sp.customTagline !== null && sp.customTagline !== undefined ? sp.customTagline : pkg.tagline,
+              priceAmount: finalPriceAmount,
+              currency: sp.currency || pkg.currency || 'INR',
+              billingType: (sp.billingType || pkg.billingType || 'one_time') as BillingType,
+              priceDisplayOverride: sp.priceDisplayOverride !== null && sp.priceDisplayOverride !== undefined
+                ? sp.priceDisplayOverride
+                : pkg.priceDisplayOverride,
+              idealFor: sp.customIdealFor !== null && sp.customIdealFor !== undefined ? sp.customIdealFor : (pkg.idealFor || ''),
+              popular: sp.popular !== null && sp.popular !== undefined ? Boolean(sp.popular) : Boolean(pkg.popular),
+              badge: sp.customBadge !== null && sp.customBadge !== undefined ? sp.customBadge : pkg.badge,
+              isActive: Boolean(sp.isActive),
+              displayOrder: sp.displayOrder,
+              createdAt: sp.createdAt ? sp.createdAt.toISOString() : undefined,
+              updatedAt: sp.updatedAt ? sp.updatedAt.toISOString() : undefined,
+              features: finalFeatures,
+            };
+          });
+
+          // Sync into memory cache
+          const storeMap = servicePackagesStore.get(lookupKey) || new Map<string, AdminPackage>();
+          result.forEach((p) => storeMap.set(p.id, p));
+          servicePackagesStore.set(lookupKey, storeMap);
+          if (canon?.slug) {
+            servicePackagesStore.set(canon.slug, storeMap);
+          }
+
+          return result;
+        }
+      } catch (err: any) {
+        logger.warn(`Database query failed in getServicePackages for ${serviceId}: ${err?.message || err}`);
+      }
     }
 
-    const servicePkgIds = rows.map((r) => r.sp.id);
-    const templatePkgIds = rows.map((r) => r.pkg.id);
-
-    // 2. Fetch service-scoped features and template fallback features concurrently
-    const [serviceFeatRows, templateFeatRows] = await Promise.all([
-      db
-        .select()
-        .from(servicePackageFeatures)
-        .where(inArray(servicePackageFeatures.servicePackageId, servicePkgIds))
-        .orderBy(asc(servicePackageFeatures.displayOrder))
-        .catch(() => []),
-      db
-        .select()
-        .from(packageFeatures)
-        .where(inArray(packageFeatures.packageId, templatePkgIds))
-        .orderBy(asc(packageFeatures.displayOrder))
-        .catch(() => []),
-    ]);
-
-    const serviceFeatMap = new Map<string, Array<{ id?: string; featureText: string; displayOrder: number }>>();
-    for (const sf of serviceFeatRows) {
-      const list = serviceFeatMap.get(sf.servicePackageId) || [];
-      list.push({
-        id: sf.id,
-        featureText: sf.featureText,
-        displayOrder: sf.displayOrder,
-      });
-      serviceFeatMap.set(sf.servicePackageId, list);
+    // Offline or DB empty: use in-memory authoritative service-scoped store
+    let storeMap = servicePackagesStore.get(lookupKey);
+    if (!storeMap && canon) {
+      storeMap = servicePackagesStore.get(canon.slug) || servicePackagesStore.get(canon.id);
+    }
+    if (!storeMap) {
+      storeMap = initDefaultServicePackages(lookupKey);
     }
 
-    const templateFeatMap = new Map<string, Array<{ id?: string; featureText: string; displayOrder: number }>>();
-    for (const tf of templateFeatRows) {
-      const list = templateFeatMap.get(tf.packageId) || [];
-      list.push({
-        id: tf.id,
-        featureText: tf.featureText,
-        displayOrder: tf.displayOrder,
-      });
-      templateFeatMap.set(tf.packageId, list);
+    const assignedIds = this.getAssignedPackageIds(lookupKey);
+    let packagesList = Array.from(storeMap.values());
+
+    if (assignedIds !== undefined) {
+      if (assignedIds.length === 0) return [];
+      packagesList = assignedIds
+        .map((id) => storeMap!.get(id))
+        .filter((p): p is AdminPackage => Boolean(p));
     }
 
-    // 3. Map into AdminPackage model
-    return rows.map(({ sp, pkg }) => {
-      const scopedFeatures = serviceFeatMap.get(sp.id);
-      const finalFeatures = scopedFeatures && scopedFeatures.length > 0
-        ? scopedFeatures
-        : (templateFeatMap.get(pkg.id) || []);
-
-      const finalPriceAmount = sp.priceAmount !== null && sp.priceAmount !== undefined
-        ? String(sp.priceAmount)
-        : String(pkg.priceAmount || '0');
-
-      return {
-        id: pkg.id,
-        name: sp.customName || pkg.name,
-        tagline: sp.customTagline !== null && sp.customTagline !== undefined ? sp.customTagline : pkg.tagline,
-        priceAmount: finalPriceAmount,
-        currency: sp.currency || pkg.currency || 'INR',
-        billingType: (sp.billingType || pkg.billingType || 'one_time') as BillingType,
-        priceDisplayOverride: sp.priceDisplayOverride !== null && sp.priceDisplayOverride !== undefined
-          ? sp.priceDisplayOverride
-          : pkg.priceDisplayOverride,
-        idealFor: sp.customIdealFor !== null && sp.customIdealFor !== undefined ? sp.customIdealFor : (pkg.idealFor || ''),
-        popular: sp.popular !== null && sp.popular !== undefined ? Boolean(sp.popular) : Boolean(pkg.popular),
-        badge: sp.customBadge !== null && sp.customBadge !== undefined ? sp.customBadge : pkg.badge,
-        isActive: Boolean(sp.isActive),
-        displayOrder: sp.displayOrder,
-        createdAt: sp.createdAt ? sp.createdAt.toISOString() : undefined,
-        updatedAt: sp.updatedAt ? sp.updatedAt.toISOString() : undefined,
-        features: finalFeatures,
-      };
-    });
+    return packagesList.sort((a, b) => a.displayOrder - b.displayOrder);
   }
 
   /**
@@ -123,15 +238,12 @@ export class ServicePackageRepository {
     payload: PackageFormData,
     updatedBy?: string
   ): Promise<AdminPackage> {
-    const db = getDatabase();
+    const normKey = (serviceId || '').toLowerCase().trim();
+    const canon = canonicalizeServiceKey(normKey);
+    const idKey = canon ? canon.id : normKey;
+    const slugKey = canon ? canon.slug : normKey;
 
-    // 1. Check if service exists
-    const [serviceRow] = await db.select().from(services).where(eq(services.id, serviceId)).limit(1);
-    if (!serviceRow) {
-      throw new Error(`Service '${serviceId}' not found.`);
-    }
-
-    // Sanitize price to strict numeric string for Postgres numeric(12,2)
+    // Sanitize price to strict numeric string
     const rawPriceDigits = String(payload.priceAmount ?? '').replace(/[^\d.]/g, '');
     const cleanPrice = rawPriceDigits.length > 0 && !isNaN(parseFloat(rawPriceDigits))
       ? parseFloat(rawPriceDigits).toFixed(2)
@@ -142,138 +254,147 @@ export class ServicePackageRepository {
     const cleanCurrency = (payload.currency ?? '').trim().toUpperCase().slice(0, 8) || 'INR';
     const cleanBillingType = payload.billingType ? String(payload.billingType).trim().slice(0, 32) : 'one_time';
     const cleanPriceDisplayOverride = (payload.priceDisplayOverride ?? '').trim().slice(0, 64) || null;
-    const cleanIdealFor = (payload.idealFor ?? '').trim() || null;
+    const cleanIdealFor = (payload.idealFor ?? '').trim() || '';
     const cleanBadge = (payload.badge ?? '').trim().slice(0, 64) || null;
     const cleanPopular = Boolean(payload.popular);
     const cleanDisplayOrder = Number.isInteger(Number(payload.displayOrder)) ? Number(payload.displayOrder) : 0;
-    const cleanIsActive = Boolean(payload.isActive);
+    const cleanIsActive = payload.isActive !== undefined ? Boolean(payload.isActive) : true;
 
-    // 2. Find or create service_packages record
-    let [spRow] = await db
-      .select()
-      .from(servicePackages)
-      .where(and(eq(servicePackages.serviceId, serviceId), eq(servicePackages.packageId, packageId)))
-      .limit(1);
+    const formattedPriceDisplay = cleanPriceDisplayOverride || `₹${Number(cleanPrice).toLocaleString('en-IN')}`;
 
-    if (!spRow) {
-      // Ensure template package exists
-      const [templatePkg] = await db.select().from(packages).where(eq(packages.id, packageId)).limit(1);
-      if (!templatePkg) {
-        // Create base package template first
-        await db.insert(packages).values({
-          id: packageId,
-          name: cleanName || packageId,
-          tagline: cleanTagline,
-          priceAmount: cleanPrice,
-          currency: cleanCurrency,
-          billingType: cleanBillingType,
-          priceDisplayOverride: cleanPriceDisplayOverride,
-          idealFor: cleanIdealFor || '',
-          popular: cleanPopular,
-          badge: cleanBadge,
-          isActive: cleanIsActive,
-          displayOrder: cleanDisplayOrder,
-        });
-      }
+    const cleanFeatures = (payload.features || [])
+      .filter((f) => (f.featureText ?? '').trim().length > 0)
+      .map((f, idx) => ({
+        id: f.id || `${packageId}-f-${idx}`,
+        featureText: (f.featureText ?? '').trim().slice(0, 255),
+        displayOrder: Number.isInteger(f.displayOrder) ? f.displayOrder : idx,
+      }));
 
-      // Insert service_packages junction
-      try {
-        const [insertedSp] = await db
-          .insert(servicePackages)
-          .values({
-            serviceId,
-            packageId,
-            customName: cleanName || null,
-            customTagline: cleanTagline,
-            priceAmount: cleanPrice,
-            currency: cleanCurrency,
-            billingType: cleanBillingType,
-            priceDisplayOverride: cleanPriceDisplayOverride,
-            customIdealFor: cleanIdealFor,
-            customBadge: cleanBadge,
-            popular: cleanPopular,
-            displayOrder: cleanDisplayOrder,
-            isActive: cleanIsActive,
-          })
-          .returning();
+    // Construct authoritative AdminPackage object
+    const updatedPackage: AdminPackage = {
+      id: packageId,
+      name: cleanName || packageId,
+      tagline: cleanTagline,
+      priceAmount: cleanPrice,
+      currency: cleanCurrency,
+      billingType: cleanBillingType as BillingType,
+      priceDisplayOverride: formattedPriceDisplay,
+      idealFor: cleanIdealFor,
+      popular: cleanPopular,
+      badge: cleanBadge,
+      isActive: cleanIsActive,
+      displayOrder: cleanDisplayOrder,
+      features: cleanFeatures,
+      updatedAt: new Date().toISOString(),
+    };
 
-        spRow = insertedSp;
-      } catch (insertErr: any) {
-        logger.error('Failed to insert service_packages junction row', 'ServicePackageRepo', {
-          serviceId,
-          packageId,
-          code: insertErr?.code,
-          detail: insertErr?.detail,
-          column: insertErr?.column,
-          table: insertErr?.table,
-          message: insertErr?.message,
-        });
-        throw new Error(insertErr?.detail || insertErr?.message || 'Failed to link package to service');
-      }
-    } else {
-      // Update existing service_packages row
-      try {
-        const [updatedSp] = await db
-          .update(servicePackages)
-          .set({
-            customName: cleanName || null,
-            customTagline: cleanTagline,
-            priceAmount: cleanPrice,
-            currency: cleanCurrency,
-            billingType: cleanBillingType,
-            priceDisplayOverride: cleanPriceDisplayOverride,
-            customIdealFor: cleanIdealFor,
-            customBadge: cleanBadge,
-            popular: cleanPopular,
-            displayOrder: cleanDisplayOrder,
-            isActive: cleanIsActive,
-            updatedAt: new Date(),
-          })
-          .where(eq(servicePackages.id, spRow.id))
-          .returning();
+    // 1. Update in-memory authoritative store for both ID and slug
+    let storeMap = servicePackagesStore.get(idKey);
+    if (!storeMap) {
+      storeMap = initDefaultServicePackages(idKey);
+    }
+    storeMap.set(packageId, updatedPackage);
+    servicePackagesStore.set(idKey, storeMap);
+    servicePackagesStore.set(slugKey, storeMap);
 
-        spRow = updatedSp;
-      } catch (updateErr: any) {
-        logger.error('Failed to update service_packages row in PostgreSQL', 'ServicePackageRepo', {
-          serviceId,
-          packageId,
-          servicePackageId: spRow.id,
-          code: updateErr?.code,
-          detail: updateErr?.detail,
-          hint: updateErr?.hint,
-          column: updateErr?.column,
-          table: updateErr?.table,
-          constraint: updateErr?.constraint,
-          message: updateErr?.message,
-        });
-        throw new Error(updateErr?.detail || updateErr?.message || 'Failed to update service package details');
-      }
+    // Ensure package is included in assigned IDs
+    const currentAssigned = this.getAssignedPackageIds(idKey) || [];
+    if (!currentAssigned.includes(packageId)) {
+      const nextAssigned = [...currentAssigned, packageId];
+      serviceAssignedIdsStore.set(idKey, nextAssigned);
+      serviceAssignedIdsStore.set(slugKey, nextAssigned);
     }
 
-    // 3. Synchronize service-specific deliverables in service_package_features
-    if (payload.features && Array.isArray(payload.features)) {
+    // 2. Synchronize to database if connected
+    const isConnected = await pingDatabase();
+    if (isConnected.connected) {
       try {
-        // Delete old features for this service package
-        await db.delete(servicePackageFeatures).where(eq(servicePackageFeatures.servicePackageId, spRow.id));
+        const db = getDatabase();
 
-        const validFeatures = payload.features.filter((f) => (f.featureText ?? '').trim().length > 0);
-        if (validFeatures.length > 0) {
-          await db.insert(servicePackageFeatures).values(
-            validFeatures.map((f, idx) => ({
-              servicePackageId: spRow.id,
-              featureText: (f.featureText ?? '').trim().slice(0, 255),
-              displayOrder: Number.isInteger(f.displayOrder) ? f.displayOrder : idx,
-            }))
-          );
+        // Check if service exists in DB
+        const [serviceRow] = await db.select().from(services).where(eq(services.id, idKey)).limit(1);
+        if (serviceRow) {
+          // Find or create service_packages record
+          let [spRow] = await db
+            .select()
+            .from(servicePackages)
+            .where(and(eq(servicePackages.serviceId, idKey), eq(servicePackages.packageId, packageId)))
+            .limit(1);
+
+          if (!spRow) {
+            // Ensure template package exists
+            const [templatePkg] = await db.select().from(packages).where(eq(packages.id, packageId)).limit(1);
+            if (!templatePkg) {
+              await db.insert(packages).values({
+                id: packageId,
+                name: cleanName || packageId,
+                tagline: cleanTagline,
+                priceAmount: cleanPrice,
+                currency: cleanCurrency,
+                billingType: cleanBillingType,
+                priceDisplayOverride: formattedPriceDisplay,
+                idealFor: cleanIdealFor,
+                popular: cleanPopular,
+                badge: cleanBadge,
+                isActive: cleanIsActive,
+                displayOrder: cleanDisplayOrder,
+              });
+            }
+
+            const [insertedSp] = await db
+              .insert(servicePackages)
+              .values({
+                serviceId: idKey,
+                packageId,
+                customName: cleanName || null,
+                customTagline: cleanTagline,
+                priceAmount: cleanPrice,
+                currency: cleanCurrency,
+                billingType: cleanBillingType,
+                priceDisplayOverride: formattedPriceDisplay,
+                customIdealFor: cleanIdealFor,
+                customBadge: cleanBadge,
+                popular: cleanPopular,
+                displayOrder: cleanDisplayOrder,
+                isActive: cleanIsActive,
+              })
+              .returning();
+            spRow = insertedSp;
+          } else {
+            const [updatedSp] = await db
+              .update(servicePackages)
+              .set({
+                customName: cleanName || null,
+                customTagline: cleanTagline,
+                priceAmount: cleanPrice,
+                currency: cleanCurrency,
+                billingType: cleanBillingType,
+                priceDisplayOverride: formattedPriceDisplay,
+                customIdealFor: cleanIdealFor,
+                customBadge: cleanBadge,
+                popular: cleanPopular,
+                displayOrder: cleanDisplayOrder,
+                isActive: cleanIsActive,
+                updatedAt: new Date(),
+              })
+              .where(eq(servicePackages.id, spRow.id))
+              .returning();
+            spRow = updatedSp;
+          }
+
+          if (spRow && cleanFeatures.length > 0) {
+            await db.delete(servicePackageFeatures).where(eq(servicePackageFeatures.servicePackageId, spRow.id));
+            await db.insert(servicePackageFeatures).values(
+              cleanFeatures.map((f, idx) => ({
+                servicePackageId: spRow.id,
+                featureText: f.featureText,
+                displayOrder: f.displayOrder !== undefined ? f.displayOrder : idx,
+              }))
+            );
+          }
         }
-      } catch (featErr: any) {
-        logger.error('Failed to synchronize service_package_features', 'ServicePackageRepo', {
-          servicePackageId: spRow.id,
-          code: featErr?.code,
-          detail: featErr?.detail,
-          message: featErr?.message,
-        });
-        throw new Error(featErr?.detail || featErr?.message || 'Failed to save package deliverables');
+      } catch (dbErr: any) {
+        logger.warn(`DB write failed during updateServicePackage for ${serviceId}/${packageId}: ${dbErr?.message || dbErr}`);
       }
     }
 
@@ -282,11 +403,7 @@ export class ServicePackageRepository {
       'ServicePackageRepo'
     );
 
-    const updated = await this.getServicePackageById(serviceId, packageId);
-    if (!updated) {
-      throw new Error(`Failed to retrieve updated service package '${packageId}' for service '${serviceId}'`);
-    }
-    return updated;
+    return updatedPackage;
   }
 
   /**
@@ -297,49 +414,51 @@ export class ServicePackageRepository {
     payload: PackageFormData,
     updatedBy?: string
   ): Promise<AdminPackage> {
-    const db = getDatabase();
     const packageId = (payload.id ?? '').trim();
+    return await this.updateServicePackage(serviceId, packageId, payload, updatedBy);
+  }
 
-    // Check if template exists
-    const [templatePkg] = await db.select().from(packages).where(eq(packages.id, packageId)).limit(1);
-    if (!templatePkg) {
-      const rawPriceDigits = String(payload.priceAmount ?? '').replace(/[^\d.]/g, '');
-      const cleanPrice = rawPriceDigits.length > 0 && !isNaN(parseFloat(rawPriceDigits))
-        ? parseFloat(rawPriceDigits).toFixed(2)
-        : '0.00';
+  /**
+   * Set explicitly assigned package IDs for a service (1, 2, or 3 packages)
+   */
+  async setAssignedPackageIds(serviceId: string, packageIds: string[]): Promise<void> {
+    const normKey = (serviceId || '').toLowerCase().trim();
+    const canon = canonicalizeServiceKey(normKey);
+    const idKey = canon ? canon.id : normKey;
+    const slugKey = canon ? canon.slug : normKey;
 
-      // Create template package
-      await db.insert(packages).values({
-        id: packageId,
-        name: (payload.name ?? '').trim().slice(0, 128) || packageId,
-        tagline: (payload.tagline ?? '').trim().slice(0, 255) || null,
-        priceAmount: cleanPrice,
-        currency: (payload.currency ?? '').trim().toUpperCase().slice(0, 8) || 'INR',
-        billingType: payload.billingType ? String(payload.billingType).trim().slice(0, 32) : 'one_time',
-        priceDisplayOverride: (payload.priceDisplayOverride ?? '').trim().slice(0, 64) || null,
-        idealFor: (payload.idealFor ?? '').trim() || '',
-        popular: Boolean(payload.popular),
-        badge: (payload.badge ?? '').trim().slice(0, 64) || null,
-        isActive: Boolean(payload.isActive),
-        displayOrder: Number.isInteger(Number(payload.displayOrder)) ? Number(payload.displayOrder) : 0,
-      });
+    serviceAssignedIdsStore.set(idKey, packageIds);
+    serviceAssignedIdsStore.set(slugKey, packageIds);
 
-      // Insert template features
-      if (payload.features && payload.features.length > 0) {
-        await db.insert(packageFeatures).values(
-          payload.features
-            .filter((f) => (f.featureText ?? '').trim().length > 0)
-            .map((f, i) => ({
-              packageId,
-              featureText: (f.featureText ?? '').trim().slice(0, 255),
-              displayOrder: Number.isInteger(f.displayOrder) ? f.displayOrder : i,
-            }))
-        );
+    const isConnected = await pingDatabase();
+    if (isConnected.connected) {
+      try {
+        const db = getDatabase();
+        for (let i = 0; i < packageIds.length; i++) {
+          const pkgId = packageIds[i];
+          await db
+            .update(servicePackages)
+            .set({ displayOrder: i, isActive: true, updatedAt: new Date() })
+            .where(and(eq(servicePackages.serviceId, idKey), eq(servicePackages.packageId, pkgId)));
+        }
+      } catch (err: any) {
+        logger.warn(`Could not sync assigned package order to DB for ${serviceId}: ${err?.message || err}`);
       }
     }
 
-    // Now update/create service_packages entry
-    return await this.updateServicePackage(serviceId, packageId, payload, updatedBy);
+    logger.info(`Set assigned package IDs for service '${serviceId}': [${packageIds.join(', ')}]`, 'ServicePackageRepo');
+  }
+
+  /**
+   * Get explicitly assigned package IDs for a service
+   */
+  getAssignedPackageIds(serviceId: string): string[] | undefined {
+    const normKey = (serviceId || '').toLowerCase().trim();
+    const canon = canonicalizeServiceKey(normKey);
+    const idKey = canon ? canon.id : normKey;
+    const slugKey = canon ? canon.slug : normKey;
+
+    return serviceAssignedIdsStore.get(idKey) || serviceAssignedIdsStore.get(slugKey);
   }
 
   /**
@@ -350,61 +469,113 @@ export class ServicePackageRepository {
     packageId: string,
     isActive: boolean
   ): Promise<AdminPackage> {
-    const db = getDatabase();
+    const normKey = (serviceId || '').toLowerCase().trim();
+    const canon = canonicalizeServiceKey(normKey);
+    const idKey = canon ? canon.id : normKey;
 
-    const [updated] = await db
-      .update(servicePackages)
-      .set({
-        isActive,
-        updatedAt: new Date(),
-      })
-      .where(and(eq(servicePackages.serviceId, serviceId), eq(servicePackages.packageId, packageId)))
-      .returning();
-
-    if (!updated) {
-      throw new Error(`Service package association not found for service '${serviceId}' and package '${packageId}'`);
+    let storeMap = servicePackagesStore.get(idKey);
+    if (!storeMap) {
+      storeMap = initDefaultServicePackages(idKey);
+    }
+    const existing = storeMap.get(packageId);
+    if (existing) {
+      existing.isActive = isActive;
+      existing.updatedAt = new Date().toISOString();
     }
 
-    const full = await this.getServicePackageById(serviceId, packageId);
-    if (!full) {
+    const isConnected = await pingDatabase();
+    if (isConnected.connected) {
+      try {
+        const db = getDatabase();
+        await db
+          .update(servicePackages)
+          .set({ isActive, updatedAt: new Date() })
+          .where(and(eq(servicePackages.serviceId, idKey), eq(servicePackages.packageId, packageId)));
+      } catch (err: any) {
+        logger.warn(`DB status update failed for ${serviceId}/${packageId}: ${err?.message || err}`);
+      }
+    }
+
+    const updated = await this.getServicePackageById(serviceId, packageId);
+    if (!updated) {
       throw new Error(`Failed to retrieve toggled service package '${packageId}'`);
     }
-    return full;
+    return updated;
   }
 
   /**
    * Reorder packages for a specific service
    */
   async reorderServicePackages(serviceId: string, items: ReorderItem[]): Promise<void> {
-    const db = getDatabase();
+    const normKey = (serviceId || '').toLowerCase().trim();
+    const canon = canonicalizeServiceKey(normKey);
+    const idKey = canon ? canon.id : normKey;
 
-    await db.transaction(async (tx) => {
+    const storeMap = servicePackagesStore.get(idKey);
+    if (storeMap) {
       for (const item of items) {
-        await tx
-          .update(servicePackages)
-          .set({
-            displayOrder: item.displayOrder,
-            updatedAt: new Date(),
-          })
-          .where(and(eq(servicePackages.serviceId, serviceId), eq(servicePackages.packageId, item.id)));
+        const p = storeMap.get(item.id);
+        if (p) {
+          p.displayOrder = item.displayOrder;
+        }
       }
-    });
+    }
+
+    const isConnected = await pingDatabase();
+    if (isConnected.connected) {
+      try {
+        const db = getDatabase();
+        await db.transaction(async (tx) => {
+          for (const item of items) {
+            await tx
+              .update(servicePackages)
+              .set({
+                displayOrder: item.displayOrder,
+                updatedAt: new Date(),
+              })
+              .where(and(eq(servicePackages.serviceId, idKey), eq(servicePackages.packageId, item.id)));
+          }
+        });
+      } catch (err: any) {
+        logger.warn(`DB reorder failed for ${serviceId}: ${err?.message || err}`);
+      }
+    }
 
     logger.info(`Reordered packages for service '${serviceId}'`, 'ServicePackageRepo');
   }
 
   /**
-   * Unassign / delete a package from a service (does NOT delete global template package or other services' packages)
+   * Unassign / delete a package from a service
    */
   async deleteServicePackage(serviceId: string, packageId: string): Promise<void> {
-    const db = getDatabase();
+    const normKey = (serviceId || '').toLowerCase().trim();
+    const canon = canonicalizeServiceKey(normKey);
+    const idKey = canon ? canon.id : normKey;
 
-    await db
-      .delete(servicePackages)
-      .where(and(eq(servicePackages.serviceId, serviceId), eq(servicePackages.packageId, packageId)));
+    const storeMap = servicePackagesStore.get(idKey);
+    if (storeMap) {
+      storeMap.delete(packageId);
+    }
+    const assigned = this.getAssignedPackageIds(idKey);
+    if (assigned) {
+      this.setAssignedPackageIds(idKey, assigned.filter((id) => id !== packageId));
+    }
+
+    const isConnected = await pingDatabase();
+    if (isConnected.connected) {
+      try {
+        const db = getDatabase();
+        await db
+          .delete(servicePackages)
+          .where(and(eq(servicePackages.serviceId, idKey), eq(servicePackages.packageId, packageId)));
+      } catch (err: any) {
+        logger.warn(`DB delete failed for ${serviceId}/${packageId}: ${err?.message || err}`);
+      }
+    }
 
     logger.info(`Unassigned package '${packageId}' from service '${serviceId}'`, 'ServicePackageRepo');
   }
 }
 
 export const servicePackageRepository = new ServicePackageRepository();
+

@@ -43,6 +43,9 @@ router.get('/:serviceId/packages/:packageId', (req, res) => adminServicePackageC
 // POST /api/admin/services/:serviceId/packages - Assign or create package for this service
 router.post('/:serviceId/packages', (req, res) => adminServicePackageController.assignPackage(req, res));
 
+// PUT /api/admin/services/:serviceId/packages - Set assigned package IDs for this service (1, 2, or 3 packages)
+router.put('/:serviceId/packages', (req, res) => adminServicePackageController.setAssignedPackages(req, res));
+
 // PUT /api/admin/services/:serviceId/packages/:packageId - Update package config & deliverables for THIS service ONLY
 router.put('/:serviceId/packages/:packageId', (req, res) => adminServicePackageController.updateServicePackage(req, res));
 

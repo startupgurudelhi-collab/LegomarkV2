@@ -18,6 +18,7 @@ import {
 import { eq, and, asc, inArray } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 import { SERVICES, SERVICE_CATEGORIES, PACKAGES, getServiceBySlug, getRelatedServices } from '../../src/data/websiteData';
+import { servicePackageRepository } from './service-package.repository';
 
 export interface PublicCategoryItem {
   id: string;
@@ -412,60 +413,45 @@ export class ServiceRepository {
           timeline: r.timeline,
           iconName: r.iconName,
         })),
-        packages: (() => {
-          if (s.packages && s.packages.length > 0) {
-            return s.packages.map((pkg, pIdx) => ({
-              id: pkg.id,
-              name: pkg.name,
-              tagline: pkg.tagline || null,
-              price: pkg.price,
-              priceAmount: parseFloat(String(pkg.price).replace(/[^\d.]/g, '')) || 0,
-              currency: 'INR',
-              billingType: pkg.period?.includes('year') ? 'yearly' : pkg.period?.includes('mo') ? 'monthly' : 'one_time',
-              idealFor: pkg.idealFor,
-              popular: !!pkg.popular,
-              badge: pkg.badge || null,
-              features: pkg.features || [],
-              displayOrder: pIdx,
-            }));
-          }
-          if (s.landingPage?.packages && s.landingPage.packages.length > 0) {
-            return s.landingPage.packages.map((pkg, pIdx) => ({
-              id: pkg.id,
-              name: pkg.name,
-              tagline: pkg.tagline || null,
-              price: pkg.price,
-              priceAmount: parseFloat(String(pkg.price).replace(/[^\d.]/g, '')) || 0,
-              currency: 'INR',
-              billingType: pkg.period?.includes('year') ? 'yearly' : pkg.period?.includes('mo') ? 'monthly' : 'one_time',
-              idealFor: pkg.idealFor,
-              popular: !!pkg.popular,
-              badge: pkg.badge || null,
-              features: pkg.features || [],
-              displayOrder: pIdx,
-            }));
-          }
-          // Check assigned packages for this service
-          const assignedIds = servicePackageAssignments.get(s.id) || servicePackageAssignments.get(s.slug);
-          let targetList = PACKAGES;
+        packages: await (async () => {
+          const servicePkgs = await servicePackageRepository.getServicePackages(s.id);
+          const assignedIds =
+            servicePackageRepository.getAssignedPackageIds(s.id) ||
+            servicePackageRepository.getAssignedPackageIds(s.slug) ||
+            servicePackageAssignments.get(s.id) ||
+            servicePackageAssignments.get(s.slug);
+
+          let targetList = servicePkgs;
           if (assignedIds !== undefined) {
             if (assignedIds.length === 0) return [];
-            targetList = assignedIds.map((id) => PACKAGES.find((p) => p.id === id)).filter(Boolean) as typeof PACKAGES;
+            targetList = assignedIds
+              .map((id) => servicePkgs.find((p) => p.id === id))
+              .filter((p): p is typeof servicePkgs[0] => Boolean(p));
           }
-          return targetList.map((pkg, pIdx) => ({
-            id: pkg.id,
-            name: pkg.name,
-            tagline: pkg.tagline || null,
-            price: pkg.price,
-            priceAmount: parseFloat(String(pkg.price).replace(/[^\d.]/g, '')) || 0,
-            currency: 'INR',
-            billingType: pkg.period?.includes('year') ? 'yearly' : pkg.period?.includes('mo') ? 'monthly' : 'one_time',
-            idealFor: pkg.idealFor,
-            popular: !!pkg.popular,
-            badge: pkg.badge || null,
-            features: pkg.features || [],
-            displayOrder: pIdx,
-          }));
+
+          return targetList.map((pkg, pIdx) => {
+            const rawDigits = String(pkg.priceAmount || '').replace(/[^\d.]/g, '');
+            const parsedNum = parseFloat(rawDigits) || 0;
+            const finalPriceDisplay =
+              pkg.priceDisplayOverride && pkg.priceDisplayOverride.trim().length > 0
+                ? pkg.priceDisplayOverride.trim()
+                : (parsedNum > 0 ? `₹${parsedNum.toLocaleString('en-IN')}` : (pkg as any).price || '₹0');
+
+            return {
+              id: pkg.id,
+              name: pkg.name,
+              tagline: pkg.tagline || null,
+              price: finalPriceDisplay,
+              priceAmount: parsedNum,
+              currency: pkg.currency || 'INR',
+              billingType: (pkg.billingType || 'one_time') as any,
+              idealFor: pkg.idealFor || '',
+              popular: !!pkg.popular,
+              badge: pkg.badge || null,
+              features: (pkg.features || []).map((f: any) => (typeof f === 'string' ? f : f.featureText)),
+              displayOrder: pkg.displayOrder !== undefined ? pkg.displayOrder : pIdx,
+            };
+          });
         })(),
         seo: {
           title: `${s.title} | Corporate Legal & Tax Advisory | LEGOMARK INDIA`,

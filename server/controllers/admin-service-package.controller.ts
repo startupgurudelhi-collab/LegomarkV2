@@ -151,6 +151,36 @@ export class AdminServicePackageController {
   }
 
   /**
+   * PUT /api/admin/services/:serviceId/packages
+   * Set assigned package IDs for a service (1, 2, or 3 packages)
+   */
+  async setAssignedPackages(req: Request, res: Response): Promise<void> {
+    try {
+      const { serviceId } = req.params;
+      const { packageIds } = req.body;
+      if (!Array.isArray(packageIds)) {
+        res.status(400).json({
+          success: false,
+          error: 'Missing or invalid packageIds array',
+        });
+        return;
+      }
+      await servicePackageRepository.setAssignedPackageIds(serviceId, packageIds);
+      res.status(200).json({
+        success: true,
+        message: 'Assigned packages updated successfully',
+        data: packageIds,
+      });
+    } catch (error) {
+      logger.error('Failed to set assigned packages for service', 'AdminServicePackageController', error);
+      res.status(400).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to update assigned packages',
+      });
+    }
+  }
+
+  /**
    * DELETE /api/admin/services/:serviceId/packages/:packageId
    */
   async deleteServicePackage(req: Request, res: Response): Promise<void> {
