@@ -21,6 +21,7 @@ import {
 import { BlogPost } from '../../types/blog';
 import { fetchPublicBlogBySlug, fetchPublicBlogs } from '../../services/blog.service';
 import { RichContentRenderer } from './RichContentRenderer';
+import { BlogCommentsSection } from './BlogCommentsSection';
 
 interface BlogDetailPageProps {
   slug: string;
@@ -258,6 +259,9 @@ export const BlogDetailPage: React.FC<BlogDetailPageProps> = ({
               Book Free Consultation
             </button>
           </div>
+
+          {/* Compact Blog Comments & Community Discussion */}
+          <BlogCommentsSection blogSlug={article.slug} blogTitle={article.title} />
         </article>
 
         {/* 4. Related Publications Section */}

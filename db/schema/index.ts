@@ -881,6 +881,39 @@ export type NewAssociationLogo = typeof associationLogos.$inferInsert;
 
 /**
  * ============================================================================
+ * STAGE 13: BLOG COMMENTS & DISCUSSION
+ * ============================================================================
+ */
+export const blogComments = pgTable(
+  'blog_comments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    blogId: uuid('blog_id'),
+    blogSlug: varchar('blog_slug', { length: 255 }).notNull(),
+    blogTitle: varchar('blog_title', { length: 255 }).notNull(),
+    authorName: varchar('author_name', { length: 150 }).notNull(),
+    authorEmail: varchar('author_email', { length: 255 }),
+    content: text('content').notNull(),
+    status: varchar('status', { length: 32 }).notNull().default('pending'), // 'pending' | 'approved' | 'rejected'
+    adminReply: text('admin_reply'),
+    adminRepliedAt: timestamp('admin_replied_at', { withTimezone: true }),
+    adminRepliedBy: varchar('admin_replied_by', { length: 150 }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    blogIdIdx: index('blog_comments_blog_id_idx').on(table.blogId),
+    blogSlugIdx: index('blog_comments_blog_slug_idx').on(table.blogSlug),
+    statusIdx: index('blog_comments_status_idx').on(table.status),
+    createdAtIdx: index('blog_comments_created_at_idx').on(table.createdAt),
+  })
+);
+
+export type BlogComment = typeof blogComments.$inferSelect;
+export type NewBlogComment = typeof blogComments.$inferInsert;
+
+/**
+ * ============================================================================
  * STAGE 12: WEBSITE VISITOR ANALYTICS SCHEMA
  * ============================================================================
  */

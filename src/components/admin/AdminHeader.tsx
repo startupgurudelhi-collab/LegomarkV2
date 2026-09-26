@@ -61,6 +61,10 @@ const SECTION_TITLES: Record<AdminNavSection, { title: string; subtitle: string 
     title: 'Blogs & Legal Insights',
     subtitle: 'Publish articles, guides, and tax compliance updates',
   },
+  'blog-comments': {
+    title: 'Blog Comments & Moderation',
+    subtitle: 'Review, approve, reject, and reply to reader queries on legal publications',
+  },
   'ai-seo-optimizer': {
     title: 'AI SEO Optimizer',
     subtitle: 'Diagnostic on-page SEO intelligence, LEGOMARK Score (0–100), and content improvement review',

@@ -12,6 +12,7 @@ import { AdminWebsiteCMS } from './AdminWebsiteCMS';
 import { AdminTestimonialsCMS } from './AdminTestimonialsCMS';
 import { AdminMediaLibrary } from './AdminMediaLibrary';
 import { AdminBlogCMS } from './AdminBlogCMS';
+import { AdminBlogCommentsPage } from './AdminBlogCommentsPage';
 import { AdminKeywordClusterPage } from './AdminKeywordClusterPage';
 import { AdminBlogSeriesPage } from './AdminBlogSeriesPage';
 import { AdminInternalLinkingPage } from './AdminInternalLinkingPage';
@@ -77,6 +78,12 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
       return 'media';
     }
     if (currentPath.includes('/admin/analytics')) return 'analytics';
+    if (
+      currentPath.includes('/admin/blog-comments') ||
+      currentPath.includes('/admin/comments')
+    ) {
+      return 'blog-comments';
+    }
     if (currentPath.includes('/admin/blogs')) return 'blogs';
     if (
       currentPath.includes('/admin/seo-optimizer') ||
@@ -129,6 +136,7 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
       testimonials: '/admin/testimonials',
       media: '/admin/media',
       blogs: '/admin/blogs',
+      'blog-comments': '/admin/blog-comments',
       'ai-seo-optimizer': '/admin/ai-seo-optimizer',
       'keyword-cluster': '/admin/keyword-cluster',
       'blog-series': '/admin/blog-series',
@@ -255,6 +263,7 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
           {activeSection === 'testimonials' && <AdminTestimonialsCMS />}
           {activeSection === 'media' && <AdminMediaLibrary />}
           {activeSection === 'blogs' && <AdminBlogCMS />}
+          {activeSection === 'blog-comments' && <AdminBlogCommentsPage />}
           {activeSection === 'ai-seo-optimizer' && (
             <AdminAiSeoOptimizer onNavigateSection={handleNavigateSection} />
           )}

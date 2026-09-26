@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   User,
   Gauge,
+  MessageSquare,
 } from 'lucide-react';
 import { AdminUser } from '../../types/admin';
 
@@ -34,6 +35,7 @@ export type AdminNavSection =
   | 'testimonials'
   | 'media'
   | 'blogs'
+  | 'blog-comments'
   | 'ai-seo-optimizer'
   | 'keyword-cluster'
   | 'blog-series'
@@ -124,6 +126,12 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       label: 'Blogs & Articles',
       description: 'Legal & Tax Insights',
       icon: BookOpen,
+    },
+    {
+      id: 'blog-comments',
+      label: 'Blog Comments',
+      description: 'Moderation & Discussion',
+      icon: MessageSquare,
     },
     {
       id: 'ai-seo-optimizer',
