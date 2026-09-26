@@ -16,6 +16,7 @@ import { AdminKeywordClusterPage } from './AdminKeywordClusterPage';
 import { AdminBlogSeriesPage } from './AdminBlogSeriesPage';
 import { AdminInternalLinkingPage } from './AdminInternalLinkingPage';
 import { AdminOrphanPageDetector } from './AdminOrphanPageDetector';
+import { AdminAiSeoOptimizer } from './AdminAiSeoOptimizer';
 import { AdminWebsiteSettingsCMS } from './AdminWebsiteSettingsCMS';
 import { AdminClientLogosCMS } from './AdminClientLogosCMS';
 import { AdminAnalyticsPage } from './AdminAnalyticsPage';
@@ -78,6 +79,13 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
     if (currentPath.includes('/admin/analytics')) return 'analytics';
     if (currentPath.includes('/admin/blogs')) return 'blogs';
     if (
+      currentPath.includes('/admin/seo-optimizer') ||
+      currentPath.includes('/admin/ai-seo-optimizer') ||
+      currentPath.includes('/admin/seo')
+    ) {
+      return 'ai-seo-optimizer';
+    }
+    if (
       currentPath.includes('/admin/keyword-cluster') ||
       currentPath.includes('/admin/keywordcluster') ||
       currentPath.includes('/admin/keywords')
@@ -121,6 +129,7 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
       testimonials: '/admin/testimonials',
       media: '/admin/media',
       blogs: '/admin/blogs',
+      'ai-seo-optimizer': '/admin/ai-seo-optimizer',
       'keyword-cluster': '/admin/keyword-cluster',
       'blog-series': '/admin/blog-series',
       'internal-linking': '/admin/internal-linking',
@@ -246,6 +255,9 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
           {activeSection === 'testimonials' && <AdminTestimonialsCMS />}
           {activeSection === 'media' && <AdminMediaLibrary />}
           {activeSection === 'blogs' && <AdminBlogCMS />}
+          {activeSection === 'ai-seo-optimizer' && (
+            <AdminAiSeoOptimizer onNavigateSection={handleNavigateSection} />
+          )}
           {activeSection === 'keyword-cluster' && <AdminKeywordClusterPage />}
           {activeSection === 'blog-series' && (
             <AdminBlogSeriesPage onNavigateSection={handleNavigateSection} />

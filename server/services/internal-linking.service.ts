@@ -1,16 +1,24 @@
 import { GoogleGenAI, Type, Schema } from '@google/genai';
 import { blogRepository } from '../repositories/blog.repository';
-import { serviceService } from '../services/service.service';
+import { serviceRepository } from '../repositories/service.repository';
 import { logger } from '../utils/logger';
+
+export type InternalLinkType = 'service_to_service' | 'blog_to_service' | 'blog_to_blog';
 
 export interface InternalLinkOpportunity {
   id: string;
-  sourceBlogId: string;
+  linkType: InternalLinkType;
+  sourceType: 'service' | 'blog';
+  sourceId: string;
+  sourceBlogId?: string; // backward compatibility
   sourceTitle: string;
   sourceSlug: string;
+  sourceUrl: string;
   sourceCategory?: string;
   targetType: 'service' | 'blog';
+  targetId?: string;
   targetTitle: string;
+  targetSlug: string;
   targetUrl: string;
   anchorText: string;
   contextSnippet?: string;
@@ -18,128 +26,41 @@ export interface InternalLinkOpportunity {
   status: 'pending' | 'accepted' | 'rejected';
 }
 
+export interface InboundLinkAuditItem {
+  id: string;
+  title: string;
+  slug: string;
+  url: string;
+  type: 'service' | 'blog';
+  category: string;
+  incomingLinkCount: number;
+  status: 'orphaned' | 'low_links' | 'healthy';
+  incomingSources: Array<{
+    sourceTitle: string;
+    sourceUrl: string;
+    sourceType: 'service' | 'blog';
+  }>;
+}
+
+export interface InboundLinkAuditSummary {
+  totalPages: number;
+  totalServices: number;
+  totalBlogs: number;
+  orphanedCount: number;
+  lowLinksCount: number;
+  healthyCount: number;
+}
+
 export interface InternalLinkingScanResult {
   totalScannedBlogs: number;
   totalScannedServices: number;
   suggestions: InternalLinkOpportunity[];
   scannedAt: string;
+  inboundAudit?: {
+    summary: InboundLinkAuditSummary;
+    pages: InboundLinkAuditItem[];
+  };
 }
-
-// Fallback services catalog in case database is cold/offline
-const FALLBACK_SERVICES = [
-  {
-    title: 'Private Limited Company Registration',
-    slug: 'private-limited-company',
-    url: '/services/private-limited-company',
-    category: 'Company Registration',
-    keywords: ['private limited company', 'pvt ltd registration', 'incorporate company', 'spicce+'],
-  },
-  {
-    title: 'Limited Liability Partnership (LLP) Registration',
-    slug: 'limited-liability-partnership-llp',
-    url: '/services/limited-liability-partnership-llp',
-    category: 'Company Registration',
-    keywords: ['llp registration', 'limited liability partnership', 'llp agreement', 'form 11'],
-  },
-  {
-    title: 'One Person Company (OPC) Registration',
-    slug: 'one-person-company-opc',
-    url: '/services/one-person-company-opc',
-    category: 'Company Registration',
-    keywords: ['opc registration', 'one person company', 'solo entrepreneur', 'nominee director'],
-  },
-  {
-    title: 'Section 8 (NGO / Non-Profit) Company',
-    slug: 'section-8-company',
-    url: '/services/section-8-company',
-    category: 'Company Registration',
-    keywords: ['section 8 company', 'ngo registration', 'non-profit incorporation', '12a 80g'],
-  },
-  {
-    title: 'GST Registration',
-    slug: 'gst-registration',
-    url: '/services/gst-registration',
-    category: 'Taxation & GST',
-    keywords: ['gst registration', 'gstin application', 'gst number', 'goods and services tax'],
-  },
-  {
-    title: 'GST Return Filing (GSTR-1 & GSTR-3B)',
-    slug: 'gst-return-filing',
-    url: '/services/gst-return-filing',
-    category: 'Taxation & GST',
-    keywords: ['gstr-3b', 'gstr-1', 'gst monthly return', 'gst return filing'],
-  },
-  {
-    title: 'GST Annual Return (GSTR-9 & 9C)',
-    slug: 'gst-annual-return-gstr-9',
-    url: '/services/gst-annual-return-gstr-9',
-    category: 'Taxation & GST',
-    keywords: ['gstr-9', 'gstr-9c', 'gst annual audit', 'annual reconciliation'],
-  },
-  {
-    title: 'Income Tax Return (ITR) Filing',
-    slug: 'income-tax-return-itr-filing',
-    url: '/services/income-tax-return-itr-filing',
-    category: 'Taxation & GST',
-    keywords: ['itr filing', 'income tax return', 'itr-6 corporate', 'tax audit'],
-  },
-  {
-    title: 'TDS Return Filing',
-    slug: 'tds-return-filing',
-    url: '/services/tds-return-filing',
-    category: 'Taxation & GST',
-    keywords: ['tds return', 'form 24q', 'form 26q', 'tax deducted at source'],
-  },
-  {
-    title: 'Trademark Registration & Protection',
-    slug: 'trademark-registration',
-    url: '/services/trademark-registration',
-    category: 'Trademark & IP',
-    keywords: ['trademark registration', 'tm application', 'brand protection', 'tm-a form'],
-  },
-  {
-    title: 'Trademark Objection Reply & Hearing',
-    slug: 'trademark-objection-reply',
-    url: '/services/trademark-objection-reply',
-    category: 'Trademark & IP',
-    keywords: ['trademark objection', 'examination report reply', 'section 9 11', 'tm hearing'],
-  },
-  {
-    title: 'MCA Annual Return & Compliance (AOC-4 & MGT-7)',
-    slug: 'mca-annual-compliance',
-    url: '/services/mca-annual-compliance',
-    category: 'Compliance & ROC',
-    keywords: ['aoc-4', 'mgt-7', 'mca annual filing', 'director kyc'],
-  },
-  {
-    title: 'Director KYC (DIR-3 KYC)',
-    slug: 'dir-3-kyc-director-compliance',
-    url: '/services/dir-3-kyc-director-compliance',
-    category: 'Compliance & ROC',
-    keywords: ['dir-3 kyc', 'director identification number', 'din deactivation'],
-  },
-  {
-    title: 'FSSAI Food License Registration',
-    slug: 'fssai-food-license',
-    url: '/services/fssai-food-license',
-    category: 'FSSAI & Licensing',
-    keywords: ['fssai license', 'food safety permit', 'state fssai', 'foscos registration'],
-  },
-  {
-    title: 'MSME / Udyam Registration',
-    slug: 'msme-udyam-registration',
-    url: '/services/msme-udyam-registration',
-    category: 'FSSAI & Licensing',
-    keywords: ['udyam registration', 'msme certificate', 'priority sector lending'],
-  },
-  {
-    title: 'Corporate Legal & Structural Advisory',
-    slug: 'corporate-legal-advisory',
-    url: '/services/corporate-legal-advisory',
-    category: 'Corporate Advisory',
-    keywords: ['shareholders agreement', 'term sheet', 'due diligence', 'corporate secretarial'],
-  },
-];
 
 export class InternalLinkingService {
   private getClient(): GoogleGenAI {
@@ -150,40 +71,167 @@ export class InternalLinkingService {
     return new GoogleGenAI({ apiKey });
   }
 
+  /**
+   * Scan internal links dynamically across ALL active services and blogs
+   */
   async scanInternalLinks(): Promise<InternalLinkingScanResult> {
-    logger.info('Starting AI Internal Linking scan', 'InternalLinkingService');
+    logger.info('Starting Dynamic AI Internal Linking scan', 'InternalLinkingService');
 
-    // 1. Gather existing blogs
+    // 1. Read existing blogs dynamically from PostgreSQL
     let blogsList: any[] = [];
     try {
       const blogData = await blogRepository.getAdminBlogs({ status: 'all' });
       blogsList = blogData.blogs || [];
     } catch (err) {
-      logger.warn('Failed to load blogs from repository, using fallback', 'InternalLinkingService', err);
+      logger.warn('Failed to load blogs from repository for internal linking', 'InternalLinkingService', err);
     }
 
-    if (!blogsList || blogsList.length === 0) {
-      logger.info('No blogs in database, fetching public blog list', 'InternalLinkingService');
-    }
-
-    // 2. Gather active services
-    let servicesList = FALLBACK_SERVICES;
+    // 2. Read ALL currently active services dynamically from PostgreSQL
+    let rawServices: any[] = [];
     try {
-      const dbServices = await serviceService.getAllPublicServices();
-      if (dbServices && dbServices.length > 0) {
-        servicesList = dbServices.map((s) => ({
-          title: s.title,
-          slug: s.slug,
-          url: `/services/${s.slug}`,
-          category: s.category || 'Legal & Corporate Services',
-          keywords: [s.title.toLowerCase()],
-        }));
-      }
+      rawServices = await serviceRepository.getAllPublicServices();
     } catch (err) {
-      logger.warn('Using fallback services list for scan', 'InternalLinkingService');
+      logger.error('Failed to load active services from repository', 'InternalLinkingService', err);
     }
 
-    // Prepare content summary of blogs for AI evaluation (keep payload concise to preserve tokens)
+    const servicesList = (rawServices || []).map((s) => ({
+      id: String(s.id),
+      title: s.title,
+      slug: s.slug,
+      url: `/services/${s.slug}`,
+      category: s.category || 'Corporate Services',
+      shortDesc: s.shortDesc || '',
+      fullDesc: s.fullDesc || '',
+      features: Array.isArray(s.features) ? s.features : [],
+    }));
+
+    logger.info(
+      `Loaded ${blogsList.length} blogs and ${servicesList.length} active services dynamically`,
+      'InternalLinkingService'
+    );
+
+    // 3. Build unified Inbound Link Audit (Orphan / Low Link Detection)
+    const allPages: Array<{
+      id: string;
+      title: string;
+      slug: string;
+      url: string;
+      type: 'service' | 'blog';
+      category: string;
+      content: string;
+    }> = [];
+
+    // Map blogs
+    blogsList.forEach((b) => {
+      allPages.push({
+        id: String(b.id),
+        title: b.title || 'Untitled Blog',
+        slug: b.slug,
+        url: `/blog/${b.slug}`,
+        type: 'blog',
+        category: b.category || 'Legal & Tax Insights',
+        content: b.content || '',
+      });
+    });
+
+    // Map services
+    servicesList.forEach((s) => {
+      const serviceContent = `${s.shortDesc} ${s.fullDesc} ${s.features.join(' ')}`;
+      allPages.push({
+        id: s.id,
+        title: s.title,
+        slug: s.slug,
+        url: s.url,
+        type: 'service',
+        category: s.category,
+        content: serviceContent,
+      });
+    });
+
+    // Construct inbound link map
+    const incomingLinkMap = new Map<
+      string,
+      Array<{ sourceTitle: string; sourceUrl: string; sourceType: 'service' | 'blog' }>
+    >();
+
+    allPages.forEach((p) => {
+      incomingLinkMap.set(p.url, []);
+      incomingLinkMap.set(`/${p.type === 'service' ? 'services' : 'blog'}/${p.slug}`, []);
+    });
+
+    // Scan links across all pages
+    allPages.forEach((sourcePage) => {
+      const content = sourcePage.content || '';
+      if (!content) return;
+
+      allPages.forEach((targetPage) => {
+        // Prevent self-linking count
+        if (targetPage.url === sourcePage.url || targetPage.slug === sourcePage.slug) return;
+
+        const escapedSlug = targetPage.slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // Match patterns:
+        // Markdown [text](/url) or (https://.../url) or <a href="/url"> or relative link
+        const targetPattern = new RegExp(
+          `(\\(|["'])(https?://[^"'/)]+)?(/(services|blog)/${escapedSlug}|/${escapedSlug})([#?"']|\\))`,
+          'i'
+        );
+
+        if (targetPattern.test(content)) {
+          const list = incomingLinkMap.get(targetPage.url) || [];
+          if (!list.some((l) => l.sourceUrl === sourcePage.url)) {
+            list.push({
+              sourceTitle: sourcePage.title,
+              sourceUrl: sourcePage.url,
+              sourceType: sourcePage.type,
+            });
+            incomingLinkMap.set(targetPage.url, list);
+          }
+        }
+      });
+    });
+
+    // Compute orphan audit items
+    const auditPages: InboundLinkAuditItem[] = allPages.map((page) => {
+      const links = incomingLinkMap.get(page.url) || [];
+      const linkCount = links.length;
+
+      let status: 'orphaned' | 'low_links' | 'healthy' = 'healthy';
+      if (linkCount === 0) {
+        status = 'orphaned';
+      } else if (linkCount === 1) {
+        status = 'low_links';
+      }
+
+      return {
+        id: page.id,
+        title: page.title,
+        slug: page.slug,
+        url: page.url,
+        type: page.type,
+        category: page.category,
+        incomingLinkCount: linkCount,
+        status,
+        incomingSources: links,
+      };
+    });
+
+    const orphanedCount = auditPages.filter((p) => p.status === 'orphaned').length;
+    const lowLinksCount = auditPages.filter((p) => p.status === 'low_links').length;
+    const healthyCount = auditPages.filter((p) => p.status === 'healthy').length;
+
+    const inboundAudit = {
+      summary: {
+        totalPages: auditPages.length,
+        totalServices: servicesList.length,
+        totalBlogs: blogsList.length,
+        orphanedCount,
+        lowLinksCount,
+        healthyCount,
+      },
+      pages: auditPages,
+    };
+
+    // 4. Prepare Corpus for AI Link Suggestion
     const blogCorpus = blogsList.map((b) => {
       const cleanContent = (b.content || '')
         .replace(/<[^>]*>?/gm, ' ')
@@ -191,237 +239,386 @@ export class InternalLinkingService {
         .replace(/\s+/g, ' ')
         .trim();
 
-      // Sample first 1200 characters of each blog
-      const sample = cleanContent.slice(0, 1200);
-
+      const sample = cleanContent.slice(0, 1000);
       return {
-        id: b.id,
+        id: String(b.id),
         title: b.title,
         slug: b.slug,
         category: b.category,
         url: `/blog/${b.slug}`,
-        excerpt: b.excerpt || sample.slice(0, 180),
         sampleContent: sample,
       };
     });
 
-    // Prepare target services summary
     const serviceTargets = servicesList.map((s) => ({
+      id: s.id,
       title: s.title,
+      slug: s.slug,
       url: s.url,
       category: s.category,
-      keywords: s.keywords?.slice(0, 3).join(', '),
+      shortDesc: s.shortDesc?.slice(0, 150),
     }));
 
-    // If there are no blogs at all, provide high-value seed opportunities
-    if (blogCorpus.length === 0) {
+    // If both services and blogs are empty, return early
+    if (servicesList.length === 0 && blogCorpus.length === 0) {
       return {
         totalScannedBlogs: 0,
-        totalScannedServices: serviceTargets.length,
+        totalScannedServices: 0,
         suggestions: [],
         scannedAt: new Date().toISOString(),
+        inboundAudit,
       };
-    }
-
-    const ai = this.getClient();
-
-    const prompt = `You are a premier Technical SEO and Corporate Legal Content Strategist for LEGOMARK INDIA (legomarkindia.com).
-
-Analyze the following list of existing blog articles and high-value target service pages to identify the most commercially impactful and contextually natural internal linking opportunities:
-
-TARGET SERVICES (to link to):
-${JSON.stringify(serviceTargets.slice(0, 16), null, 2)}
-
-SOURCE BLOG ARTICLES (to add links inside):
-${JSON.stringify(blogCorpus.slice(0, 10), null, 2)}
-
-INSTRUCTIONS & RULES:
-1. For each identified opportunity:
-   - sourceBlogId: Exact ID of the source blog article from the list above.
-   - sourceTitle: Title of the source blog.
-   - sourceSlug: Slug of the source blog.
-   - targetType: 'service' (linking to a service page) or 'blog' (linking to a related blog).
-   - targetTitle: Exact title of the target service or target blog.
-   - targetUrl: Exact relative URL of target (e.g., /services/private-limited-company or /blog/trademark-registration-guide).
-   - anchorText: The exact or natural phrase (2 to 6 words) present or suitable in the source article. Must be descriptive, natural, and never generic (never use "click here", "read more", "this link").
-   - contextSnippet: A concise sentence showing how the anchor text should naturally be linked inside the article body.
-   - reason: Clear, compelling commercial and SEO rationale (e.g., "Direct commercial intent for company registration; passes topical equity from guide to service page").
-2. Prioritize high-intent commercial service pages (e.g. Private Limited Company Registration, Trademark Registration, GST Return Filing, MCA Annual Compliance).
-3. Ensure anchor texts are grammatically natural within Indian corporate law context.
-4. Suggest between 4 and 10 high-quality internal link opportunities.`;
-
-    const responseSchema: Schema = {
-      type: Type.OBJECT,
-      properties: {
-        opportunities: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              sourceBlogId: { type: Type.STRING },
-              sourceTitle: { type: Type.STRING },
-              sourceSlug: { type: Type.STRING },
-              targetType: { type: Type.STRING, description: "'service' or 'blog'" },
-              targetTitle: { type: Type.STRING },
-              targetUrl: { type: Type.STRING },
-              anchorText: { type: Type.STRING },
-              contextSnippet: { type: Type.STRING },
-              reason: { type: Type.STRING },
-            },
-            required: [
-              'sourceBlogId',
-              'sourceTitle',
-              'sourceSlug',
-              'targetType',
-              'targetTitle',
-              'targetUrl',
-              'anchorText',
-              'reason',
-            ],
-          },
-        },
-      },
-      required: ['opportunities'],
-    };
-
-    const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
-    let responseText: string | null = null;
-    let lastError: any = null;
-
-    for (const modelName of candidateModels) {
-      try {
-        const res = await ai.models.generateContent({
-          model: modelName,
-          contents: prompt,
-          config: {
-            responseMimeType: 'application/json',
-            responseSchema,
-            temperature: 0.3,
-          },
-        });
-        if (res && res.text) {
-          responseText = res.text.trim();
-          logger.info(`Successfully generated internal link suggestions using: ${modelName}`, 'InternalLinkingService');
-          break;
-        }
-      } catch (err: any) {
-        lastError = err;
-        logger.warn(`Failed internal linking scan with ${modelName}: ${err?.message || err}. Trying fallback...`, 'InternalLinkingService');
-      }
     }
 
     let parsedSuggestions: any[] = [];
-    if (responseText) {
-      try {
-        const parsed = JSON.parse(responseText);
-        parsedSuggestions = Array.isArray(parsed.opportunities) ? parsed.opportunities : [];
-      } catch (e) {
-        logger.error('Failed to parse Gemini response as JSON', 'InternalLinkingService', e);
+
+    // 5. Query Gemini AI for 3 Types of Internal Links
+    try {
+      const ai = this.getClient();
+
+      const prompt = `You are the Senior Technical SEO and Commercial Legal Content Strategist for LEGOMARK INDIA (legomarkindia.com).
+
+Analyze the following DYNAMIC database of active corporate services and existing blog articles to find the most impactful, natural internal linking opportunities:
+
+ALL ACTIVE SERVICES (${serviceTargets.length} services currently live):
+${JSON.stringify(serviceTargets, null, 2)}
+
+EXISTING BLOG ARTICLES (${blogCorpus.length} articles):
+${JSON.stringify(blogCorpus.slice(0, 12), null, 2)}
+
+CRITICAL REQUIREMENTS:
+Generate recommendations across THREE link types:
+1. "service_to_service":
+   - Source is an active Service page.
+   - Target is a complementary/prerequisite Service page (e.g., Company Registration linking to GST Registration or MCA Compliance; Trademark Registration linking to Trademark Objection Reply; Section 8 linking to 12A/80G NGO Compliance).
+   - Anchor text: specific, commercial, natural (e.g. "mandatory GST registration", "MCA annual secretarial compliance").
+   - Reason: explain cross-sell and regulatory progression for Indian founders.
+
+2. "blog_to_service":
+   - Source is a Blog article.
+   - Target is an active Service page.
+   - Anchor text: natural phrase in the guide pointing to official professional filing assistance.
+   - Reason: funneling informational search intent into commercial advisory.
+
+3. "blog_to_blog":
+   - Source is a Blog article.
+   - Target is another related Blog article.
+   - Anchor text: contextual keyword phrase linking related guides (e.g. Pvt Ltd vs LLP guide linking to Director KYC guide).
+   - Reason: building topical clusters and passing link equity.
+
+RULES:
+- Never use generic anchor text like "click here", "read more", "this link". Anchor text must be 2 to 6 words.
+- Provide between 6 and 14 high-quality opportunities.
+- Prioritize pages with low inbound links or high commercial value.`;
+
+      const responseSchema: Schema = {
+        type: Type.OBJECT,
+        properties: {
+          opportunities: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                linkType: {
+                  type: Type.STRING,
+                  description: "'service_to_service', 'blog_to_service', or 'blog_to_blog'",
+                },
+                sourceType: { type: Type.STRING, description: "'service' or 'blog'" },
+                sourceId: { type: Type.STRING },
+                sourceTitle: { type: Type.STRING },
+                sourceSlug: { type: Type.STRING },
+                sourceUrl: { type: Type.STRING },
+                targetType: { type: Type.STRING, description: "'service' or 'blog'" },
+                targetTitle: { type: Type.STRING },
+                targetSlug: { type: Type.STRING },
+                targetUrl: { type: Type.STRING },
+                anchorText: { type: Type.STRING },
+                contextSnippet: { type: Type.STRING },
+                reason: { type: Type.STRING },
+              },
+              required: [
+                'linkType',
+                'sourceType',
+                'sourceTitle',
+                'sourceSlug',
+                'sourceUrl',
+                'targetType',
+                'targetTitle',
+                'targetUrl',
+                'anchorText',
+                'reason',
+              ],
+            },
+          },
+        },
+        required: ['opportunities'],
+      };
+
+      const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+      let responseText: string | null = null;
+
+      for (const modelName of candidateModels) {
+        try {
+          const res = await ai.models.generateContent({
+            model: modelName,
+            contents: prompt,
+            config: {
+              responseMimeType: 'application/json',
+              responseSchema,
+              temperature: 0.3,
+            },
+          });
+          if (res && res.text) {
+            responseText = res.text.trim();
+            logger.info(
+              `Successfully generated internal link opportunities using: ${modelName}`,
+              'InternalLinkingService'
+            );
+            break;
+          }
+        } catch (err: any) {
+          logger.warn(
+            `Internal linking scan with ${modelName} error (${err?.message || err}). Trying fallback...`,
+            'InternalLinkingService'
+          );
+        }
+      }
+
+      if (responseText) {
+        try {
+          const parsed = JSON.parse(responseText);
+          parsedSuggestions = Array.isArray(parsed.opportunities) ? parsed.opportunities : [];
+        } catch (e) {
+          logger.error('Failed to parse Gemini internal linking response', 'InternalLinkingService', e);
+        }
+      }
+    } catch (aiErr) {
+      logger.warn(
+        'Gemini AI scan failed or skipped, using dynamic rule-based generation',
+        'InternalLinkingService'
+      );
+    }
+
+    // 6. If AI output was empty or lacked all 3 types, generate dynamic rule-based opportunities
+    if (parsedSuggestions.length === 0) {
+      parsedSuggestions = this.buildDynamicRuleBasedOpportunities(servicesList, blogCorpus);
+    } else {
+      // Ensure we have representation from all 3 types
+      const hasS2S = parsedSuggestions.some((s) => s.linkType === 'service_to_service');
+      const hasB2S = parsedSuggestions.some((s) => s.linkType === 'blog_to_service');
+      const hasB2B = parsedSuggestions.some((s) => s.linkType === 'blog_to_blog');
+
+      if (!hasS2S || !hasB2S || (!hasB2B && blogCorpus.length > 1)) {
+        const supplemental = this.buildDynamicRuleBasedOpportunities(servicesList, blogCorpus);
+        parsedSuggestions.push(...supplemental);
       }
     }
 
-    // If AI output was empty or errored, build rule-based contextual links from corpus
-    if (parsedSuggestions.length === 0) {
-      parsedSuggestions = this.buildRuleBasedOpportunities(blogCorpus, serviceTargets);
-    }
+    // 7. Sanitize & Normalize opportunities
+    const normalized: InternalLinkOpportunity[] = [];
+    const seenCombos = new Set<string>();
 
-    // Map and sanitize
-    const normalized: InternalLinkOpportunity[] = parsedSuggestions.map((item, index) => {
-      const targetType: 'service' | 'blog' = item.targetType === 'blog' ? 'blog' : 'service';
-      return {
-        id: `link-${index + 1}-${Date.now().toString(36)}`,
-        sourceBlogId: String(item.sourceBlogId || blogCorpus[0]?.id || '1'),
-        sourceTitle: String(item.sourceTitle || blogCorpus[0]?.title || 'Blog Article'),
-        sourceSlug: String(item.sourceSlug || blogCorpus[0]?.slug || 'blog-article'),
-        sourceCategory: blogCorpus.find((b) => b.id === item.sourceBlogId)?.category,
+    parsedSuggestions.forEach((item, index) => {
+      const linkType: InternalLinkType =
+        item.linkType === 'service_to_service'
+          ? 'service_to_service'
+          : item.linkType === 'blog_to_blog'
+          ? 'blog_to_blog'
+          : 'blog_to_service';
+
+      const sourceType: 'service' | 'blog' =
+        linkType === 'service_to_service' ? 'service' : 'blog';
+      const targetType: 'service' | 'blog' =
+        linkType === 'blog_to_blog' ? 'blog' : 'service';
+
+      // Find matching source entity
+      let sourceItem: any = null;
+      if (sourceType === 'service') {
+        sourceItem =
+          servicesList.find((s) => s.slug === item.sourceSlug || s.id === item.sourceId) ||
+          servicesList[0];
+      } else {
+        sourceItem =
+          blogCorpus.find((b) => b.slug === item.sourceSlug || b.id === item.sourceId) ||
+          blogCorpus[0];
+      }
+
+      if (!sourceItem) return;
+
+      // Find matching target entity
+      let targetItem: any = null;
+      if (targetType === 'service') {
+        targetItem =
+          servicesList.find((s) => s.slug === item.targetSlug || s.title === item.targetTitle) ||
+          servicesList.find((s) => s.slug !== sourceItem.slug) ||
+          servicesList[0];
+      } else {
+        targetItem =
+          blogCorpus.find((b) => b.slug === item.targetSlug || b.title === item.targetTitle) ||
+          blogCorpus.find((b) => b.slug !== sourceItem.slug) ||
+          blogCorpus[0];
+      }
+
+      if (!targetItem || targetItem.slug === sourceItem.slug) return;
+
+      const comboKey = `${sourceItem.slug}-->${targetItem.slug}`;
+      if (seenCombos.has(comboKey)) return;
+      seenCombos.add(comboKey);
+
+      const sourceUrl =
+        sourceType === 'service' ? `/services/${sourceItem.slug}` : `/blog/${sourceItem.slug}`;
+      const targetUrl =
+        targetType === 'service' ? `/services/${targetItem.slug}` : `/blog/${targetItem.slug}`;
+
+      normalized.push({
+        id: `link-${index + 1}-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
+        linkType,
+        sourceType,
+        sourceId: sourceItem.id,
+        sourceBlogId: sourceType === 'blog' ? sourceItem.id : undefined,
+        sourceTitle: sourceItem.title,
+        sourceSlug: sourceItem.slug,
+        sourceUrl,
+        sourceCategory: sourceItem.category,
         targetType,
-        targetTitle: String(item.targetTitle || 'Corporate Service'),
-        targetUrl: String(item.targetUrl || '/services'),
-        anchorText: String(item.anchorText || 'legal and compliance services'),
-        contextSnippet: item.contextSnippet ? String(item.contextSnippet) : undefined,
-        reason: String(item.reason || 'Contextual relevance and commercial authority distribution.'),
+        targetId: targetItem.id,
+        targetTitle: targetItem.title,
+        targetSlug: targetItem.slug,
+        targetUrl,
+        anchorText: item.anchorText || `${targetItem.title} services`,
+        contextSnippet:
+          item.contextSnippet ||
+          `Businesses undertaking ${sourceItem.title} frequently require [${item.anchorText || targetItem.title}](${targetUrl}) to maintain regulatory compliance.`,
+        reason:
+          item.reason ||
+          `Contextual authority and commercial alignment between ${sourceItem.title} and ${targetItem.title}.`,
         status: 'pending',
-      };
+      });
     });
 
     return {
       totalScannedBlogs: blogCorpus.length,
-      totalScannedServices: serviceTargets.length,
+      totalScannedServices: servicesList.length,
       suggestions: normalized,
       scannedAt: new Date().toISOString(),
+      inboundAudit,
     };
   }
 
-  private buildRuleBasedOpportunities(
-    blogCorpus: any[],
-    services: any[]
+  /**
+   * Dynamic rule-based linking across ALL active services and blogs
+   */
+  private buildDynamicRuleBasedOpportunities(
+    services: any[],
+    blogs: any[]
   ): any[] {
     const suggestions: any[] = [];
 
-    // Match keywords in blogs against service titles
-    blogCorpus.forEach((blog) => {
-      const contentLower = `${blog.title} ${blog.sampleContent}`.toLowerCase();
+    // A. Service → Service links
+    // Link related corporate services based on business lifecycle progression
+    if (services.length > 1) {
+      for (let i = 0; i < services.length; i++) {
+        const source = services[i];
+
+        // Find a complementary target service
+        const target = services.find((t) => {
+          if (t.slug === source.slug) return false;
+          // Match by category or complementary workflows
+          if (source.category && t.category && source.category === t.category) return true;
+          if (
+            (source.slug.includes('company') || source.slug.includes('llp')) &&
+            (t.slug.includes('gst') || t.slug.includes('compliance') || t.slug.includes('trademark'))
+          ) {
+            return true;
+          }
+          if (source.slug.includes('trademark') && t.slug.includes('objection')) return true;
+          if (source.slug.includes('gst') && t.slug.includes('return')) return true;
+          return false;
+        }) || services[(i + 1) % services.length];
+
+        if (target && target.slug !== source.slug) {
+          suggestions.push({
+            linkType: 'service_to_service',
+            sourceType: 'service',
+            sourceId: source.id,
+            sourceTitle: source.title,
+            sourceSlug: source.slug,
+            sourceUrl: `/services/${source.slug}`,
+            targetType: 'service',
+            targetTitle: target.title,
+            targetSlug: target.slug,
+            targetUrl: `/services/${target.slug}`,
+            anchorText: target.title,
+            contextSnippet: `Post-incorporation compliance requires completing [${target.title}](/services/${target.slug}) to begin official commercial operations.`,
+            reason: `Cross-sell lifecycle: Clients registering ${source.title} immediately need ${target.title}.`,
+          });
+        }
+
+        if (suggestions.length >= 4) break;
+      }
+    }
+
+    // B. Blog → Service links
+    // Match blog topics to active services
+    blogs.forEach((blog) => {
+      const blogText = `${blog.title} ${blog.sampleContent}`.toLowerCase();
 
       services.forEach((service) => {
-        const titleWords = service.title.toLowerCase();
-        if (contentLower.includes('private limited') && service.slug.includes('private-limited')) {
+        const titleTokens = service.title.toLowerCase().split(/\s+/).filter((w: string) => w.length > 3);
+        const matchesToken = titleTokens.some((t: string) => blogText.includes(t));
+
+        if (matchesToken) {
           suggestions.push({
-            sourceBlogId: blog.id,
+            linkType: 'blog_to_service',
+            sourceType: 'blog',
+            sourceId: blog.id,
             sourceTitle: blog.title,
             sourceSlug: blog.slug,
+            sourceUrl: `/blog/${blog.slug}`,
             targetType: 'service',
             targetTitle: service.title,
-            targetUrl: service.url,
-            anchorText: 'register a private limited company',
-            contextSnippet: 'Entrepreneurs looking to scale in India should register a private limited company to protect personal assets.',
-            reason: 'High commercial intent: Directly funnels company incorporation readers to the official registration service.',
-          });
-        } else if (contentLower.includes('trademark') && service.slug.includes('trademark-registration')) {
-          suggestions.push({
-            sourceBlogId: blog.id,
-            sourceTitle: blog.title,
-            sourceSlug: blog.slug,
-            targetType: 'service',
-            targetTitle: service.title,
-            targetUrl: service.url,
-            anchorText: 'trademark registration in India',
-            contextSnippet: 'Securing trademark registration in India grants statutory brand ownership and nationwide defense against counterfeiters.',
-            reason: 'Brand equity: Connects IP articles directly to the trademark filing workflow.',
-          });
-        } else if (contentLower.includes('gst') && service.slug.includes('gst-registration')) {
-          suggestions.push({
-            sourceBlogId: blog.id,
-            sourceTitle: blog.title,
-            sourceSlug: blog.slug,
-            targetType: 'service',
-            targetTitle: service.title,
-            targetUrl: service.url,
-            anchorText: 'mandatory GST registration',
-            contextSnippet: 'Businesses surpassing statutory turnover thresholds must complete mandatory GST registration without delay.',
-            reason: 'Statutory compliance: Guides readers with taxable supply to GST advisory and registration services.',
-          });
-        } else if (contentLower.includes('mca') && service.slug.includes('mca-annual')) {
-          suggestions.push({
-            sourceBlogId: blog.id,
-            sourceTitle: blog.title,
-            sourceSlug: blog.slug,
-            targetType: 'service',
-            targetTitle: service.title,
-            targetUrl: service.url,
-            anchorText: 'annual MCA compliance filings',
-            contextSnippet: 'Directors must ensure timely submission of annual MCA compliance filings to avoid heavy statutory penalties.',
-            reason: 'ROC Governance: Directs readers to professional annual secretarial filing packages.',
+            targetSlug: service.slug,
+            targetUrl: `/services/${service.slug}`,
+            anchorText: `professional ${service.title}`,
+            contextSnippet: `For complete statutory assistance and hassle-free filing, consult Legomark for [professional ${service.title}](/services/${service.slug}).`,
+            reason: `Commercial intent: Directly funnels readers seeking information on ${service.title} to the practice area package.`,
           });
         }
       });
     });
 
-    // Remove duplicates
-    const unique = suggestions.filter(
-      (v, i, a) => a.findIndex((t) => t.sourceBlogId === v.sourceBlogId && t.targetUrl === v.targetUrl) === i
-    );
+    // C. Blog → Blog links
+    // Connect related articles within same category
+    if (blogs.length > 1) {
+      for (let i = 0; i < blogs.length; i++) {
+        const b1 = blogs[i];
+        const b2 =
+          blogs.find((b, idx) => idx !== i && b.category === b1.category) ||
+          blogs[(i + 1) % blogs.length];
 
-    return unique.slice(0, 8);
+        if (b2 && b2.slug !== b1.slug) {
+          suggestions.push({
+            linkType: 'blog_to_blog',
+            sourceType: 'blog',
+            sourceId: b1.id,
+            sourceTitle: b1.title,
+            sourceSlug: b1.slug,
+            sourceUrl: `/blog/${b1.slug}`,
+            targetType: 'blog',
+            targetTitle: b2.title,
+            targetSlug: b2.slug,
+            targetUrl: `/blog/${b2.slug}`,
+            anchorText: b2.title.slice(0, 45),
+            contextSnippet: `To deepen your regulatory understanding, also read our detailed analysis on [${b2.title}](/blog/${b2.slug}).`,
+            reason: `Topical Cluster: Passes topical authority and reduces bounce rate between related ${b1.category} guides.`,
+          });
+        }
+
+        if (suggestions.filter((s) => s.linkType === 'blog_to_blog').length >= 3) break;
+      }
+    }
+
+    return suggestions;
   }
 }
 

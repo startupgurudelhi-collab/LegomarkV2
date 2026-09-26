@@ -30,6 +30,7 @@ import adminKeywordClusterRoutes from './admin-keyword-cluster.routes';
 import adminBlogSeriesRoutes from './admin-blog-series.routes';
 import adminInternalLinkingRoutes from './admin-internal-linking.routes';
 import adminOrphanPageRoutes from './admin-orphan-page.routes';
+import adminSeoOptimizerRoutes from './admin-seo-optimizer.routes';
 
 const apiRouter = Router();
 
@@ -58,6 +59,7 @@ apiRouter.use('/admin/keyword-cluster', adminKeywordClusterRoutes);
 apiRouter.use('/admin/blog-series', adminBlogSeriesRoutes);
 apiRouter.use('/admin/internal-linking', adminInternalLinkingRoutes);
 apiRouter.use('/admin/orphan-pages', adminOrphanPageRoutes);
+apiRouter.use('/admin/seo-optimizer', adminSeoOptimizerRoutes);
 apiRouter.use('/admin/settings', adminSettingsRoutes);
 apiRouter.use('/admin/client-logos', adminClientLogoRoutes);
 apiRouter.use('/admin/association-logos', adminAssociationLogoRoutes);

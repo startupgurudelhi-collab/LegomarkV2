@@ -19,6 +19,7 @@ import {
   ExternalLink,
   ShieldCheck,
   User,
+  Gauge,
 } from 'lucide-react';
 import { AdminUser } from '../../types/admin';
 
@@ -33,6 +34,7 @@ export type AdminNavSection =
   | 'testimonials'
   | 'media'
   | 'blogs'
+  | 'ai-seo-optimizer'
   | 'keyword-cluster'
   | 'blog-series'
   | 'internal-linking'
@@ -122,6 +124,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       label: 'Blogs & Articles',
       description: 'Legal & Tax Insights',
       icon: BookOpen,
+    },
+    {
+      id: 'ai-seo-optimizer',
+      label: 'AI SEO Optimizer',
+      description: 'LEGOMARK On-Page Score',
+      icon: Gauge,
+      badge: 'AI',
     },
     {
       id: 'keyword-cluster',

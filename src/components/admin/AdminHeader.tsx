@@ -61,6 +61,10 @@ const SECTION_TITLES: Record<AdminNavSection, { title: string; subtitle: string 
     title: 'Blogs & Legal Insights',
     subtitle: 'Publish articles, guides, and tax compliance updates',
   },
+  'ai-seo-optimizer': {
+    title: 'AI SEO Optimizer',
+    subtitle: 'Diagnostic on-page SEO intelligence, LEGOMARK Score (0–100), and content improvement review',
+  },
   'keyword-cluster': {
     title: 'AI Keyword Cluster Generator',
     subtitle: 'AI-driven keyword discovery, semantic search intent, and long-tail query clustering',
