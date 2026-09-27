@@ -1,0 +1,124 @@
+<svg width="1920" height="1080" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs>
+    <!-- Background: Clean White to Very Light Grey Editorial Canvas -->
+    <linearGradient id="editorialCanvasBg" x1="0" y1="0" x2="1920" y2="1080" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="60%" stop-color="#F8FAFC" />
+      <stop offset="100%" stop-color="#F1F5F9" />
+    </linearGradient>
+  </defs>
+
+  <!-- 1. Full-Bleed 16:9 Canvas (Clean White / Very Light Grey) -->
+  <rect x="0" y="0" width="1920" height="1080" fill="url(#editorialCanvasBg)" />
+
+  <!-- 2. Refined Editorial Geometric Grid & Accent Lines (No Desk, No Table Surface) -->
+  <g opacity="0.35">
+    <line x1="680" y1="0" x2="680" y2="1080" stroke="#E2E8F0" stroke-width="1" />
+    <line x1="1400" y1="0" x2="1400" y2="1080" stroke="#E2E8F0" stroke-width="1" />
+    <line x1="0" y1="360" x2="1920" y2="360" stroke="#E2E8F0" stroke-width="1" />
+    <line x1="0" y1="720" x2="1920" y2="720" stroke="#E2E8F0" stroke-width="1" />
+  </g>
+
+  <!-- Subtle Navy Hairline Dynamic Curve Accent -->
+  <path d="M 640,0 C 960,180 1280,360 1920,440" fill="none" stroke="#1A2B6B" stroke-width="1" stroke-opacity="0.09" />
+  <path d="M 720,1080 C 1040,900 1360,720 1920,640" fill="none" stroke="#1A2B6B" stroke-width="1" stroke-opacity="0.06" />
+
+  <!-- Subtle Orange Accent Bar -->
+  <line x1="80" y1="210" x2="160" y2="210" stroke="#EA580C" stroke-width="3" stroke-linecap="round" />
+
+  <!-- Subtle Minimal Geometric Micro-Dot Matrix -->
+  <g opacity="0.35">
+    <circle cx="160" cy="880" r="2" fill="#94A3B8" />
+    <circle cx="190" cy="880" r="2" fill="#94A3B8" />
+    <circle cx="220" cy="880" r="2" fill="#94A3B8" />
+    <circle cx="160" cy="910" r="2" fill="#94A3B8" />
+    <circle cx="190" cy="910" r="2" fill="#94A3B8" />
+    <circle cx="220" cy="910" r="2" fill="#94A3B8" />
+  </g>
+
+  <!-- 3. Designed Editorial Topic-Specific Elements (Right & Center, Left Side Clean) -->
+  
+  <g id="editorial-focal-visual">
+    <!-- Topic Visual 1: ROC Statutory Annual Filing Document -->
+    <g transform="translate(860, 480) rotate(-1)">
+      <rect x="0" y="0" width="550" height="340" rx="6" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5" />
+      <rect x="14" y="14" width="522" height="312" rx="3" fill="none" stroke="#F1F5F9" stroke-width="1" />
+      <!-- Government MCA Emblem Impression -->
+      <circle cx="60" cy="54" r="18" fill="none" stroke="#1A2B6B" stroke-width="1.5" />
+      <circle cx="60" cy="54" r="12" fill="none" stroke="#EA580C" stroke-width="1" />
+      <line x1="94" y1="46" x2="260" y2="46" stroke="#1A2B6B" stroke-width="2.5" />
+      <line x1="94" y1="62" x2="180" y2="62" stroke="#EA580C" stroke-width="1.2" />
+      <!-- Form AOC-4 / MGT-7 Lines -->
+      <rect x="40" y="90" width="470" height="130" rx="3" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1" />
+      <line x1="40" y1="124" x2="510" y2="124" stroke="#CBD5E1" stroke-width="1" />
+      <line x1="180" y1="90" x2="180" y2="220" stroke="#E2E8F0" stroke-width="1" />
+      <line x1="340" y1="90" x2="340" y2="220" stroke="#E2E8F0" stroke-width="1" />
+      <line x1="56" y1="150" x2="160" y2="150" stroke="#94A3B8" stroke-width="1.5" />
+      <line x1="196" y1="150" x2="320" y2="150" stroke="#CBD5E1" stroke-width="1.2" />
+      <line x1="356" y1="150" x2="490" y2="150" stroke="#1A2B6B" stroke-width="1.5" />
+      <line x1="56" y1="180" x2="150" y2="180" stroke="#94A3B8" stroke-width="1.5" />
+      <line x1="196" y1="180" x2="300" y2="180" stroke="#CBD5E1" stroke-width="1.2" />
+      <line x1="356" y1="180" x2="480" y2="180" stroke="#1A2B6B" stroke-width="1.5" />
+      <!-- Statutory ROC Seal -->
+      <circle cx="450" cy="270" r="28" fill="none" stroke="#1A2B6B" stroke-width="1.5" stroke-dasharray="4 2" />
+      <circle cx="450" cy="270" r="20" fill="none" stroke="#EA580C" stroke-width="1.2" />
+      <path d="M 444,270 L 449,275 L 458,265" fill="none" stroke="#1A2B6B" stroke-width="2" stroke-linecap="round" />
+    </g>
+
+    <!-- Topic Visual 2: Bound Corporate Registry Folder Dossier -->
+    <g transform="translate(670, 540)">
+      <rect x="0" y="0" width="180" height="260" rx="4" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5" />
+      <rect x="0" y="0" width="16" height="260" rx="2" fill="#1A2B6B" />
+      <path d="M 140,0 L 170,0 L 170,30 L 140,0 Z" fill="#EA580C" fill-opacity="0.85" />
+      <line x1="36" y1="50" x2="140" y2="50" stroke="#1A2B6B" stroke-width="2" />
+      <line x1="36" y1="70" x2="110" y2="70" stroke="#94A3B8" stroke-width="1.2" />
+      <line x1="36" y1="100" x2="150" y2="100" stroke="#E2E8F0" stroke-width="1" />
+      <line x1="36" y1="120" x2="140" y2="120" stroke="#E2E8F0" stroke-width="1" />
+      <line x1="36" y1="140" x2="130" y2="140" stroke="#E2E8F0" stroke-width="1" />
+    </g>
+
+    <!-- Topic Visual 3: Corporate Headquarters Facade in Line-Art -->
+    <g transform="translate(1440, 440)">
+      <rect x="0" y="0" width="260" height="220" rx="8" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5" />
+      <g transform="translate(60, 40)">
+        <polygon points="70,0 140,0 140,140 0,140 0,40 70,40" fill="none" stroke="#1A2B6B" stroke-width="2" />
+        <line x1="20" y1="60" x2="50" y2="60" stroke="#CBD5E1" stroke-width="1.5" />
+        <line x1="20" y1="80" x2="50" y2="80" stroke="#CBD5E1" stroke-width="1.5" />
+        <line x1="20" y1="100" x2="50" y2="100" stroke="#CBD5E1" stroke-width="1.5" />
+        <line x1="90" y1="20" x2="120" y2="20" stroke="#CBD5E1" stroke-width="1.5" />
+        <line x1="90" y1="40" x2="120" y2="40" stroke="#CBD5E1" stroke-width="1.5" />
+        <line x1="90" y1="60" x2="120" y2="60" stroke="#CBD5E1" stroke-width="1.5" />
+        <line x1="90" y1="80" x2="120" y2="80" stroke="#CBD5E1" stroke-width="1.5" />
+        <line x1="90" y1="100" x2="120" y2="100" stroke="#CBD5E1" stroke-width="1.5" />
+        <line x1="0" y1="140" x2="140" y2="140" stroke="#EA580C" stroke-width="2.5" />
+      </g>
+    </g>
+
+    <!-- Topic Visual 4: Annual Compliance Timeline Nodes -->
+    <g transform="translate(1440, 710)">
+      <rect x="0" y="0" width="260" height="100" rx="6" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5" />
+      <line x1="30" y1="50" x2="230" y2="50" stroke="#CBD5E1" stroke-width="2" />
+      <circle cx="50" cy="50" r="9" fill="#FFFFFF" stroke="#1A2B6B" stroke-width="2" />
+      <circle cx="130" cy="50" r="9" fill="#1A2B6B" />
+      <circle cx="210" cy="50" r="9" fill="#FFFFFF" stroke="#EA580C" stroke-width="2" />
+    </g>
+
+    <!-- Topic Visual 5: Connected Verification Seal Node -->
+    <g transform="translate(710, 440)">
+      <circle cx="24" cy="24" r="24" fill="#FFFFFF" stroke="#EA580C" stroke-width="1.5" />
+      <path d="M 18,24 L 23,29 L 32,19" fill="none" stroke="#EA580C" stroke-width="2.5" stroke-linecap="round" />
+      <line x1="48" y1="24" x2="150" y2="40" stroke="#EA580C" stroke-width="1" stroke-dasharray="3 3" />
+    </g>
+  </g>
+
+  <!-- 4. Clearly Readable Official Website URL (Programmatically Rendered) -->
+  <text x="80" y="1020" fill="#1A2B6B" fill-opacity="0.85" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="700" letter-spacing="1.5">www.legomarkindia.com</text>
+  <text x="1840" y="1020" text-anchor="end" fill="#64748B" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="600" letter-spacing="1">www.legomarkindia.com</text>
+
+  <!-- 5. Prominent & Elegant Authentic LEGOMARK INDIA Logo Overlay (Upper-Left, No Card/Badge) -->
+  
+  <!-- Programmatic Authentic LEGOMARK INDIA Logo Overlay (Prominent & Elegant, Upper-Left, No Card/Badge) -->
+  <g id="legomark-editorial-logo" transform="translate(80, 56)">
+    <image href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMjAgMjgwIiB3aWR0aD0iMzIwIiBoZWlnaHQ9IjI4MCIgZmlsbD0ibm9uZSI+CiAgPCEtLSBPdXRlciBTY2FsbG9wZWQgQ3Jlc3QgLS0+CiAgPHBhdGggZD0iTSAyNTYuMDAgMTA1LjAwIEwgMjQ5Ljg2IDExMC4wNSBMIDI0My40NyAxMTQuNDEgTCAyNDguNzMgMTIwLjA4IEwgMjUzLjU5IDEyNi4zNiBMIDI0Ni40OCAxMjkuOTIgTCAyMzkuMjkgMTMyLjc0IEwgMjQzLjE1IDEzOS40NCBMIDI0Ni40OSAxNDYuNjUgTCAyMzguNzcgMTQ4LjUzIEwgMjMxLjEyIDE0OS42OSBMIDIzMy40MCAxNTcuMDggTCAyMzUuMDYgMTY0Ljg2IEwgMjI3LjExIDE2NC45NyBMIDIxOS40MCAxNjQuNDAgTCAyMTkuOTcgMTcyLjExIEwgMjE5Ljg2IDE4MC4wNiBMIDIxMi4wOCAxNzguNDAgTCAyMDQuNjkgMTc2LjEyIEwgMjAzLjUzIDE4My43NyBMIDIwMS42NSAxOTEuNDkgTCAxOTQuNDQgMTg4LjE1IEwgMTg3Ljc0IDE4NC4yOSBMIDE4NC45MiAxOTEuNDggTCAxODEuMzYgMTk4LjU5IEwgMTc1LjA4IDE5My43MyBMIDE2OS40MSAxODguNDcgTCAxNjUuMDUgMTk0Ljg2IEwgMTYwLjAwIDIwMS4wMCBMIDE1NC45NSAxOTQuODYgTCAxNTAuNTkgMTg4LjQ3IEwgMTQ0LjkyIDE5My43MyBMIDEzOC42NCAxOTguNTkgTCAxMzUuMDggMTkxLjQ4IEwgMTMyLjI2IDE4NC4yOSBMIDEyNS41NiAxODguMTUgTCAxMTguMzUgMTkxLjQ5IEwgMTE2LjQ3IDE4My43NyBMIDExNS4zMSAxNzYuMTIgTCAxMDcuOTIgMTc4LjQwIEwgMTAwLjE0IDE4MC4wNiBMIDEwMC4wMyAxNzIuMTEgTCAxMDAuNjAgMTY0LjQwIEwgOTIuODkgMTY0Ljk3IEwgODQuOTQgMTY0Ljg2IEwgODYuNjAgMTU3LjA4IEwgODguODggMTQ5LjY5IEwgODEuMjMgMTQ4LjUzIEwgNzMuNTEgMTQ2LjY1IEwgNzYuODUgMTM5LjQ0IEwgODAuNzEgMTMyLjc0IEwgNzMuNTIgMTI5LjkyIEwgNjYuNDEgMTI2LjM2IEwgNzEuMjcgMTIwLjA4IEwgNzYuNTMgMTE0LjQxIEwgNzAuMTQgMTEwLjA1IEwgNjQuMDAgMTA1LjAwIEwgNzAuMTQgOTkuOTUgTCA3Ni41MyA5NS41OSBMIDcxLjI3IDg5LjkyIEwgNjYuNDEgODMuNjQgTCA3My41MiA4MC4wOCBMIDgwLjcxIDc3LjI2IEwgNzYuODUgNzAuNTYgTCA3My41MSA2My4zNSBMIDgxLjIzIDYxLjQ3IEwgODguODggNjAuMzEgTCA4Ni42MCA1Mi45MiBMIDg0Ljk0IDQ1LjE0IEwgOTIuODkgNDUuMDMgTCAxMDAuNjAgNDUuNjAgTCAxMDAuMDMgMzcuODkgTCAxMDAuMTQgMjkuOTQgTCAxMDcuOTIgMzEuNjAgTCAxMTUuMzEgMzMuODggTCAxMTYuNDcgMjYuMjMgTCAxMTguMzUgMTguNTEgTCAxMjUuNTYgMjEuODUgTCAxMzIuMjYgMjUuNzEgTCAxMzUuMDggMTguNTIgTCAxMzguNjQgMTEuNDEgTCAxNDQuOTIgMTYuMjcgTCAxNTAuNTkgMjEuNTMgTCAxNTQuOTUgMTUuMTQgTCAxNjAuMDAgOS4wMCBMIDE2NS4wNSAxNS4xNCBMIDE2OS40MSAyMS41MyBMIDE3NS4wOCAxNi4yNyBMIDE4MS4zNiAxMS40MSBMIDE4NC45MiAxOC41MiBMIDE4Ny43NCAyNS43MSBMIDE5NC40NCAyMS44NSBMIDIwMS42NSAxOC41MSBMIDIwMy41MyAyNi4yMyBMIDIwNC42OSAzMy44OCBMIDIxMi4wOCAzMS42MCBMIDIxOS44NiAyOS45NCBMIDIxOS45NyAzNy44OSBMIDIxOS40MCA0NS42MCBMIDIyNy4xMSA0NS4wMyBMIDIzNS4wNiA0NS4xNCBMIDIzMy40MCA1Mi45MiBMIDIzMS4xMiA2MC4zMSBMIDIzOC43NyA2MS40NyBMIDI0Ni40OSA2My4zNSBMIDI0My4xNSA3MC41NiBMIDIzOS4yOSA3Ny4yNiBMIDI0Ni40OCA4MC4wOCBMIDI1My41OSA4My42NCBMIDI0OC43MyA4OS45MiBMIDI0My40NyA5NS41OSBMIDI0OS44NiA5OS45NSBaIiBmaWxsPSJub25lIiBzdHJva2U9IiMxQTJCNkIiIHN0cm9rZS13aWR0aD0iMi44IiAvPgogIDxwYXRoIGQ9Ik0gMjQyLjgwIDEwNS4wMCBMIDIzNy44OCAxMDkuMzcgTCAyMzIuNzQgMTEzLjIwIEwgMjM2LjkwIDExOC4wNyBMIDI0MC43MiAxMjMuNDIgTCAyMzQuOTUgMTI2LjU5IEwgMjI5LjA5IDEyOS4xOCBMIDIzMi4wNiAxMzQuODUgTCAyMzQuNjAgMTQwLjkzIEwgMjI4LjI3IDE0Mi43MyBMIDIyMS45OCAxNDMuOTQgTCAyMjMuNjEgMTUwLjE0IEwgMjI0Ljc0IDE1Ni42MiBMIDIxOC4xNiAxNTYuOTggTCAyMTEuNzYgMTU2Ljc2IEwgMjExLjk4IDE2My4xNiBMIDIxMS42MiAxNjkuNzQgTCAyMDUuMTQgMTY4LjYxIEwgMTk4Ljk0IDE2Ni45OCBMIDE5Ny43MyAxNzMuMjcgTCAxOTUuOTMgMTc5LjYwIEwgMTg5Ljg1IDE3Ny4wNiBMIDE4NC4xOCAxNzQuMDkgTCAxODEuNTkgMTc5Ljk1IEwgMTc4LjQyIDE4NS43MiBMIDE3My4wNyAxODEuOTAgTCAxNjguMjAgMTc3Ljc0IEwgMTY0LjM3IDE4Mi44OCBMIDE2MC4wMCAxODcuODAgTCAxNTUuNjMgMTgyLjg4IEwgMTUxLjgwIDE3Ny43NCBMIDE0Ni45MyAxODEuOTAgTCAxNDEuNTggMTg1LjcyIEwgMTM4LjQxIDE3OS45NSBMIDEzNS44MiAxNzQuMDkgTCAxMzAuMTUgMTc3LjA2IEwgMTI0LjA3IDE3OS42MCBMIDEyMi4yNyAxNzMuMjcgTCAxMjEuMDYgMTY2Ljk4IEwgMTE0Ljg2IDE2OC42MSBMIDEwOC4zOCAxNjkuNzQgTCAxMDguMDIgMTYzLjE2IEwgMTA4LjI0IDE1Ni43NiBMIDEwMS44NCAxNTYuOTggTCA5NS4yNiAxNTYuNjIgTCA5Ni4zOSAxNTAuMTQgTCA5OC4wMiAxNDMuOTQgTCA5MS43MyAxNDIuNzMgTCA4NS40MCAxNDAuOTMgTCA4Ny45NCAxMzQuODUgTCA5MC45MSAxMjkuMTggTCA4NS4wNSAxMjYuNTkgTCA3OS4yOCAxMjMuNDIgTCA4My4xMCAxMTguMDcgTCA4Ny4yNiAxMTMuMjAgTCA4Mi4xMiAxMDkuMzcgTCA3Ny4yMCAxMDUuMDAgTCA4Mi4xMiAxMDAuNjMgTCA4Ny4yNiA5Ni44MCBMIDgzLjEwIDkxLjkzIEwgNzkuMjggODYuNTggTCA4NS4wNSA4My40MSBMIDkwLjkxIDgwLjgyIEwgODcuOTQgNzUuMTUgTCA4NS40MCA2OS4wNyBMIDkxLjczIDY3LjI3IEwgOTguMDIgNjYuMDYgTCA5Ni4zOSA1OS44NiBMIDk1LjI2IDUzLjM4IEwgMTAxLjg0IDUzLjAyIEwgMTA4LjI0IDUzLjI0IEwgMTA4LjAyIDQ2Ljg0IEwgMTA4LjM4IDQwLjI2IEwgMTE0Ljg2IDQxLjM5IEwgMTIxLjA2IDQzLjAyIEwgMTIyLjI3IDM2LjczIEwgMTI0LjA3IDMwLjQwIEwgMTMwLjE1IDMyLjk0IEwgMTM1LjgyIDM1LjkxIEwgMTM4LjQxIDMwLjA1IEwgMTQxLjU4IDI0LjI4IEwgMTQ2LjkzIDI4LjEwIEwgMTUxLjgwIDMyLjI2IEwgMTU1LjYzIDI3LjEyIEwgMTYwLjAwIDIyLjIwIEwgMTY0LjM3IDI3LjEyIEwgMTY4LjIwIDMyLjI2IEwgMTczLjA3IDI4LjEwIEwgMTc4LjQyIDI0LjI4IEwgMTgxLjU5IDMwLjA1IEwgMTg0LjE4IDM1LjkxIEwgMTg5Ljg1IDMyLjk0IEwgMTk1LjkzIDMwLjQwIEwgMTk3LjczIDM2LjczIEwgMTk4Ljk0IDQzLjAyIEwgMjA1LjE0IDQxLjM5IEwgMjExLjYyIDQwLjI2IEwgMjExLjk4IDQ2Ljg0IEwgMjExLjc2IDUzLjI0IEwgMjE4LjE2IDUzLjAyIEwgMjI0Ljc0IDUzLjM4IEwgMjIzLjYxIDU5Ljg2IEwgMjIxLjk4IDY2LjA2IEwgMjI4LjI3IDY3LjI3IEwgMjM0LjYwIDY5LjA3IEwgMjMyLjA2IDc1LjE1IEwgMjI5LjA5IDgwLjgyIEwgMjM0Ljk1IDgzLjQxIEwgMjQwLjcyIDg2LjU4IEwgMjM2LjkwIDkxLjkzIEwgMjMyLjc0IDk2LjgwIEwgMjM3Ljg4IDEwMC42MyBaIiBmaWxsPSJub25lIiBzdHJva2U9IiMxQTJCNkIiIHN0cm9rZS13aWR0aD0iMS4yIiBvcGFjaXR5PSIwLjYiIC8+CgogIDwhLS0gSW5zaWRlIFNlYWw6ICJMZWciIGluIHNjcmlwdCBvcmFuZ2UsICJvIiBpbiBuYXZ5IC0tPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDEwMCwgMTA4KSI+CiAgICA8IS0tIFN0eWxpemVkIHNjcmlwdCBMZWcgaW4gT3JhbmdlIC0tPgogICAgPHBhdGggZD0iTSA1LDIwIEMgMTUsLTE1IDI1LC0yNSAzMiwtMjUgQyAzOCwtMjUgMzUsLTUgMjgsMTAgQyAyMiwyMiAxNSwyMiA4LDIyIEMgMiwyMiAtMiwxOCAtMiwxMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRUE1ODBDIiBzdHJva2Utd2lkdGg9IjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgLz4KICAgIDxwYXRoIGQ9Ik0gMjAsNSBDIDI4LDAgMzUsLTIgNDAsMyBDIDQ0LDcgNDIsMTYgMzQsMTggQyAyNCwyMCAyMCwxMCAyNCw0IiBmaWxsPSJub25lIiBzdHJva2U9IiNFQTU4MEMiIHN0cm9rZS13aWR0aD0iNC41IiBzdHJva2UtbGluZWNhcD0icm91bmQiIC8+CiAgICA8cGF0aCBkPSJNIDM4LDE4IEMgNDIsMjIgNDgsMTUgNTAsOCBDIDUyLC0yIDQ4LC0xNSA1NCwtMTUgQyA2MCwtMTUgNTYsMTIgNTgsMTggQyA2MCwyNCA2OCwyMCA3MiwxMiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRUE1ODBDIiBzdHJva2Utd2lkdGg9IjQuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiAvPgogICAgCiAgICA8IS0tIG8gaW4gbmF2eSAtLT4KICAgIDxlbGxpcHNlIGN4PSI4MCIgY3k9IjEwIiByeD0iOSIgcnk9IjEyIiBmaWxsPSJub25lIiBzdHJva2U9IiMxQTJCNkIiIHN0cm9rZS13aWR0aD0iNCIgLz4KCiAgICA8IS0tIEdsb2JlIGluIE9yYW5nZSAtLT4KICAgIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDEwMiwgNikiPgogICAgICA8Y2lyY2xlIGN4PSIwIiBjeT0iMCIgcj0iMTMiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI0VBNTgwQyIgc3Ryb2tlLXdpZHRoPSIyIiAvPgogICAgICA8bGluZSB4MT0iLTEzIiB5MT0iMCIgeDI9IjEzIiB5Mj0iMCIgc3Ryb2tlPSIjRUE1ODBDIiBzdHJva2Utd2lkdGg9IjEuOCIgLz4KICAgICAgPGxpbmUgeDE9Ii0xMSIgeTE9Ii01IiB4Mj0iMTEiIHkyPSItNSIgc3Ryb2tlPSIjRUE1ODBDIiBzdHJva2Utd2lkdGg9IjEuNCIgLz4KICAgICAgPGxpbmUgeDE9Ii0xMSIgeTE9IjUiIHgyPSIxMSIgeTI9IjUiIHN0cm9rZT0iI0VBNTgwQyIgc3Ryb2tlLXdpZHRoPSIxLjQiIC8+CiAgICAgIDxlbGxpcHNlIGN4PSIwIiBjeT0iMCIgcng9IjYiIHJ5PSIxMyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRUE1ODBDIiBzdHJva2Utd2lkdGg9IjEuNiIgLz4KICAgICAgPGxpbmUgeDE9IjAiIHkxPSItMTMiIHgyPSIwIiB5Mj0iMTMiIHN0cm9rZT0iI0VBNTgwQyIgc3Ryb2tlLXdpZHRoPSIxLjgiIC8+CiAgICA8L2c+CgogICAgPCEtLSBVcHdhcmQgc3dvb3BpbmcgYXJyb3cgaW4gT3JhbmdlIC0tPgogICAgPHBhdGggZD0iTSAtMTUsMTggQyAxNSwyMiA0NSwzNSA4NSwyOCBDIDEwNSwyNCAxMTgsMTIgMTI4LDQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI0VBNTgwQyIgc3Ryb2tlLXdpZHRoPSI2IiBzdHJva2UtbGluZWNhcD0icm91bmQiIC8+CiAgICA8cG9seWdvbiBwb2ludHM9IjEyOCw0IDExNCwyIDEyMiwxNCIgZmlsbD0iI0VBNTgwQyIgLz4KICA8L2c+CgogIDwhLS0gTEVHT01BUksgQm94IC0tPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDI0LCAyMTIpIj4KICAgIDxyZWN0IHg9IjAiIHk9IjAiIHdpZHRoPSIyNzIiIGhlaWdodD0iNDIiIGZpbGw9IiNGRkZGRkYiIHN0cm9rZT0iIzFBMkI2QiIgc3Ryb2tlLXdpZHRoPSIyLjUiIC8+CiAgICA8IS0tIE5hdnkgTGVmdCBCb3ggZm9yIExFR08gLS0+CiAgICA8cmVjdCB4PSIwIiB5PSIwIiB3aWR0aD0iMTI4IiBoZWlnaHQ9IjQyIiBmaWxsPSIjMUEyQjZCIiAvPgogICAgPHRleHQgeD0iNjQiIHk9IjMxIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjRkZGRkZGIiBmb250LWZhbWlseT0iVGltZXMgTmV3IFJvbWFuIiwgVGltZXMsIEdlb3JnaWEsIHNlcmlmIiBmb250LXNpemU9IjMwIiBmb250LXdlaWdodD0iOTAwIiBsZXR0ZXItc3BhY2luZz0iMSI+TEVHTzwvdGV4dD4KICAgIAogICAgPCEtLSBXaGl0ZSBSaWdodCBCb3ggZm9yIE1BUksgLS0+CiAgICA8dGV4dCB4PSIyMDAiIHk9IjMxIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjRUE1ODBDIiBmb250LWZhbWlseT0iVGltZXMgTmV3IFJvbWFuIiwgVGltZXMsIEdlb3JnaWEsIHNlcmlmIiBmb250LXNpemU9IjMwIiBmb250LXdlaWdodD0iOTAwIiBsZXR0ZXItc3BhY2luZz0iMSI+TUFSSzwvdGV4dD4KICA8L2c+CgogIDwhLS0gU3VidGl0bGU6IEkgTiBEIEkgQSAtLT4KICA8dGV4dCB4PSIxNjAiIHk9IjI3NCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzFBMkI2QiIgZm9udC1mYW1pbHk9InN5c3RlbS11aSwgLWFwcGxlLXN5c3RlbSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgZm9udC13ZWlnaHQ9IjkwMCIgbGV0dGVyLXNwYWNpbmc9IjE0Ij5JTkRJQTwvdGV4dD4KPC9zdmc+" x="0" y="0" width="220" height="100" preserveAspectRatio="xMidYMid meet" />
+  </g>
+</svg>

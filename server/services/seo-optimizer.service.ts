@@ -216,7 +216,7 @@ export class SeoOptimizerService {
   }
 
   /**
-   * Extract links from HTML
+   * Extract links from HTML and Markdown content
    */
   private extractLinks(html: string): LinkItem[] {
     const links: LinkItem[] = [];
@@ -232,9 +232,10 @@ export class SeoOptimizerService {
       'check here',
     ]);
 
-    const regex = /<a\s+(?:[^>]*?\s+)?href=["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
+    // 1. Match HTML anchor links: <a href="...">...</a>
+    const htmlRegex = /<a\s+(?:[^>]*?\s+)?href=["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
     let match;
-    while ((match = regex.exec(html)) !== null) {
+    while ((match = htmlRegex.exec(html)) !== null) {
       const href = match[1].trim();
       const text = this.stripHtml(match[2]).trim();
       const isInternal =
@@ -251,6 +252,35 @@ export class SeoOptimizerService {
         isGenericAnchor,
       });
     }
+
+    // 2. Match Markdown links: [text](href) (avoiding image tags ![alt](src))
+    const mdRegex = /(?<!\!)\[([^\]]+)\]\(([^)\s]+)(?:\s+["'][^"']*["'])?\)/gi;
+    let mdMatch;
+    while ((mdMatch = mdRegex.exec(html)) !== null) {
+      const text = mdMatch[1].trim();
+      const href = mdMatch[2].trim();
+
+      // Avoid duplicates if identical link was already parsed
+      const alreadyCaptured = links.some(
+        (l) => l.href.toLowerCase() === href.toLowerCase() && l.text.toLowerCase() === text.toLowerCase()
+      );
+      if (alreadyCaptured) continue;
+
+      const isInternal =
+        href.startsWith('/') ||
+        href.startsWith('#') ||
+        href.includes('legomark') ||
+        !href.startsWith('http');
+      const isGenericAnchor = genericTerms.has(text.toLowerCase());
+
+      links.push({
+        text: text || href,
+        href,
+        isInternal,
+        isGenericAnchor,
+      });
+    }
+
     return links;
   }
 

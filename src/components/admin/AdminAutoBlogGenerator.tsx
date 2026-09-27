@@ -113,8 +113,8 @@ export const AdminAutoBlogGenerator: React.FC<AdminAutoBlogGeneratorProps> = ({
     '2. Authoritative Blog Content Generation',
     '3. Custom 16:9 Featured Image Generation',
     '4. Structured FAQs & PAA Generation',
-    '5. Relevant Internal Link Suggestions',
-    '6. LEGOMARK SEO Analysis & Scoring',
+    '5. Contextual Internal Linking & FAQ Assembly',
+    '6. LEGOMARK SEO Analysis on Composed Draft',
   ];
 
   // Run the unified 6-step workflow
@@ -747,12 +747,12 @@ export const AdminAutoBlogGenerator: React.FC<AdminAutoBlogGeneratorProps> = ({
                       <div className="flex items-center gap-2">
                         <span
                           className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                            link.targetType === 'service'
+                            link.targetType === 'service' || link.targetUrl?.startsWith('/services')
                               ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
                               : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
                           }`}
                         >
-                          Target: {link.targetType}
+                          Target: {link.targetUrl?.startsWith('/services') ? 'service' : link.targetType}
                         </span>
                         <h5 className="text-sm font-bold text-white">{link.targetTitle}</h5>
                       </div>
