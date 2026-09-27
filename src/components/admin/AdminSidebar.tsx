@@ -35,6 +35,7 @@ export type AdminNavSection =
   | 'testimonials'
   | 'media'
   | 'blogs'
+  | 'auto-blog'
   | 'blog-comments'
   | 'ai-seo-optimizer'
   | 'keyword-cluster'
@@ -126,6 +127,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       label: 'Blogs & Articles',
       description: 'Legal & Tax Insights',
       icon: BookOpen,
+    },
+    {
+      id: 'auto-blog',
+      label: 'Auto Blog Generator',
+      description: 'Unified AI Workflow',
+      icon: Sparkles,
+      badge: 'AI',
     },
     {
       id: 'blog-comments',

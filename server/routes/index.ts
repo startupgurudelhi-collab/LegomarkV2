@@ -32,6 +32,7 @@ import adminBlogSeriesRoutes from './admin-blog-series.routes';
 import adminInternalLinkingRoutes from './admin-internal-linking.routes';
 import adminOrphanPageRoutes from './admin-orphan-page.routes';
 import adminSeoOptimizerRoutes from './admin-seo-optimizer.routes';
+import adminAutoBlogRoutes from './admin-auto-blog.routes';
 
 const apiRouter = Router();
 
@@ -62,6 +63,7 @@ apiRouter.use('/admin/blog-series', adminBlogSeriesRoutes);
 apiRouter.use('/admin/internal-linking', adminInternalLinkingRoutes);
 apiRouter.use('/admin/orphan-pages', adminOrphanPageRoutes);
 apiRouter.use('/admin/seo-optimizer', adminSeoOptimizerRoutes);
+apiRouter.use('/admin/auto-blog-generator', adminAutoBlogRoutes);
 apiRouter.use('/admin/settings', adminSettingsRoutes);
 apiRouter.use('/admin/client-logos', adminClientLogoRoutes);
 apiRouter.use('/admin/association-logos', adminAssociationLogoRoutes);

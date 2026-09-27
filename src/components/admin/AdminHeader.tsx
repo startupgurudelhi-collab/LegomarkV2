@@ -61,6 +61,10 @@ const SECTION_TITLES: Record<AdminNavSection, { title: string; subtitle: string 
     title: 'Blogs & Legal Insights',
     subtitle: 'Publish articles, guides, and tax compliance updates',
   },
+  'auto-blog': {
+    title: 'Auto Blog Generator',
+    subtitle: 'Unified AI workflow orchestrating Keyword Research, Drafting, Media, FAQs, Internal Linking, and SEO Scoring',
+  },
   'blog-comments': {
     title: 'Blog Comments & Moderation',
     subtitle: 'Review, approve, reject, and reply to reader queries on legal publications',
