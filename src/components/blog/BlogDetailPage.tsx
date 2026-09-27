@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   BookOpen,
   Calendar,
@@ -22,6 +22,7 @@ import { BlogPost } from '../../types/blog';
 import { fetchPublicBlogBySlug, fetchPublicBlogs } from '../../services/blog.service';
 import { RichContentRenderer } from './RichContentRenderer';
 import { BlogCommentsSection } from './BlogCommentsSection';
+import { generateBlogSchemaGraph } from '../../utils/blogSchemaGenerator';
 
 interface BlogDetailPageProps {
   slug: string;
@@ -71,6 +72,57 @@ export const BlogDetailPage: React.FC<BlogDetailPageProps> = ({
       isMounted = false;
     };
   }, [slug]);
+
+  // Generate & Validate Schema.org JSON-LD (BlogPosting + BreadcrumbList)
+  const schemaResult = useMemo(() => {
+    if (!article) return null;
+    return generateBlogSchemaGraph(article);
+  }, [article]);
+
+  // Synchronize document title, meta description, and document head JSON-LD script
+  useEffect(() => {
+    if (!article) return;
+
+    const previousTitle = document.title;
+    const pageTitle = (article.seoTitle || article.title || 'Legal Insight').trim();
+    document.title = `${pageTitle} | LEGOMARK INDIA`;
+
+    // Synchronize Meta Description
+    let metaDescEl = document.querySelector('meta[name="description"]');
+    const previousDesc = metaDescEl ? metaDescEl.getAttribute('content') : '';
+    const descriptionText = (article.metaDescription || article.excerpt || '').trim();
+    if (descriptionText) {
+      if (!metaDescEl) {
+        metaDescEl = document.createElement('meta');
+        metaDescEl.setAttribute('name', 'description');
+        document.head.appendChild(metaDescEl);
+      }
+      metaDescEl.setAttribute('content', descriptionText);
+    }
+
+    // Inject Head JSON-LD Script tag if valid
+    let scriptEl = document.getElementById('blog-schema-jsonld') as HTMLScriptElement | null;
+    if (schemaResult && schemaResult.isValid) {
+      if (!scriptEl) {
+        scriptEl = document.createElement('script');
+        scriptEl.id = 'blog-schema-jsonld';
+        scriptEl.type = 'application/ld+json';
+        document.head.appendChild(scriptEl);
+      }
+      scriptEl.textContent = schemaResult.jsonString;
+    }
+
+    return () => {
+      document.title = previousTitle;
+      if (metaDescEl && previousDesc !== null) {
+        metaDescEl.setAttribute('content', previousDesc || '');
+      }
+      const existingScript = document.getElementById('blog-schema-jsonld');
+      if (existingScript) {
+        existingScript.remove();
+      }
+    };
+  }, [article, schemaResult]);
 
   const formatDate = (dateStr?: string | null) => {
     if (!dateStr) return 'Recent';
@@ -305,6 +357,15 @@ export const BlogDetailPage: React.FC<BlogDetailPageProps> = ({
           </section>
         )}
       </main>
+
+      {/* Structured Data (Schema.org JSON-LD: BlogPosting + BreadcrumbList) */}
+      {schemaResult && schemaResult.isValid && (
+        <script
+          type="application/ld+json"
+          id="article-structured-data"
+          dangerouslySetInnerHTML={{ __html: schemaResult.jsonString }}
+        />
+      )}
     </div>
   );
 };

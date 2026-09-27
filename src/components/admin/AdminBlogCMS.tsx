@@ -25,6 +25,9 @@ import {
   ArrowUpRight,
   HelpCircle,
   Check,
+  Code,
+  Copy,
+  ChevronDown,
 } from 'lucide-react';
 import { BlogPost, BlogStats, CreateBlogPostInput, UpdateBlogPostInput, GeneratedBlogDraft, BlogFaqItem } from '../../types/blog';
 import {
@@ -40,6 +43,7 @@ import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { RichTextEditor } from './RichTextEditor';
 import { RichContentRenderer } from '../blog/RichContentRenderer';
 import { AdminAiBlogFactory } from './AdminAiBlogFactory';
+import { generateBlogSchemaGraph } from '../../utils/blogSchemaGenerator';
 
 const BLOG_CATEGORIES = [
   'Company Registration',
@@ -109,6 +113,33 @@ export const AdminBlogCMS: React.FC = () => {
     seoSlug: '',
     isPublished: false,
   });
+
+  // Schema.org Preview States
+  const [showSchemaPreview, setShowSchemaPreview] = useState(false);
+  const [isSchemaCopied, setIsSchemaCopied] = useState(false);
+  const [showPreviewModalSchema, setShowPreviewModalSchema] = useState(false);
+  const [isPreviewModalSchemaCopied, setIsPreviewModalSchemaCopied] = useState(false);
+
+  // Compute and validate Schema.org JSON-LD for Editor Form
+  const editorSchema = useMemo(() => {
+    return generateBlogSchemaGraph({
+      title: formData.title,
+      slug: formData.slug || formData.seoSlug,
+      category: formData.category,
+      author: formData.author,
+      content: formData.content,
+      excerpt: formData.excerpt,
+      featuredImage: formData.featuredImage,
+      seoTitle: formData.seoTitle,
+      metaDescription: formData.metaDescription,
+    });
+  }, [formData]);
+
+  // Compute and validate Schema.org JSON-LD for Preview Blog Modal
+  const previewBlogSchema = useMemo(() => {
+    if (!previewBlog) return null;
+    return generateBlogSchemaGraph(previewBlog);
+  }, [previewBlog]);
 
   const loadBlogs = async () => {
     setIsLoading(true);
@@ -1145,6 +1176,85 @@ export const AdminBlogCMS: React.FC = () => {
                     />
                   </div>
                 </div>
+
+                {/* Structured Data (Schema.org JSON-LD Preview) */}
+                <div className="pt-3 border-t border-slate-800 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Code className="w-4 h-4 text-orange-400" />
+                      <span className="text-xs font-semibold text-slate-300">
+                        Structured Data (Schema.org JSON-LD)
+                      </span>
+                      {editorSchema.isValid ? (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                          Valid: BlogPosting + BreadcrumbList
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                          Incomplete Schema
+                        </span>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowSchemaPreview(!showSchemaPreview)}
+                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <span>{showSchemaPreview ? 'Hide Schema' : 'Preview JSON-LD'}</span>
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                          showSchemaPreview ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {showSchemaPreview && (
+                    <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2 animate-fadeIn">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-[11px] text-slate-400 font-mono">
+                          Standard: Schema.org (BlogPosting, BreadcrumbList)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (editorSchema.jsonString) {
+                              navigator.clipboard.writeText(editorSchema.jsonString);
+                              setIsSchemaCopied(true);
+                              setTimeout(() => setIsSchemaCopied(false), 2000);
+                            }
+                          }}
+                          className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center gap-1 transition-colors cursor-pointer"
+                        >
+                          {isSchemaCopied ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-emerald-400" />
+                              <span className="text-emerald-400">Copied</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5" />
+                              <span>Copy JSON-LD</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      {!editorSchema.isValid && editorSchema.errors.length > 0 && (
+                        <div className="p-2 rounded bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300 space-y-0.5">
+                          {editorSchema.errors.map((err, i) => (
+                            <div key={i}>• {err}</div>
+                          ))}
+                        </div>
+                      )}
+
+                      <pre className="p-3 rounded-lg bg-[#070D1E] border border-slate-800 text-[11px] font-mono text-slate-300 max-h-56 overflow-y-auto overflow-x-auto custom-scrollbar">
+                        {editorSchema.jsonString || '// Schema generated when article title is specified'}
+                      </pre>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* SECTION 4: PUBLISHING STATE */}
@@ -1258,6 +1368,74 @@ export const AdminBlogCMS: React.FC = () => {
                   className="prose prose-invert max-w-none text-slate-200"
                 />
               </div>
+
+              {/* Structured Data (Schema.org JSON-LD Preview) */}
+              {previewBlogSchema && (
+                <div className="border-t border-slate-800 pt-5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Code className="w-4 h-4 text-orange-400" />
+                      <span className="text-xs font-semibold text-slate-300">
+                        Structured Data (Schema.org JSON-LD)
+                      </span>
+                      {previewBlogSchema.isValid && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                          Valid: BlogPosting + BreadcrumbList
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowPreviewModalSchema(!showPreviewModalSchema)}
+                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <span>{showPreviewModalSchema ? 'Hide Schema' : 'Inspect JSON-LD'}</span>
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                          showPreviewModalSchema ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {showPreviewModalSchema && (
+                    <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2 animate-fadeIn">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-[11px] text-slate-400 font-mono">
+                          Entities: BlogPosting, BreadcrumbList
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (previewBlogSchema.jsonString) {
+                              navigator.clipboard.writeText(previewBlogSchema.jsonString);
+                              setIsPreviewModalSchemaCopied(true);
+                              setTimeout(() => setIsPreviewModalSchemaCopied(false), 2000);
+                            }
+                          }}
+                          className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center gap-1 transition-colors cursor-pointer"
+                        >
+                          {isPreviewModalSchemaCopied ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-emerald-400" />
+                              <span className="text-emerald-400">Copied</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5" />
+                              <span>Copy JSON-LD</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      <pre className="p-3 rounded-lg bg-[#070D1E] border border-slate-800 text-[11px] font-mono text-slate-300 max-h-56 overflow-y-auto overflow-x-auto custom-scrollbar">
+                        {previewBlogSchema.jsonString}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
