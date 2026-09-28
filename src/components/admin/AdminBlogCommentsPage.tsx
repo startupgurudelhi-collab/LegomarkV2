@@ -19,6 +19,10 @@ import {
   Mail,
   BookOpen,
   Calendar,
+  Sparkles,
+  Scale,
+  Briefcase,
+  Wand2,
 } from 'lucide-react';
 import { BlogComment, BlogCommentStats } from '../../types/blogComment';
 import {
@@ -26,7 +30,12 @@ import {
   updateAdminBlogCommentStatus,
   replyAdminBlogComment,
   deleteAdminBlogComment,
+  fetchCommentReplySuggestions,
 } from '../../services/blogComment.service';
+import {
+  CommentReplySuggestionsResult,
+  CommentReplySuggestionItem,
+} from '../../types/commentReply';
 
 export const AdminBlogCommentsPage: React.FC = () => {
   const [comments, setComments] = useState<BlogComment[]>([]);
@@ -49,6 +58,12 @@ export const AdminBlogCommentsPage: React.FC = () => {
   const [replyText, setReplyText] = useState('');
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
+
+  // LACS Module #15: AI Reply Suggestions State
+  const [aiSuggestions, setAiSuggestions] = useState<CommentReplySuggestionsResult | null>(null);
+  const [isGeneratingAiReplies, setIsGeneratingAiReplies] = useState(false);
+  const [aiReplyError, setAiReplyError] = useState<string | null>(null);
+  const [selectedTone, setSelectedTone] = useState<'authoritative' | 'consultative' | 'concise' | null>(null);
 
   // Delete Modal State
   const [deletingComment, setDeletingComment] = useState<BlogComment | null>(null);
@@ -117,6 +132,28 @@ export const AdminBlogCommentsPage: React.FC = () => {
     setReplyingComment(comment);
     setReplyText(comment.adminReply || '');
     setReplyError(null);
+    setAiSuggestions(null);
+    setAiReplyError(null);
+    setSelectedTone(null);
+  };
+
+  const handleGenerateAiReplies = async () => {
+    if (!replyingComment) return;
+    setIsGeneratingAiReplies(true);
+    setAiReplyError(null);
+    try {
+      const data = await fetchCommentReplySuggestions(replyingComment.id);
+      setAiSuggestions(data);
+    } catch (err: any) {
+      setAiReplyError(err.message || 'Failed to generate AI reply suggestions');
+    } finally {
+      setIsGeneratingAiReplies(false);
+    }
+  };
+
+  const handleSelectAiSuggestion = (suggestion: CommentReplySuggestionItem) => {
+    setSelectedTone(suggestion.tone);
+    setReplyText(suggestion.text);
   };
 
   const handleSaveReply = async (e: React.FormEvent) => {
@@ -496,9 +533,9 @@ export const AdminBlogCommentsPage: React.FC = () => {
 
       {/* REPLY MODAL */}
       {replyingComment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs">
-          <div className="bg-[#0B132B] border border-slate-800 rounded-2xl w-full max-w-xl flex flex-col shadow-2xl animate-fadeIn">
-            <div className="p-5 border-b border-slate-800 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-[#0B132B] border border-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col shadow-2xl animate-fadeIn">
+            <div className="p-5 border-b border-slate-800 flex items-center justify-between sticky top-0 bg-[#0B132B] z-10">
               <div>
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
                   <Reply className="w-4 h-4 text-orange-400" />
@@ -532,6 +569,159 @@ export const AdminBlogCommentsPage: React.FC = () => {
                 <p className="text-xs text-slate-300 italic line-clamp-3">
                   "{replyingComment.content}"
                 </p>
+              </div>
+
+              {/* LACS Module #15: AI Reply Suggestions Section */}
+              <div className="p-4 rounded-xl bg-[#070D1E] border border-amber-500/20 space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                      Module #15
+                    </span>
+                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      <span>AI Comment Reply Suggestions</span>
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleGenerateAiReplies}
+                    disabled={isGeneratingAiReplies}
+                    className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs disabled:opacity-50"
+                  >
+                    {isGeneratingAiReplies ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-950" />
+                        <span>Generating Suggestions...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="w-3.5 h-3.5" />
+                        <span>{aiSuggestions ? 'Re-Generate Suggestions' : 'Generate 3 AI Reply Options'}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {aiReplyError && (
+                  <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                    <span>{aiReplyError}</span>
+                  </div>
+                )}
+
+                {aiSuggestions && (
+                  <div className="space-y-2 pt-1 animate-fadeIn">
+                    <p className="text-[11px] text-slate-400">
+                      Select any suggestion to insert into the editor below. You can freely review and edit before submitting:
+                    </p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                      {/* 1. Authoritative Clarification */}
+                      <div
+                        onClick={() => handleSelectAiSuggestion(aiSuggestions.suggestions.authoritative)}
+                        className={`p-3 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
+                          selectedTone === 'authoritative'
+                            ? 'bg-amber-500/10 border-amber-500/60 ring-1 ring-amber-500/40'
+                            : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-[11px] font-bold text-white flex items-center gap-1">
+                              <Scale className="w-3 h-3 text-orange-400" />
+                              <span>{aiSuggestions.suggestions.authoritative.label}</span>
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-orange-500/20 text-orange-300">
+                              {aiSuggestions.suggestions.authoritative.badge}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-400 line-clamp-2">
+                            {aiSuggestions.suggestions.authoritative.summary}
+                          </p>
+                          <p className="text-[11px] text-slate-300 line-clamp-3 italic">
+                            "{aiSuggestions.suggestions.authoritative.text.slice(0, 120)}..."
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          className="mt-2 w-full py-1 text-[10px] font-bold rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 transition cursor-pointer"
+                        >
+                          {selectedTone === 'authoritative' ? '✓ Inserted' : 'Insert This Reply'}
+                        </button>
+                      </div>
+
+                      {/* 2. Consultative Next Steps */}
+                      <div
+                        onClick={() => handleSelectAiSuggestion(aiSuggestions.suggestions.consultative)}
+                        className={`p-3 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
+                          selectedTone === 'consultative'
+                            ? 'bg-amber-500/10 border-amber-500/60 ring-1 ring-amber-500/40'
+                            : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-[11px] font-bold text-white flex items-center gap-1">
+                              <Briefcase className="w-3 h-3 text-emerald-400" />
+                              <span>{aiSuggestions.suggestions.consultative.label}</span>
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-emerald-500/20 text-emerald-300">
+                              {aiSuggestions.suggestions.consultative.badge}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-400 line-clamp-2">
+                            {aiSuggestions.suggestions.consultative.summary}
+                          </p>
+                          <p className="text-[11px] text-slate-300 line-clamp-3 italic">
+                            "{aiSuggestions.suggestions.consultative.text.slice(0, 120)}..."
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          className="mt-2 w-full py-1 text-[10px] font-bold rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 transition cursor-pointer"
+                        >
+                          {selectedTone === 'consultative' ? '✓ Inserted' : 'Insert This Reply'}
+                        </button>
+                      </div>
+
+                      {/* 3. Concise & Appreciative */}
+                      <div
+                        onClick={() => handleSelectAiSuggestion(aiSuggestions.suggestions.concise)}
+                        className={`p-3 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
+                          selectedTone === 'concise'
+                            ? 'bg-amber-500/10 border-amber-500/60 ring-1 ring-amber-500/40'
+                            : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-[11px] font-bold text-white flex items-center gap-1">
+                              <MessageSquare className="w-3 h-3 text-blue-400" />
+                              <span>{aiSuggestions.suggestions.concise.label}</span>
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/20 text-blue-300">
+                              {aiSuggestions.suggestions.concise.badge}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-400 line-clamp-2">
+                            {aiSuggestions.suggestions.concise.summary}
+                          </p>
+                          <p className="text-[11px] text-slate-300 line-clamp-3 italic">
+                            "{aiSuggestions.suggestions.concise.text.slice(0, 120)}..."
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          className="mt-2 w-full py-1 text-[10px] font-bold rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 transition cursor-pointer"
+                        >
+                          {selectedTone === 'concise' ? '✓ Inserted' : 'Insert This Reply'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Reply Textarea */}

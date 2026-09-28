@@ -4,6 +4,7 @@ import {
   BlogCommentStats,
   BlogCommentFilterOptions,
 } from '../types/blogComment';
+import { CommentReplySuggestionsResult } from '../types/commentReply';
 
 /**
  * Public: Fetch approved comments for a blog article
@@ -146,3 +147,27 @@ export async function deleteAdminBlogComment(id: string): Promise<boolean> {
 
   throw new Error(data?.error || 'Failed to delete comment');
 }
+
+/**
+ * Admin: Generate AI reply suggestions for a comment
+ */
+export async function fetchCommentReplySuggestions(
+  commentId: string
+): Promise<CommentReplySuggestionsResult> {
+  const res = await fetch(`/api/admin/blog-comments/${encodeURIComponent(commentId)}/suggest-replies`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+  });
+
+  const data = await res.json();
+
+  if (res.ok && data && data.success && data.data) {
+    return data.data;
+  }
+
+  throw new Error(data?.error || 'Failed to generate reply suggestions');
+}
+

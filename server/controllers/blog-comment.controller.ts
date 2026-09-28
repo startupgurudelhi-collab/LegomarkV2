@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { blogCommentRepository } from '../repositories/blog-comment.repository';
 import { blogRepository } from '../repositories/blog.repository';
+import { commentReplyService } from '../services/comment-reply.service';
 import { logger } from '../utils/logger';
 
 export class BlogCommentController {
@@ -233,6 +234,32 @@ export class BlogCommentController {
       res.status(500).json({
         success: false,
         error: 'Failed to delete comment',
+      });
+    }
+  }
+
+  /**
+   * Admin: Generate AI reply suggestions for a specific comment
+   * POST /api/admin/blog-comments/:id/suggest-replies
+   */
+  async suggestReplies(req: Request, res: Response): Promise<void> {
+    try {
+      const id = req.params.id;
+      if (!id) {
+        res.status(400).json({ success: false, error: 'Comment ID is required' });
+        return;
+      }
+
+      const suggestions = await commentReplyService.generateReplySuggestions(id);
+      res.json({
+        success: true,
+        data: suggestions,
+      });
+    } catch (err: any) {
+      logger.error('Error in suggestReplies', 'BlogCommentCtrl', err);
+      res.status(500).json({
+        success: false,
+        error: err.message || 'Failed to generate reply suggestions',
       });
     }
   }
