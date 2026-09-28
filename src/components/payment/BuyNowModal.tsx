@@ -395,6 +395,7 @@ export const BuyNowModal: React.FC<BuyNowModalProps> = ({
           ) : (
             /* Checkout Form & Order Summary */
             <form onSubmit={handleProceedToPayment} className="space-y-4">
+              <input type="hidden" id="gclid_field" name="gclid_field" value="" />
               {/* Pricing Overview Card */}
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
                 <div className="flex justify-between items-baseline">

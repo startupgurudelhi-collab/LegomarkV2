@@ -132,6 +132,7 @@ export const ConsultationModal: React.FC<ConsultationModalProps> = ({
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
+              <input type="hidden" id="gclid_field" name="gclid_field" value="" />
               {/* Service Selection */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">

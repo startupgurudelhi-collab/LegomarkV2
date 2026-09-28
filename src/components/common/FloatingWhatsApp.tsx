@@ -366,6 +366,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({
             {/* VIEW 2: WhatsApp Lead Capture Form */}
             {activeView === 'whatsapp' && (
               <form onSubmit={handleWhatsAppSubmit} className="space-y-3">
+                <input type="hidden" id="gclid_field" name="gclid_field" value="" />
                 {serviceName && (
                   <div className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
@@ -462,6 +463,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({
             {/* VIEW 3: Email Lead Capture Form */}
             {activeView === 'email' && (
               <form onSubmit={handleEmailSubmit} className="space-y-3">
+                <input type="hidden" id="gclid_field" name="gclid_field" value="" />
                 {emailError && (
                   <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
                     {emailError}

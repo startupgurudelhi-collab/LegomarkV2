@@ -196,6 +196,7 @@ export const ServiceApplicationForm: React.FC<ServiceApplicationFormProps> = ({
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
+          <input type="hidden" id="gclid_field" name="gclid_field" value="" />
           {/* Header */}
           <div className="space-y-1 pb-1">
             <div className="flex items-center justify-between">
