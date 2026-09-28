@@ -21,10 +21,12 @@ import {
   Tag,
   ChevronDown,
   ChevronUp,
+  Activity,
 } from 'lucide-react';
 import { OrphanPageItem, OrphanPageScanResult, PotentialLinkSource } from '../../types/orphanPage';
 import { scanOrphanPages } from '../../services/orphanPage.service';
 import { AdminNavSection } from './AdminSidebar';
+import { AdminContentRefreshView } from './AdminContentRefreshView';
 
 interface AdminOrphanPageDetectorProps {
   onNavigateSection?: (section: AdminNavSection) => void;
@@ -33,6 +35,9 @@ interface AdminOrphanPageDetectorProps {
 export const AdminOrphanPageDetector: React.FC<AdminOrphanPageDetectorProps> = ({
   onNavigateSection,
 }) => {
+  // LACS SEO Health Section: Content Refresh (Module #11) vs Orphan Detector
+  const [activeTab, setActiveTab] = useState<'content-refresh' | 'orphan'>('content-refresh');
+
   // Scan state
   const [isScanning, setIsScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -123,8 +128,56 @@ export const AdminOrphanPageDetector: React.FC<AdminOrphanPageDetectorProps> = (
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* LACS SEO Health Section Header & Tabs */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30">
+              LACS SEO Health
+            </span>
+            <span className="text-xs text-slate-400 font-mono">Topology, Equity & Freshness</span>
+          </div>
+          <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+            SEO Health & Quality Hub
+          </h1>
+        </div>
+
+        {/* Section Tabs */}
+        <div className="flex items-center gap-1.5 p-1 bg-slate-900 border border-slate-800 rounded-xl shrink-0">
+          <button
+            type="button"
+            onClick={() => setActiveTab('content-refresh')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+              activeTab === 'content-refresh'
+                ? 'bg-amber-500 text-slate-950 shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Activity className="w-3.5 h-3.5" />
+            <span>Content Refresh (Module #11)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('orphan')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+              activeTab === 'orphan'
+                ? 'bg-amber-500 text-slate-950 shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <ShieldAlert className="w-3.5 h-3.5" />
+            <span>Orphan Page Detector</span>
+          </button>
+        </div>
+      </div>
+
+      {activeTab === 'content-refresh' ? (
+        <AdminContentRefreshView onNavigateSection={onNavigateSection} />
+      ) : (
+        <>
+          {/* Page Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
@@ -784,6 +837,8 @@ export const AdminOrphanPageDetector: React.FC<AdminOrphanPageDetectorProps> = (
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );
