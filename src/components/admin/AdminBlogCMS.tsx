@@ -44,6 +44,8 @@ import { RichTextEditor } from './RichTextEditor';
 import { RichContentRenderer } from '../blog/RichContentRenderer';
 import { AdminAiBlogFactory } from './AdminAiBlogFactory';
 import { generateBlogSchemaGraph } from '../../utils/blogSchemaGenerator';
+import { AuthorityLinkSuggester } from './AuthorityLinkSuggester';
+import { AuthorityLinkSuggestion } from '../../types/authorityLink';
 
 const BLOG_CATEGORIES = [
   'Company Registration',
@@ -320,6 +322,23 @@ export const AdminBlogCMS: React.FC = () => {
     setTimeout(() => {
       setFaqInsertedNotification(false);
     }, 4000);
+  };
+
+  const handleInsertAuthorityLink = (snippet: string, suggestion: AuthorityLinkSuggestion) => {
+    if (formData.content.includes(suggestion.targetUrl)) {
+      return;
+    }
+    const current = formData.content.trim();
+    const formattedSnippet = `\n\n> **Statutory Reference**: ${snippet}\n`;
+
+    const sectionRegex = /(##\s+(?:Frequently\s+Asked\s+Questions|FAQs|Conclusion|Next\s+Steps)[^\n]*)/i;
+    let newContent: string;
+    if (sectionRegex.test(current)) {
+      newContent = current.replace(sectionRegex, `${formattedSnippet}\n$1`);
+    } else {
+      newContent = current ? `${current}${formattedSnippet}` : formattedSnippet.trim();
+    }
+    setFormData((prev) => ({ ...prev, content: newContent }));
   };
 
   const handleAutoGenerateSlug = () => {
@@ -1110,6 +1129,15 @@ export const AdminBlogCMS: React.FC = () => {
                         </div>
                       </div>
                     )}
+
+                    {/* AI Authority Link Suggestions (Deterministic Curated Registry) */}
+                    <AuthorityLinkSuggester
+                      title={formData.title}
+                      category={formData.category}
+                      content={formData.content}
+                      onInsertLink={handleInsertAuthorityLink}
+                      className="mb-3"
+                    />
 
                     <RichTextEditor
                       value={formData.content}
