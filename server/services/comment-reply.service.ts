@@ -36,7 +36,15 @@ export class CommentReplyService {
     }
 
     // 1. Fetch comment from repository
-    const comment = await blogCommentRepository.getById(cleanId);
+    let comment = typeof blogCommentRepository.getById === 'function'
+      ? await blogCommentRepository.getById(cleanId)
+      : null;
+
+    if (!comment && typeof blogCommentRepository.getAdminComments === 'function') {
+      const adminData = await blogCommentRepository.getAdminComments();
+      comment = (adminData.comments || []).find((c) => c.id === cleanId) || null;
+    }
+
     if (!comment) {
       throw new Error(`Comment with ID "${cleanId}" not found`);
     }
