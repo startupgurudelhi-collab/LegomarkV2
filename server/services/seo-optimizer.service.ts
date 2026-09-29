@@ -2,6 +2,11 @@ import { GoogleGenAI, Type, Schema } from '@google/genai';
 import { logger } from '../utils/logger';
 import { blogRepository } from '../repositories/blog.repository';
 import { serviceRepository } from '../repositories/service.repository';
+import { getDatabase, pingDatabase } from '../config/database';
+import { systemMetadata } from '../../db/schema/index';
+import { eq } from 'drizzle-orm';
+
+export const SEO_AUDIT_CATALOG_KEY = 'seo_audit:catalog_summary';
 
 export interface SeoDimensionAudit {
   score: number;
@@ -122,7 +127,81 @@ export interface SeoAnalysisResult {
   }>;
 }
 
+export interface ArticleDeterministicAudit {
+  articleId?: string;
+  title: string;
+  slug: string;
+  category: string;
+  author: string;
+  publishedAt?: string | null;
+  score: number; // 0 to 100
+  grade: 'Excellent' | 'Good' | 'Needs Improvement' | 'Critical';
+  wordCount: number;
+  readingTimeMinutes: number;
+  fleschScore: number;
+  readabilityLevel: string;
+  h1Count: number;
+  h2Count: number;
+  h3Count: number;
+  internalLinkCount: number;
+  externalLinkCount: number;
+  imageCount: number;
+  missingAltCount: number;
+  hasFeaturedImage: boolean;
+  focusKeyword: string;
+  keywordDensityPercent: number;
+  keywordOccurrences: number;
+  dimensions: {
+    seoTitle: SeoDimensionAudit;
+    metaDescription: SeoDimensionAudit;
+    focusKeyword: SeoDimensionAudit;
+    keywordUsage: SeoDimensionAudit;
+    headingStructure: SeoDimensionAudit;
+    contentLength: SeoDimensionAudit;
+    readability: SeoDimensionAudit;
+    internalLinks: SeoDimensionAudit;
+    imagesAlt: SeoDimensionAudit;
+    urlSlug: SeoDimensionAudit;
+    faqOpportunities: SeoDimensionAudit;
+  };
+  criticalIssuesCount: number;
+  warningsCount: number;
+  recommendations: SeoRecommendation[];
+}
+
+export interface CatalogSeoAuditResult {
+  auditedAt: string;
+  totalArticles: number;
+  averageScore: number;
+  gradeDistribution: {
+    excellent: number;
+    good: number;
+    needsImprovement: number;
+    critical: number;
+  };
+  dimensionSummaries: {
+    [key: string]: {
+      averageScore: number;
+      maxScore: number;
+      criticalCount: number;
+      warningCount: number;
+      goodCount: number;
+    };
+  };
+  catalogIssuesSummary: {
+    missingMetaDescriptionCount: number;
+    shortTitleCount: number;
+    thinContentCount: number;
+    missingAltCount: number;
+    zeroInternalLinksCount: number;
+    missingFaqSectionCount: number;
+  };
+  articles: ArticleDeterministicAudit[];
+}
+
 export class SeoOptimizerService {
+  private fallbackCatalogAudit: CatalogSeoAuditResult | null = null;
+
   private getClient(): GoogleGenAI {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -1250,6 +1329,817 @@ Please audit this content and provide structured JSON recommendations:
         })),
       };
     }
+  }
+
+  /**
+   * LACS Module #18: Evaluates a single article against all 11 SEO dimensions deterministically.
+   * Pure algorithmic evaluation without calling Gemini AI.
+   */
+  evaluateArticleDeterministic(
+    blogData: any,
+    focusKeywordInput?: string
+  ): ArticleDeterministicAudit {
+    const id = blogData.id || undefined;
+    const title = (blogData.title || '').trim();
+    const slug = (blogData.slug || blogData.seoSlug || '').trim();
+    const category = (blogData.category || 'Corporate Advisory').trim();
+    const author = (blogData.author || 'Legomark Legal Team').trim();
+    const content = (blogData.content || '').trim();
+    const excerpt = blogData.excerpt || '';
+    const seoTitle = (blogData.seoTitle || title).trim();
+    const metaDescription = (blogData.metaDescription || excerpt || '').trim();
+    const featuredImage = blogData.featuredImage || null;
+    const publishedAt = blogData.publishedAt ? new Date(blogData.publishedAt).toISOString() : null;
+
+    const rawText = this.stripHtml(content);
+    const words = rawText.split(/\s+/).filter((w) => w.length > 0);
+    const wordCount = words.length;
+    const readingTimeMinutes = Math.max(1, Math.ceil(wordCount / 200));
+
+    // Structural metrics
+    const headings = this.extractHeadings(content);
+    const h1Count = headings.filter((h) => h.level === 1).length;
+    const h2Count = headings.filter((h) => h.level === 2).length;
+    const h3Count = headings.filter((h) => h.level === 3).length;
+
+    // Link metrics
+    const links = this.extractLinks(content);
+    const internalLinks = links.filter((l) => l.isInternal);
+    const externalLinks = links.filter((l) => !l.isInternal);
+
+    // Image metrics
+    const images = this.extractImages(content, featuredImage);
+    const missingAltCount = images.filter((img) => !img.hasAlt || img.isFilenameAlt).length;
+
+    // Readability
+    const { score: fleschScore, level: readabilityLevel } = this.calculateFleschScore(rawText);
+
+    // Determine focus keyword deterministically (if not provided, extract from title or seoTitle)
+    let focusKeyword = (focusKeywordInput || '').trim();
+    if (!focusKeyword) {
+      if (seoTitle && seoTitle.includes('|')) {
+        focusKeyword = seoTitle.split('|')[0].trim();
+      } else if (title && title.includes(':')) {
+        focusKeyword = title.split(':')[0].trim();
+      } else if (title) {
+        focusKeyword = title.split(' - ')[0].trim();
+      }
+    }
+
+    // Keyword usage calculation
+    let keywordOccurrences = 0;
+    let keywordDensityPercent = 0;
+    const lowerKw = focusKeyword.toLowerCase();
+    if (focusKeyword) {
+      const escapedKw = focusKeyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const kwRegex = new RegExp(`\\b${escapedKw}\\b`, 'gi');
+      const matches = rawText.match(kwRegex);
+      keywordOccurrences = matches ? matches.length : 0;
+      const kwWords = focusKeyword.split(/\s+/).length;
+      keywordDensityPercent = wordCount > 0 ? parseFloat(((keywordOccurrences * kwWords * 100) / wordCount).toFixed(2)) : 0;
+    }
+
+    // Tag headings with keyword
+    for (const h of headings) {
+      h.hasKeyword = lowerKw.length > 0 && h.text.toLowerCase().includes(lowerKw);
+    }
+
+    // 1. SEO Title (10 pts)
+    const titleLen = seoTitle.length;
+    let titleScore = 10;
+    const titleDetails: string[] = [];
+    let titleStatus: 'good' | 'warning' | 'critical' = 'good';
+
+    if (titleLen === 0) {
+      titleScore = 0;
+      titleStatus = 'critical';
+      titleDetails.push('Missing SEO Title tag.');
+    } else if (titleLen < 40) {
+      titleScore = 6;
+      titleStatus = 'warning';
+      titleDetails.push(`SEO Title is too short (${titleLen} chars). Optimal range is 50-60 characters.`);
+    } else if (titleLen > 65) {
+      titleScore = 6;
+      titleStatus = 'warning';
+      titleDetails.push(`SEO Title is too long (${titleLen} chars). It will likely truncate in Google SERP results.`);
+    } else {
+      titleDetails.push(`Optimal title length (${titleLen} chars). Fits Google Desktop and Mobile viewports.`);
+    }
+
+    if (focusKeyword && !seoTitle.toLowerCase().includes(lowerKw)) {
+      titleScore = Math.max(2, titleScore - 3);
+      titleStatus = titleStatus === 'critical' ? 'critical' : 'warning';
+      titleDetails.push(`Focus keyword "${focusKeyword}" is not present in the SEO Title.`);
+    } else if (focusKeyword) {
+      titleDetails.push(`Focus keyword "${focusKeyword}" detected in SEO Title.`);
+    }
+
+    // 2. Meta Description (10 pts)
+    const metaLen = (metaDescription || '').length;
+    let metaScore = 10;
+    const metaDetails: string[] = [];
+    let metaStatus: 'good' | 'warning' | 'critical' = 'good';
+
+    if (metaLen === 0) {
+      metaScore = 0;
+      metaStatus = 'critical';
+      metaDetails.push('No meta description provided. Search engines will auto-generate snippets.');
+    } else if (metaLen < 80) {
+      metaScore = 5;
+      metaStatus = 'warning';
+      metaDetails.push(`Meta description is brief (${metaLen} chars). Optimal range is 120-160 characters.`);
+    } else if (metaLen > 165) {
+      metaScore = 6;
+      metaStatus = 'warning';
+      metaDetails.push(`Meta description is long (${metaLen} chars) and may truncate with ellipsis in search snippets.`);
+    } else {
+      metaDetails.push(`Ideal meta description length (${metaLen} chars). Displays fully in Google search snippets.`);
+    }
+
+    if (focusKeyword && metaDescription && !metaDescription.toLowerCase().includes(lowerKw)) {
+      metaScore = Math.max(2, metaScore - 3);
+      metaStatus = metaStatus === 'critical' ? 'critical' : 'warning';
+      metaDetails.push(`Primary focus keyword "${focusKeyword}" is missing from the meta description.`);
+    }
+
+    // 3. Focus Keyword (10 pts)
+    let fkScore = 10;
+    const fkDetails: string[] = [];
+    let fkStatus: 'good' | 'warning' | 'critical' = 'good';
+
+    if (!focusKeyword) {
+      fkScore = 3;
+      fkStatus = 'critical';
+      fkDetails.push('No primary focus keyword designated for this article.');
+    } else {
+      fkDetails.push(`Primary target keyword: "${focusKeyword}"`);
+    }
+
+    // 4. Keyword Usage (10 pts)
+    let kuScore = 10;
+    const kuDetails: string[] = [];
+    let kuStatus: 'good' | 'warning' | 'critical' = 'good';
+
+    if (keywordOccurrences === 0) {
+      kuScore = 2;
+      kuStatus = 'critical';
+      kuDetails.push(`Keyword "${focusKeyword}" was not found anywhere in body content.`);
+    } else if (keywordDensityPercent < 0.6) {
+      kuScore = 6;
+      kuStatus = 'warning';
+      kuDetails.push(`Keyword density is low (${keywordDensityPercent}%). Found ${keywordOccurrences} time(s). Ideal is 1.0% - 2.2%.`);
+    } else if (keywordDensityPercent > 2.8) {
+      kuScore = 5;
+      kuStatus = 'warning';
+      kuDetails.push(`High keyword density (${keywordDensityPercent}%). Risks keyword stuffing penalties. Found ${keywordOccurrences} times.`);
+    } else {
+      kuDetails.push(`Healthy keyword density: ${keywordDensityPercent}% (${keywordOccurrences} occurrences in ${wordCount} words).`);
+    }
+
+    const first150Words = words.slice(0, 150).join(' ').toLowerCase();
+    if (focusKeyword && first150Words.includes(lowerKw)) {
+      kuDetails.push('Focus keyword appears early in the opening introduction (first 150 words).');
+    } else if (focusKeyword) {
+      kuScore = Math.max(3, kuScore - 2);
+      kuDetails.push('Focus keyword is missing from the first 150 words introduction.');
+    }
+
+    // 5. Heading Structure (10 pts)
+    let hScore = 10;
+    const hDetails: string[] = [];
+    let hStatus: 'good' | 'warning' | 'critical' = 'good';
+
+    if (h2Count === 0) {
+      hScore = 3;
+      hStatus = 'critical';
+      hDetails.push('No H2 subheadings found. Content lacks structural readability and scan-ability.');
+    } else if (h2Count < 3) {
+      hScore = 7;
+      hStatus = 'warning';
+      hDetails.push(`Only ${h2Count} H2 subheading(s) detected. Recommend at least 3-4 structured H2 sections.`);
+    } else {
+      hDetails.push(`Solid heading hierarchy with ${h2Count} H2 subheadings and ${h3Count} H3 sub-sections.`);
+    }
+
+    const kwInH2 = headings.some((h) => h.level === 2 && h.hasKeyword);
+    if (!kwInH2 && focusKeyword) {
+      hScore = Math.max(3, hScore - 2);
+      hDetails.push('None of the H2 headings contain the focus keyword or variations.');
+    } else if (kwInH2) {
+      hDetails.push('Focus keyword is incorporated in at least one H2 subheading.');
+    }
+
+    // 6. Content Length (10 pts)
+    let clScore = 10;
+    const clDetails: string[] = [];
+    let clStatus: 'good' | 'warning' | 'critical' = 'good';
+
+    if (wordCount < 400) {
+      clScore = 2;
+      clStatus = 'critical';
+      clDetails.push(`Thin content warning: only ${wordCount} words. In-depth legal/corporate guides should exceed 1,000 words.`);
+    } else if (wordCount < 800) {
+      clScore = 6;
+      clStatus = 'warning';
+      clDetails.push(`Moderate length: ${wordCount} words. Consider expanding explanations, steps, and compliance checklists.`);
+    } else if (wordCount < 1400) {
+      clScore = 9;
+      clDetails.push(`Comprehensive article length: ${wordCount} words (~${readingTimeMinutes} min read).`);
+    } else {
+      clScore = 10;
+      clDetails.push(`Authoritative deep pillar guide: ${wordCount} words (~${readingTimeMinutes} min read). Excellent topic depth.`);
+    }
+
+    // 7. Readability (10 pts)
+    let rScore = 10;
+    const rDetails: string[] = [];
+    let rStatus: 'good' | 'warning' | 'critical' = 'good';
+
+    if (fleschScore < 40) {
+      rScore = 5;
+      rStatus = 'warning';
+      rDetails.push(`Flesch Reading Ease: ${fleschScore}/100 (${readabilityLevel}). Sentences are long and dense; break down complex legal clauses into bullet points.`);
+    } else if (fleschScore < 55) {
+      rScore = 8;
+      rDetails.push(`Flesch Reading Ease: ${fleschScore}/100 (${readabilityLevel}). Acceptable for specialized corporate/tax guidance.`);
+    } else {
+      rScore = 10;
+      rDetails.push(`Flesch Reading Ease: ${fleschScore}/100 (${readabilityLevel}). Clear, engaging, and easy for business owners to follow.`);
+    }
+
+    // 8. Internal Links (10 pts)
+    let ilScore = 10;
+    const ilDetails: string[] = [];
+    let ilStatus: 'good' | 'warning' | 'critical' = 'good';
+
+    if (internalLinks.length === 0) {
+      ilScore = 2;
+      ilStatus = 'critical';
+      ilDetails.push('Zero internal links detected. Missing opportunities to pass link equity to Legomark service pages.');
+    } else if (internalLinks.length < 3) {
+      ilScore = 6;
+      ilStatus = 'warning';
+      ilDetails.push(`Only ${internalLinks.length} internal link(s) found. Aim for 3-5 contextual links pointing to practice areas.`);
+    } else {
+      ilDetails.push(`Well-connected: ${internalLinks.length} internal link(s) and ${externalLinks.length} external reference(s).`);
+    }
+
+    const genericAnchors = links.filter((l) => l.isGenericAnchor);
+    if (genericAnchors.length > 0) {
+      ilScore = Math.max(3, ilScore - 2);
+      ilDetails.push(`${genericAnchors.length} link(s) use generic anchor text like "click here" or "read more". Use descriptive keyword anchors.`);
+    }
+
+    // 9. Image Alt Text (10 pts)
+    let imgScore = 10;
+    const imgDetails: string[] = [];
+    let imgStatus: 'good' | 'warning' | 'critical' = 'good';
+
+    if (!featuredImage) {
+      imgScore = Math.max(3, imgScore - 4);
+      imgStatus = 'warning';
+      imgDetails.push('Missing featured image. Essential for social sharing cards and visual SERP results.');
+    } else {
+      imgDetails.push('Featured hero image is assigned.');
+    }
+
+    if (images.length === 0) {
+      imgScore = Math.max(2, imgScore - 4);
+      imgStatus = 'warning';
+      imgDetails.push('No visual assets found in the article.');
+    } else if (missingAltCount > 0) {
+      imgScore = Math.max(3, imgScore - Math.min(5, missingAltCount * 2));
+      imgStatus = 'warning';
+      imgDetails.push(`${missingAltCount} image(s) missing descriptive ALT text tags for screen readers & Google Images.`);
+    } else {
+      imgDetails.push(`All ${images.length} image(s) have descriptive ALT text.`);
+    }
+
+    // 10. URL Slug (5 pts)
+    let slugScore = 5;
+    const slugDetails: string[] = [];
+    let slugStatus: 'good' | 'warning' | 'critical' = 'good';
+
+    const cleanSlug = slug.toLowerCase();
+    if (!cleanSlug) {
+      slugScore = 0;
+      slugStatus = 'critical';
+      slugDetails.push('Missing URL slug.');
+    } else if (cleanSlug.length > 55) {
+      slugScore = 3;
+      slugStatus = 'warning';
+      slugDetails.push(`URL slug is lengthy (${cleanSlug.length} chars). Shorter slugs (3-5 words) rank better.`);
+    } else if (/[^a-z0-9-]/.test(cleanSlug)) {
+      slugScore = 2;
+      slugStatus = 'warning';
+      slugDetails.push('Slug contains special characters or uppercase letters.');
+    } else {
+      slugDetails.push(`Clean, canonical URL slug: /blog/${cleanSlug}`);
+    }
+
+    if (focusKeyword && cleanSlug) {
+      const kwWordsInSlug = focusKeyword.toLowerCase().split(/\s+/).filter((w) => cleanSlug.includes(w));
+      if (kwWordsInSlug.length === 0) {
+        slugScore = Math.max(1, slugScore - 2);
+        slugDetails.push(`Focus keyword is not reflected in URL slug: "${cleanSlug}".`);
+      } else {
+        slugDetails.push('Target keyword terms present in URL slug.');
+      }
+    }
+
+    // 11. FAQ Opportunities (5 pts)
+    let faqScore = 5;
+    const faqDetails: string[] = [];
+    let faqStatus: 'good' | 'warning' | 'critical' = 'good';
+
+    const hasFaqSection =
+      /<h[23][^>]*>.*?(faq|frequently\s+asked|questions).*?<\/h[23]>/i.test(content) ||
+      /frequently asked questions/i.test(rawText);
+    if (!hasFaqSection) {
+      faqScore = 2;
+      faqStatus = 'warning';
+      faqDetails.push('No dedicated FAQ section detected. FAQ schema and Q&A blocks capture high Google SERP real estate.');
+    } else {
+      faqDetails.push('Dedicated FAQ section identified in content.');
+    }
+
+    // Final Score
+    const totalScore = Math.min(
+      100,
+      Math.max(
+        0,
+        Math.round(
+          titleScore +
+            metaScore +
+            fkScore +
+            kuScore +
+            hScore +
+            clScore +
+            rScore +
+            ilScore +
+            imgScore +
+            slugScore +
+            faqScore
+        )
+      )
+    );
+
+    let scoreGrade: 'Excellent' | 'Good' | 'Needs Improvement' | 'Critical' = 'Needs Improvement';
+    if (totalScore >= 85) scoreGrade = 'Excellent';
+    else if (totalScore >= 70) scoreGrade = 'Good';
+    else if (totalScore >= 50) scoreGrade = 'Needs Improvement';
+    else scoreGrade = 'Critical';
+
+    // Compile deterministic recommendations
+    const recommendations: SeoRecommendation[] = [];
+
+    if (titleStatus !== 'good') {
+      recommendations.push({
+        id: 'rec-title',
+        dimension: 'SEO Title',
+        priority: titleStatus === 'critical' ? 'high' : 'medium',
+        title: titleStatus === 'critical' ? 'Set an SEO-Optimized Title' : 'Refine SEO Title & Branding',
+        description: titleDetails.join(' '),
+        currentValue: seoTitle,
+        recommendedValue: `${title} | Legomark Advisory`,
+        suggestedAction: 'Update your SEO Title in the Blog Editor to maintain between 50-60 characters and position your focus keyword upfront.',
+      });
+    }
+
+    if (metaStatus !== 'good') {
+      recommendations.push({
+        id: 'rec-meta',
+        dimension: 'Meta Description',
+        priority: metaStatus === 'critical' ? 'high' : 'medium',
+        title: metaStatus === 'critical' ? 'Write a Compelling Meta Description' : 'Optimize Meta Description Length & CTA',
+        description: metaDetails.join(' '),
+        currentValue: metaDescription,
+        recommendedValue: `Read our comprehensive guide to ${title}. Understand key rules, legal checklists, and step-by-step corporate procedures from Legomark.`,
+        suggestedAction: 'Craft a 140-155 character meta snippet ending with an action-oriented call to action.',
+      });
+    }
+
+    if (fkStatus !== 'good' || !focusKeyword) {
+      recommendations.push({
+        id: 'rec-focus-kw',
+        dimension: 'Focus Keyword',
+        priority: 'high',
+        title: 'Define Primary Target Keyword',
+        description: fkDetails.join(' '),
+        currentValue: focusKeyword || '(None designated)',
+        recommendedValue: title.split(':')[0].trim(),
+        suggestedAction: 'Target a high-intent business query (e.g. "Private Limited Company Registration" or "GST Filing Procedure") to anchor the page authority.',
+      });
+    }
+
+    if (kuStatus !== 'good') {
+      recommendations.push({
+        id: 'rec-kw-usage',
+        dimension: 'Keyword Usage',
+        priority: kuStatus === 'critical' ? 'high' : 'medium',
+        title: 'Balance Keyword Placement & Density',
+        description: kuDetails.join(' '),
+        currentValue: `${keywordDensityPercent}% density (${keywordOccurrences} times)`,
+        recommendedValue: '1.2% - 1.8% density with natural placement in first paragraph, subheadings, and conclusion',
+        suggestedAction: 'Naturally include your target keyword within the opening paragraph, at least one H2 heading, and concluding summary.',
+      });
+    }
+
+    if (hStatus !== 'good') {
+      recommendations.push({
+        id: 'rec-headings',
+        dimension: 'H1/H2/H3 Structure',
+        priority: hStatus === 'critical' ? 'high' : 'medium',
+        title: 'Structure Content with Logical H2 & H3 Hierarchy',
+        description: hDetails.join(' '),
+        currentValue: `${h1Count} H1, ${h2Count} H2, ${h3Count} H3`,
+        recommendedValue: '1 H1 (Article Title), 3-5 H2 subheadings, 2-4 H3 sub-points',
+        suggestedAction: 'Break large narrative blocks into sequential subtopics with H2 tags, including step-by-step checklists.',
+      });
+    }
+
+    if (clStatus !== 'good') {
+      recommendations.push({
+        id: 'rec-content-len',
+        dimension: 'Content Length',
+        priority: clStatus === 'critical' ? 'high' : 'low',
+        title: 'Expand Article Depth & Topical Authority',
+        description: clDetails.join(' '),
+        currentValue: `${wordCount} words`,
+        recommendedValue: '1,200 - 1,800+ words for comprehensive corporate topics',
+        suggestedAction: 'Add detailed statutory compliance timelines, eligibility criteria, required documents list, and practical FAQs.',
+      });
+    }
+
+    if (rStatus !== 'good') {
+      recommendations.push({
+        id: 'rec-readability',
+        dimension: 'Readability',
+        priority: 'medium',
+        title: 'Improve Plain English Readability',
+        description: rDetails.join(' '),
+        currentValue: `Flesch Score: ${fleschScore}/100 (${readabilityLevel})`,
+        recommendedValue: 'Flesch Score: 60-70 (Accessible professional reading)',
+        suggestedAction: 'Shorten complex compound sentences, replace overly dense legal terms with conversational explanations, and use bulleted lists.',
+      });
+    }
+
+    if (ilStatus !== 'good') {
+      recommendations.push({
+        id: 'rec-internal-links',
+        dimension: 'Internal Links',
+        priority: ilStatus === 'critical' ? 'high' : 'medium',
+        title: 'Embed Relevant Service & Category Links',
+        description: ilDetails.join(' '),
+        currentValue: `${internalLinks.length} internal links`,
+        recommendedValue: '3 - 5 contextual links to Legomark practice areas',
+        suggestedAction: 'Anchor relevant service phrases (e.g. "consult our corporate lawyers" or "register your trademark") to corresponding service packages.',
+      });
+    }
+
+    if (imgStatus !== 'good') {
+      recommendations.push({
+        id: 'rec-images',
+        dimension: 'Image/Alt Text',
+        priority: !featuredImage ? 'high' : 'medium',
+        title: !featuredImage ? 'Assign Featured Hero Image' : 'Add Descriptive Alt Tags to Images',
+        description: imgDetails.join(' '),
+        currentValue: !featuredImage ? 'Missing featured image' : `${missingAltCount} image(s) missing alt text`,
+        recommendedValue: 'High-resolution featured banner and descriptive alt text for all illustrations',
+        suggestedAction: 'Assign an informative featured image and supply descriptive alt text for every diagram or photo.',
+      });
+    }
+
+    if (slugStatus !== 'good') {
+      recommendations.push({
+        id: 'rec-slug',
+        dimension: 'URL Slug',
+        priority: slugStatus === 'critical' ? 'high' : 'low',
+        title: slugStatus === 'critical' ? 'Define Canonical URL Slug' : 'Refine URL Slug Length & Keywords',
+        description: slugDetails.join(' '),
+        currentValue: slug || '(None)',
+        recommendedValue: cleanSlug.slice(0, 45) || 'corporate-legal-guide',
+        suggestedAction: 'Keep URL slugs clean, lowercase, and hyphenated with 3-5 focus words.',
+      });
+    }
+
+    if (faqStatus !== 'good') {
+      recommendations.push({
+        id: 'rec-faqs',
+        dimension: 'FAQ Opportunities',
+        priority: 'medium',
+        title: 'Add Dedicated FAQ Section',
+        description: faqDetails.join(' '),
+        currentValue: 'No FAQ section detected',
+        recommendedValue: 'H2 "Frequently Asked Questions" with 3-5 Q&A pairs',
+        suggestedAction: 'Incorporate an FAQ section addressing common client queries (e.g. timelines, eligibility, government fees).',
+      });
+    }
+
+    const dimensions = {
+      seoTitle: {
+        score: titleScore,
+        maxScore: 10,
+        status: titleStatus,
+        title: 'SEO Title',
+        summary: titleDetails[0] || 'SEO Title evaluation',
+        currentValue: seoTitle,
+        details: titleDetails,
+      },
+      metaDescription: {
+        score: metaScore,
+        maxScore: 10,
+        status: metaStatus,
+        title: 'Meta Description',
+        summary: metaDetails[0] || 'Meta description evaluation',
+        currentValue: metaDescription,
+        details: metaDetails,
+      },
+      focusKeyword: {
+        score: fkScore,
+        maxScore: 10,
+        status: fkStatus,
+        title: 'Focus Keyword',
+        summary: fkDetails[0] || 'Focus keyword evaluation',
+        currentValue: focusKeyword,
+        details: fkDetails,
+      },
+      keywordUsage: {
+        score: kuScore,
+        maxScore: 10,
+        status: kuStatus,
+        title: 'Keyword Usage',
+        summary: kuDetails[0] || 'Keyword usage evaluation',
+        currentValue: `${keywordDensityPercent}% density (${keywordOccurrences} times)`,
+        details: kuDetails,
+      },
+      headingStructure: {
+        score: hScore,
+        maxScore: 10,
+        status: hStatus,
+        title: 'H1/H2/H3 Structure',
+        summary: hDetails[0] || 'Headings evaluation',
+        currentValue: `${h1Count} H1, ${h2Count} H2, ${h3Count} H3`,
+        details: hDetails,
+      },
+      contentLength: {
+        score: clScore,
+        maxScore: 10,
+        status: clStatus,
+        title: 'Content Length',
+        summary: clDetails[0] || 'Content length evaluation',
+        currentValue: `${wordCount} words`,
+        details: clDetails,
+      },
+      readability: {
+        score: rScore,
+        maxScore: 10,
+        status: rStatus,
+        title: 'Readability',
+        summary: rDetails[0] || 'Readability evaluation',
+        currentValue: `Flesch Score: ${fleschScore}/100 (${readabilityLevel})`,
+        details: rDetails,
+      },
+      internalLinks: {
+        score: ilScore,
+        maxScore: 10,
+        status: ilStatus,
+        title: 'Internal Links',
+        summary: ilDetails[0] || 'Internal links evaluation',
+        currentValue: `${internalLinks.length} internal links`,
+        details: ilDetails,
+      },
+      imagesAlt: {
+        score: imgScore,
+        maxScore: 10,
+        status: imgStatus,
+        title: 'Image/Alt Text',
+        summary: imgDetails[0] || 'Images evaluation',
+        currentValue: `${images.length} image(s), ${missingAltCount} missing alt`,
+        details: imgDetails,
+      },
+      urlSlug: {
+        score: slugScore,
+        maxScore: 5,
+        status: slugStatus,
+        title: 'URL Slug',
+        summary: slugDetails[0] || 'Slug evaluation',
+        currentValue: `/blog/${cleanSlug}`,
+        details: slugDetails,
+      },
+      faqOpportunities: {
+        score: faqScore,
+        maxScore: 5,
+        status: faqStatus,
+        title: 'FAQ Opportunities',
+        summary: faqDetails[0] || 'FAQ section evaluation',
+        currentValue: hasFaqSection ? 'FAQ section detected' : 'No FAQ section',
+        details: faqDetails,
+      },
+    };
+
+    const criticalIssuesCount = Object.values(dimensions).filter((d) => d.status === 'critical').length;
+    const warningsCount = Object.values(dimensions).filter((d) => d.status === 'warning').length;
+
+    return {
+      articleId: id,
+      title,
+      slug,
+      category,
+      author,
+      publishedAt,
+      score: totalScore,
+      grade: scoreGrade,
+      wordCount,
+      readingTimeMinutes,
+      fleschScore,
+      readabilityLevel,
+      h1Count,
+      h2Count,
+      h3Count,
+      internalLinkCount: internalLinks.length,
+      externalLinkCount: externalLinks.length,
+      imageCount: images.length,
+      missingAltCount,
+      hasFeaturedImage: Boolean(featuredImage),
+      focusKeyword,
+      keywordDensityPercent,
+      keywordOccurrences,
+      dimensions,
+      criticalIssuesCount,
+      warningsCount,
+      recommendations,
+    };
+  }
+
+  /**
+   * LACS Module #18: Catalog-wide deterministic SEO audit.
+   * Audits all published blog articles using the 11-dimension scoring engine
+   * without incurring external AI/Gemini latency or rate-limits.
+   */
+  async auditCatalogDeterministic(persist = false): Promise<CatalogSeoAuditResult> {
+    const { blogs } = await blogRepository.getAdminBlogs({ status: 'published' });
+    const articlesAudit: ArticleDeterministicAudit[] = [];
+
+    for (const blog of blogs) {
+      const audited = this.evaluateArticleDeterministic(blog);
+      articlesAudit.push(audited);
+    }
+
+    // Sort by score ascending (most critical first for actionable priority)
+    articlesAudit.sort((a, b) => a.score - b.score);
+
+    const totalArticles = articlesAudit.length;
+    const totalScore = articlesAudit.reduce((acc, a) => acc + a.score, 0);
+    const averageScore = totalArticles > 0 ? Math.round(totalScore / totalArticles) : 0;
+
+    const gradeDistribution = {
+      excellent: articlesAudit.filter((a) => a.grade === 'Excellent').length,
+      good: articlesAudit.filter((a) => a.grade === 'Good').length,
+      needsImprovement: articlesAudit.filter((a) => a.grade === 'Needs Improvement').length,
+      critical: articlesAudit.filter((a) => a.grade === 'Critical').length,
+    };
+
+    const dimensionKeys = [
+      'seoTitle',
+      'metaDescription',
+      'focusKeyword',
+      'keywordUsage',
+      'headingStructure',
+      'contentLength',
+      'readability',
+      'internalLinks',
+      'imagesAlt',
+      'urlSlug',
+      'faqOpportunities',
+    ] as const;
+
+    const dimensionSummaries: CatalogSeoAuditResult['dimensionSummaries'] = {};
+    for (const key of dimensionKeys) {
+      if (totalArticles === 0) {
+        dimensionSummaries[key] = { averageScore: 0, maxScore: 10, criticalCount: 0, warningCount: 0, goodCount: 0 };
+        continue;
+      }
+      const sumScore = articlesAudit.reduce((acc, a) => acc + (a.dimensions[key]?.score || 0), 0);
+      const maxScore =
+        articlesAudit[0]?.dimensions[key]?.maxScore ||
+        (key === 'urlSlug' || key === 'faqOpportunities' ? 5 : 10);
+      dimensionSummaries[key] = {
+        averageScore: parseFloat((sumScore / totalArticles).toFixed(1)),
+        maxScore,
+        criticalCount: articlesAudit.filter((a) => a.dimensions[key]?.status === 'critical').length,
+        warningCount: articlesAudit.filter((a) => a.dimensions[key]?.status === 'warning').length,
+        goodCount: articlesAudit.filter((a) => a.dimensions[key]?.status === 'good').length,
+      };
+    }
+
+    const catalogIssuesSummary = {
+      missingMetaDescriptionCount: articlesAudit.filter(
+        (a) => a.dimensions.metaDescription.status === 'critical'
+      ).length,
+      shortTitleCount: articlesAudit.filter((a) => a.dimensions.seoTitle.status !== 'good').length,
+      thinContentCount: articlesAudit.filter((a) => a.wordCount < 800).length,
+      missingAltCount: articlesAudit.filter((a) => a.missingAltCount > 0).length,
+      zeroInternalLinksCount: articlesAudit.filter((a) => a.internalLinkCount === 0).length,
+      missingFaqSectionCount: articlesAudit.filter(
+        (a) => a.dimensions.faqOpportunities.status !== 'good'
+      ).length,
+    };
+
+    const result: CatalogSeoAuditResult = {
+      auditedAt: new Date().toISOString(),
+      totalArticles,
+      averageScore,
+      gradeDistribution,
+      dimensionSummaries,
+      catalogIssuesSummary,
+      articles: articlesAudit,
+    };
+
+    if (persist) {
+      await this.saveCatalogAudit(result);
+    }
+
+    return result;
+  }
+
+  /**
+   * LACS Module #18: Persists the latest CatalogSeoAuditResult into system_metadata.
+   * Key: 'seo_audit:catalog_summary'
+   * Value: ISO timestamp of audit
+   * Details: Full CatalogSeoAuditResult object
+   */
+  async saveCatalogAudit(auditResult: CatalogSeoAuditResult): Promise<boolean> {
+    this.fallbackCatalogAudit = auditResult;
+
+    if (!pingDatabase()) {
+      return true;
+    }
+
+    try {
+      const db = getDatabase();
+      if (!db) return true;
+
+      const now = new Date();
+      await db
+        .insert(systemMetadata)
+        .values({
+          key: SEO_AUDIT_CATALOG_KEY,
+          value: auditResult.auditedAt || now.toISOString(),
+          details: auditResult as any,
+          isActive: true,
+          updatedAt: now,
+          createdAt: now,
+        })
+        .onConflictDoUpdate({
+          target: systemMetadata.key,
+          set: {
+            value: auditResult.auditedAt || now.toISOString(),
+            details: auditResult as any,
+            updatedAt: now,
+          },
+        });
+
+      logger.info(
+        `Catalog SEO audit persisted to system_metadata (key: ${SEO_AUDIT_CATALOG_KEY}, score: ${auditResult.averageScore}, articles: ${auditResult.totalArticles})`,
+        'SeoOptimizerService'
+      );
+      return true;
+    } catch (err) {
+      logger.error('Error persisting catalog SEO audit to system_metadata', 'SeoOptimizerService', err);
+      return false;
+    }
+  }
+
+  /**
+   * LACS Module #18: Reads the saved CatalogSeoAuditResult from system_metadata.
+   * Returns null if no audit has been persisted yet.
+   */
+  async getCatalogAudit(): Promise<CatalogSeoAuditResult | null> {
+    if (!pingDatabase()) {
+      return this.fallbackCatalogAudit;
+    }
+
+    try {
+      const db = getDatabase();
+      if (!db) return this.fallbackCatalogAudit;
+
+      const rows = await db
+        .select()
+        .from(systemMetadata)
+        .where(eq(systemMetadata.key, SEO_AUDIT_CATALOG_KEY))
+        .limit(1);
+
+      if (rows && rows.length > 0 && rows[0].details) {
+        const result = rows[0].details as unknown as CatalogSeoAuditResult;
+        this.fallbackCatalogAudit = result;
+        return result;
+      }
+    } catch (err) {
+      logger.error('Error reading catalog SEO audit from system_metadata', 'SeoOptimizerService', err);
+    }
+
+    return this.fallbackCatalogAudit;
   }
 }
 

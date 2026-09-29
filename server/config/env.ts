@@ -27,6 +27,10 @@ export interface AppConfig {
     apiUrl: string;
     apiToken?: string;
   };
+  recaptcha: {
+    siteKey?: string;
+    secretKey?: string;
+  };
   uploadsDir: string;
   appUrl?: string;
 }
@@ -89,6 +93,10 @@ function resolveConfig(): AppConfig {
     database,
     auth,
     crm,
+    recaptcha: {
+      siteKey: (process.env.VITE_RECAPTCHA_SITE_KEY || process.env.RECAPTCHA_SITE_KEY)?.trim(),
+      secretKey: process.env.RECAPTCHA_SECRET_KEY?.trim(),
+    },
     uploadsDir,
     appUrl: process.env.APP_URL || `http://localhost:${port}`,
   };

@@ -48,4 +48,5 @@ export interface PublicConsultationPayload {
   notes?: string;
   message?: string;
   source?: string;
+  recaptchaToken?: string;
 }

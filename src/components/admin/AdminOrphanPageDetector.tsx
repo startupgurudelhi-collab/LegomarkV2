@@ -22,11 +22,13 @@ import {
   ChevronDown,
   ChevronUp,
   Activity,
+  BarChart2,
 } from 'lucide-react';
 import { OrphanPageItem, OrphanPageScanResult, PotentialLinkSource } from '../../types/orphanPage';
 import { scanOrphanPages } from '../../services/orphanPage.service';
 import { AdminNavSection } from './AdminSidebar';
 import { AdminContentRefreshView } from './AdminContentRefreshView';
+import { AdminCatalogSeoAuditView } from './AdminCatalogSeoAuditView';
 
 interface AdminOrphanPageDetectorProps {
   onNavigateSection?: (section: AdminNavSection) => void;
@@ -35,8 +37,8 @@ interface AdminOrphanPageDetectorProps {
 export const AdminOrphanPageDetector: React.FC<AdminOrphanPageDetectorProps> = ({
   onNavigateSection,
 }) => {
-  // LACS SEO Health Section: Content Refresh (Module #11) vs Orphan Detector
-  const [activeTab, setActiveTab] = useState<'content-refresh' | 'orphan'>('content-refresh');
+  // LACS SEO Health Section: Catalog SEO Audit (Module #18) vs Content Refresh (Module #11) vs Orphan Detector
+  const [activeTab, setActiveTab] = useState<'catalog-audit' | 'content-refresh' | 'orphan'>('catalog-audit');
 
   // Scan state
   const [isScanning, setIsScanning] = useState(false);
@@ -146,6 +148,19 @@ export const AdminOrphanPageDetector: React.FC<AdminOrphanPageDetectorProps> = (
         <div className="flex items-center gap-1.5 p-1 bg-slate-900 border border-slate-800 rounded-xl shrink-0">
           <button
             type="button"
+            onClick={() => setActiveTab('catalog-audit')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+              activeTab === 'catalog-audit'
+                ? 'bg-amber-500 text-slate-950 shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <BarChart2 className="w-3.5 h-3.5" />
+            <span>Catalog SEO Audit (Module #18)</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveTab('content-refresh')}
             className={`px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
               activeTab === 'content-refresh'
@@ -172,7 +187,9 @@ export const AdminOrphanPageDetector: React.FC<AdminOrphanPageDetectorProps> = (
         </div>
       </div>
 
-      {activeTab === 'content-refresh' ? (
+      {activeTab === 'catalog-audit' ? (
+        <AdminCatalogSeoAuditView onNavigateSection={onNavigateSection} />
+      ) : activeTab === 'content-refresh' ? (
         <AdminContentRefreshView onNavigateSection={onNavigateSection} />
       ) : (
         <>

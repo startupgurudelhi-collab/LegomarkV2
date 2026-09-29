@@ -1,4 +1,5 @@
 import { LeadItem, LeadStats, LeadFilters, PublicConsultationPayload, LeadStatus } from '../types/lead';
+import { executeRecaptcha } from '../utils/recaptcha';
 
 export interface AdminLeadsResponse {
   success: boolean;
@@ -35,12 +36,22 @@ export class LeadApiError extends Error {
  * Called when a visitor submits a consultation request from anywhere on the website
  */
 export async function submitPublicConsultation(payload: PublicConsultationPayload): Promise<{ success: boolean; message: string; lead?: any }> {
+  // Centrally generate Google reCAPTCHA v3 token for lead submission
+  const token = await executeRecaptcha('lead_submission');
+
+  // Ensure a caller-supplied token cannot override the freshly executed token
+  const { recaptchaToken: _callerToken, ...cleanPayload } = payload;
+  const requestBody: PublicConsultationPayload = {
+    ...cleanPayload,
+    ...(token ? { recaptchaToken: token } : {}),
+  };
+
   const response = await fetch('/api/leads', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(requestBody),
   });
 
   const data = await response.json();

@@ -43,6 +43,52 @@ export class AdminSeoOptimizerController {
       });
     }
   }
+
+  /**
+   * LACS Module #18: Run + persist a fresh catalog-wide deterministic SEO audit
+   * POST /api/admin/seo-optimizer/catalog/audit
+   */
+  async runCatalogAudit(req: Request, res: Response): Promise<void> {
+    try {
+      const result = await seoOptimizerService.auditCatalogDeterministic(true);
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (err: any) {
+      logger.error('Error in AdminSeoOptimizerController.runCatalogAudit', 'SeoOptimizerCtrl', err);
+      res.status(500).json({
+        success: false,
+        error: err.message || 'Failed to complete catalog SEO audit',
+      });
+    }
+  }
+
+  /**
+   * LACS Module #18: Read the latest saved catalog SEO audit
+   * GET /api/admin/seo-optimizer/catalog/audit
+   */
+  async getLatestCatalogAudit(req: Request, res: Response): Promise<void> {
+    try {
+      let result = await seoOptimizerService.getCatalogAudit();
+
+      // If no audit has been saved yet and autoRun query param is true
+      if (!result && req.query.autoRun === 'true') {
+        result = await seoOptimizerService.auditCatalogDeterministic(true);
+      }
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (err: any) {
+      logger.error('Error in AdminSeoOptimizerController.getLatestCatalogAudit', 'SeoOptimizerCtrl', err);
+      res.status(500).json({
+        success: false,
+        error: err.message || 'Failed to fetch latest catalog SEO audit',
+      });
+    }
+  }
 }
 
 export const adminSeoOptimizerController = new AdminSeoOptimizerController();

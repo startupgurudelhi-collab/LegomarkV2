@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { leadRepository } from '../repositories/lead.repository';
 import { crmService } from '../services/crm.service';
+import { recaptchaService } from '../services/recaptcha.service';
 import { logger } from '../utils/logger';
 
 /**
@@ -29,6 +30,7 @@ export class LeadController {
         notes,
         message,
         source,
+        recaptchaToken,
       } = req.body;
 
       if (!fullName || typeof fullName !== 'string' || fullName.trim().length === 0) {
@@ -43,6 +45,30 @@ export class LeadController {
         res.status(400).json({
           success: false,
           error: 'Phone number is required',
+        });
+        return;
+      }
+
+      // Verify Google reCAPTCHA v3 bot protection
+      const clientIp =
+        (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+        req.socket.remoteAddress;
+
+      const recaptchaResult = await recaptchaService.verifyToken(
+        recaptchaToken,
+        'lead_submission',
+        0.5,
+        clientIp
+      );
+
+      if (!recaptchaResult.success) {
+        logger.warn(
+          `Consultation submission rejected by reCAPTCHA: ${recaptchaResult.errorMessage || 'Invalid token'}`,
+          'PublicLead'
+        );
+        res.status(400).json({
+          success: false,
+          error: 'Security verification failed. Please try again or contact us directly.',
         });
         return;
       }
