@@ -98,7 +98,6 @@ export function useVisitorTracking(currentPath: string) {
           sessionId,
           isLandingPage,
         }),
-        keepalive: true,
       }).catch(() => {
         // Silently swallow any network or offline failures
       });
