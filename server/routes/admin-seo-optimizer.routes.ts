@@ -13,4 +13,7 @@ router.post('/analyze', (req, res) => adminSeoOptimizerController.analyze(req, r
 router.post('/catalog/audit', (req, res) => adminSeoOptimizerController.runCatalogAudit(req, res));
 router.get('/catalog/audit', (req, res) => adminSeoOptimizerController.getLatestCatalogAudit(req, res));
 
+// LACS Module #20: Instant Deterministic Article Evaluation
+router.post('/evaluate', (req, res) => adminSeoOptimizerController.evaluate(req, res));
+
 export default router;

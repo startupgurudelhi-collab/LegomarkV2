@@ -28,6 +28,8 @@ import {
   Code,
   Copy,
   ChevronDown,
+  Gauge,
+  AlertTriangle,
 } from 'lucide-react';
 import { BlogPost, BlogStats, CreateBlogPostInput, UpdateBlogPostInput, GeneratedBlogDraft, BlogFaqItem } from '../../types/blog';
 import {
@@ -38,6 +40,8 @@ import {
   deleteBlogPost,
   generateAiBlogFaqs,
 } from '../../services/blog.service';
+import { evaluateArticleSeo } from '../../services/seoOptimizer.service';
+import { ArticleDeterministicAudit } from '../../types/seoOptimizer';
 import { MediaUploadDropzone } from './MediaUploadDropzone';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { RichTextEditor } from './RichTextEditor';
@@ -142,6 +146,57 @@ export const AdminBlogCMS: React.FC = () => {
     if (!previewBlog) return null;
     return generateBlogSchemaGraph(previewBlog);
   }, [previewBlog]);
+
+  // LACS Module #20: Live In-Editor SEO Score State & Debounced Evaluator (~400ms)
+  const [liveSeoAudit, setLiveSeoAudit] = useState<ArticleDeterministicAudit | null>(null);
+  const [isEvaluatingSeo, setIsEvaluatingSeo] = useState(false);
+
+  useEffect(() => {
+    if (!isEditorOpen) {
+      setLiveSeoAudit(null);
+      return;
+    }
+
+    setIsEvaluatingSeo(true);
+    const timer = setTimeout(async () => {
+      try {
+        const result = await evaluateArticleSeo({
+          title: formData.title,
+          slug: formData.slug || formData.seoSlug,
+          category: formData.category,
+          author: formData.author,
+          content: formData.content,
+          excerpt: formData.excerpt,
+          featuredImage: formData.featuredImage,
+          seoTitle: formData.seoTitle,
+          metaDescription: formData.metaDescription,
+          seoSlug: formData.seoSlug,
+        });
+        setLiveSeoAudit(result);
+      } catch (err) {
+        // Non-blocking for editor typing
+        console.warn('Live SEO score evaluation error:', err);
+      } finally {
+        setIsEvaluatingSeo(false);
+      }
+    }, 400);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [
+    isEditorOpen,
+    formData.title,
+    formData.slug,
+    formData.category,
+    formData.author,
+    formData.content,
+    formData.excerpt,
+    formData.featuredImage,
+    formData.seoTitle,
+    formData.metaDescription,
+    formData.seoSlug,
+  ]);
 
   const loadBlogs = async () => {
     setIsLoading(true);
@@ -877,12 +932,50 @@ export const AdminBlogCMS: React.FC = () => {
                   Publish authoritative business and compliance guidance for Indian entrepreneurs.
                 </p>
               </div>
-              <button
-                onClick={() => setIsEditorOpen(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
+
+              <div className="flex items-center gap-3">
+                {liveSeoAudit && (
+                  <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800">
+                    <span className="text-[11px] text-slate-400 font-medium">Live SEO:</span>
+                    <span
+                      className={`text-xs font-black ${
+                        liveSeoAudit.score >= 85
+                          ? 'text-emerald-400'
+                          : liveSeoAudit.score >= 70
+                          ? 'text-blue-400'
+                          : liveSeoAudit.score >= 50
+                          ? 'text-amber-400'
+                          : 'text-rose-400'
+                      }`}
+                    >
+                      {liveSeoAudit.score}/100
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                        liveSeoAudit.grade === 'Excellent'
+                          ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                          : liveSeoAudit.grade === 'Good'
+                          ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
+                          : liveSeoAudit.grade === 'Needs Improvement'
+                          ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                          : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                      }`}
+                    >
+                      {liveSeoAudit.grade}
+                    </span>
+                    {isEvaluatingSeo && (
+                      <RefreshCw className="w-3 h-3 text-orange-400 animate-spin" />
+                    )}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsEditorOpen(false)}
+                  className="text-slate-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Modal Form Content */}
@@ -1176,6 +1269,119 @@ export const AdminBlogCMS: React.FC = () => {
                   <Globe className="w-4 h-4" />
                   <span>SEO & Meta Tag Configuration</span>
                 </div>
+
+                {/* LACS Module #20: Live SEO Score Meter & Diagnostics */}
+                {liveSeoAudit && (
+                  <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400 shrink-0">
+                          <Gauge className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-white">Live On-Page SEO Score</span>
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-orange-500/15 text-orange-400 border border-orange-500/30">
+                              LACS #20
+                            </span>
+                            {isEvaluatingSeo && (
+                              <span className="text-[10px] text-slate-500 flex items-center gap-1">
+                                <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                                Evaluating...
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-400">
+                            Deterministic 11-dimension evaluation updating as you draft.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2.5 sm:text-right">
+                        <div className="flex items-baseline gap-1">
+                          <span
+                            className={`text-2xl font-black ${
+                              liveSeoAudit.score >= 85
+                                ? 'text-emerald-400'
+                                : liveSeoAudit.score >= 70
+                                ? 'text-blue-400'
+                                : liveSeoAudit.score >= 50
+                                ? 'text-amber-400'
+                                : 'text-rose-400'
+                            }`}
+                          >
+                            {liveSeoAudit.score}
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-bold">/ 100</span>
+                        </div>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            liveSeoAudit.grade === 'Excellent'
+                              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                              : liveSeoAudit.grade === 'Good'
+                              ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
+                              : liveSeoAudit.grade === 'Needs Improvement'
+                              ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                              : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                          }`}
+                        >
+                          {liveSeoAudit.grade}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          liveSeoAudit.score >= 85
+                            ? 'bg-emerald-500'
+                            : liveSeoAudit.score >= 70
+                            ? 'bg-blue-500'
+                            : liveSeoAudit.score >= 50
+                            ? 'bg-amber-500'
+                            : 'bg-rose-500'
+                        }`}
+                        style={{ width: `${Math.max(5, liveSeoAudit.score)}%` }}
+                      />
+                    </div>
+
+                    {/* Dimension Breakdown Quick Badges */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1.5 pt-1">
+                      {Object.entries(liveSeoAudit.dimensions).map(([key, dim]) => (
+                        <div
+                          key={key}
+                          className="p-1.5 rounded-md bg-slate-900 border border-slate-800/80 flex items-center justify-between"
+                          title={dim.details.join(' ')}
+                        >
+                          <span className="text-slate-400 truncate pr-1 text-[10px]">{dim.title}</span>
+                          <span
+                            className={`font-mono font-bold text-[10px] shrink-0 ${
+                              dim.status === 'critical'
+                                ? 'text-rose-400'
+                                : dim.status === 'warning'
+                                ? 'text-amber-400'
+                                : 'text-emerald-400'
+                            }`}
+                          >
+                            {dim.score}/{dim.maxScore}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Top Actionable Recommendation */}
+                    {liveSeoAudit.recommendations && liveSeoAudit.recommendations.length > 0 && (
+                      <div className="p-2.5 rounded-lg bg-orange-500/5 border border-orange-500/20 text-xs flex items-start gap-2">
+                        <AlertTriangle className="w-3.5 h-3.5 text-orange-400 shrink-0 mt-0.5" />
+                        <div className="text-[11px] text-slate-300">
+                          <span className="font-semibold text-orange-400">Recommendation: </span>
+                          <span>{liveSeoAudit.recommendations[0].suggestedAction}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">

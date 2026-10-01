@@ -1,4 +1,9 @@
-import { SeoAnalysisResult, AnalyzeBlogSeoInput, CatalogSeoAuditResult } from '../types/seoOptimizer';
+import {
+  SeoAnalysisResult,
+  AnalyzeBlogSeoInput,
+  CatalogSeoAuditResult,
+  ArticleDeterministicAudit,
+} from '../types/seoOptimizer';
 
 export async function analyzeBlogSeo(input: AnalyzeBlogSeoInput): Promise<SeoAnalysisResult> {
   const res = await fetch('/api/admin/seo-optimizer/analyze', {
@@ -59,4 +64,30 @@ export async function runCatalogSeoAudit(): Promise<CatalogSeoAuditResult> {
   }
 
   throw new Error(data?.error || 'Failed to run catalog SEO audit');
+}
+
+/**
+ * LACS Module #20: Instant deterministic SEO evaluation of an article payload
+ * POST /api/admin/seo-optimizer/evaluate
+ */
+export async function evaluateArticleSeo(
+  article: any,
+  focusKeyword?: string
+): Promise<ArticleDeterministicAudit> {
+  const res = await fetch('/api/admin/seo-optimizer/evaluate', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({ article, focusKeyword }),
+  });
+
+  const data = await res.json();
+
+  if (res.ok && data && data.success && data.data) {
+    return data.data;
+  }
+
+  throw new Error(data?.error || 'Failed to evaluate article SEO score');
 }

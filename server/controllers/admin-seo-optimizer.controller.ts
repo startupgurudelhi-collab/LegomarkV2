@@ -89,6 +89,46 @@ export class AdminSeoOptimizerController {
       });
     }
   }
+
+  /**
+   * LACS Module #20: Instant deterministic SEO score evaluation
+   * POST /api/admin/seo-optimizer/evaluate
+   * Evaluates the current article payload in real time without Gemini AI or database writes
+   */
+  async evaluate(req: Request, res: Response): Promise<void> {
+    try {
+      const { article, blog, focusKeyword } = req.body;
+      const articlePayload = article || blog || req.body;
+
+      if (!articlePayload || typeof articlePayload !== 'object') {
+        res.status(400).json({
+          success: false,
+          error: 'An article payload object is required for SEO evaluation',
+        });
+        return;
+      }
+
+      const focusKw =
+        typeof focusKeyword === 'string'
+          ? focusKeyword.trim()
+          : typeof articlePayload.focusKeyword === 'string'
+          ? articlePayload.focusKeyword.trim()
+          : undefined;
+
+      const result = seoOptimizerService.evaluateArticleDeterministic(articlePayload, focusKw);
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (err: any) {
+      logger.error('Error in AdminSeoOptimizerController.evaluate', 'SeoOptimizerCtrl', err);
+      res.status(500).json({
+        success: false,
+        error: err.message || 'Failed to evaluate article SEO score',
+      });
+    }
+  }
 }
 
 export const adminSeoOptimizerController = new AdminSeoOptimizerController();
