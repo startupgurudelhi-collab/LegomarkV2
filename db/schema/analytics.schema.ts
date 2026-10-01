@@ -1,4 +1,4 @@
-import { pgTable, timestamp, varchar, date, uuid, unique, index } from 'drizzle-orm/pg-core';
+import { pgTable, timestamp, varchar, date, uuid, unique, index, boolean } from 'drizzle-orm/pg-core';
 
 /**
  * Website Page Views Table
@@ -13,12 +13,15 @@ export const websitePageViews = pgTable(
     path: varchar('path', { length: 255 }).notNull(),
     visitorHash: varchar('visitor_hash', { length: 64 }).notNull(), // SHA-256 daily salted hash
     referrer: varchar('referrer', { length: 255 }),
+    sessionId: varchar('session_id', { length: 64 }),
+    isLandingPage: boolean('is_landing_page').default(false).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => ({
     dateIdx: index('website_page_views_date_idx').on(table.date),
     pathIdx: index('website_page_views_path_idx').on(table.path),
     visitorDateIdx: index('website_page_views_visitor_date_idx').on(table.visitorHash, table.date),
+    landingDateIdx: index('website_page_views_landing_date_idx').on(table.isLandingPage, table.date),
   })
 );
 

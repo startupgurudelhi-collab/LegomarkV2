@@ -10,6 +10,8 @@ export interface TrackVisitPayload {
   path: string;
   visitorId?: string | null;
   referrer?: string | null;
+  sessionId?: string | null;
+  isLandingPage?: boolean;
 }
 
 export class AnalyticsService {
@@ -113,12 +115,19 @@ export class AnalyticsService {
 
       const normalizedPath = payload.path.trim().slice(0, 255);
       const sanitizedReferrer = this.sanitizeReferrer(payload.referrer);
+      const normalizedSessionId =
+        typeof payload.sessionId === 'string' && payload.sessionId.trim()
+          ? payload.sessionId.trim().slice(0, 64)
+          : null;
+      const isLandingPage = Boolean(payload.isLandingPage);
 
       await analyticsRepository.recordPageView({
         path: normalizedPath,
         visitorHash,
         referrer: sanitizedReferrer,
         dateStr,
+        sessionId: normalizedSessionId,
+        isLandingPage,
       });
 
       return { success: true };

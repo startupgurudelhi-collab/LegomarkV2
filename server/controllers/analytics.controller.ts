@@ -10,7 +10,7 @@ export class AnalyticsController {
    */
   async trackVisit(req: Request, res: Response): Promise<void> {
     try {
-      const { path, visitorId, referrer } = req.body || {};
+      const { path, visitorId, referrer, sessionId, isLandingPage } = req.body || {};
 
       // Fallback referrer from request headers if not provided in JSON body
       const effectiveReferrer = referrer || req.headers.referer || req.headers.referrer || null;
@@ -19,6 +19,8 @@ export class AnalyticsController {
         path: typeof path === 'string' ? path : '/',
         visitorId: typeof visitorId === 'string' ? visitorId : undefined,
         referrer: typeof effectiveReferrer === 'string' ? effectiveReferrer : undefined,
+        sessionId: typeof sessionId === 'string' ? sessionId : undefined,
+        isLandingPage: typeof isLandingPage === 'boolean' ? isLandingPage : Boolean(isLandingPage),
       });
 
       res.status(200).json(result);

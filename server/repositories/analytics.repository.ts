@@ -14,6 +14,8 @@ export interface RecordPageViewInput {
   visitorHash: string;
   referrer?: string | null;
   dateStr: string; // 'YYYY-MM-DD'
+  sessionId?: string | null;
+  isLandingPage?: boolean;
 }
 
 export interface AnalyticsDailyStat {
@@ -57,6 +59,8 @@ interface MemoryPageViewRecord {
   path: string;
   visitorHash: string;
   referrer: string | null;
+  sessionId: string | null;
+  isLandingPage: boolean;
   createdAt: Date;
 }
 
@@ -85,6 +89,8 @@ class AnalyticsRepository {
       path: input.path,
       visitorHash: input.visitorHash,
       referrer: input.referrer || null,
+      sessionId: input.sessionId ? input.sessionId.slice(0, 64) : null,
+      isLandingPage: Boolean(input.isLandingPage),
       createdAt: new Date(),
     };
 
@@ -108,6 +114,8 @@ class AnalyticsRepository {
           path: input.path,
           visitorHash: input.visitorHash,
           referrer: input.referrer || null,
+          sessionId: memoryRecord.sessionId,
+          isLandingPage: memoryRecord.isLandingPage,
           createdAt: memoryRecord.createdAt,
         });
 
