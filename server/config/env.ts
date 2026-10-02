@@ -31,6 +31,11 @@ export interface AppConfig {
     siteKey?: string;
     secretKey?: string;
   };
+  gsc: {
+    tokenEncryptionKey?: string;
+    clientId?: string;
+    clientSecret?: string;
+  };
   uploadsDir: string;
   appUrl?: string;
 }
@@ -96,6 +101,11 @@ function resolveConfig(): AppConfig {
     recaptcha: {
       siteKey: (process.env.VITE_RECAPTCHA_SITE_KEY || process.env.RECAPTCHA_SITE_KEY)?.trim(),
       secretKey: process.env.RECAPTCHA_SECRET_KEY?.trim(),
+    },
+    gsc: {
+      tokenEncryptionKey: process.env.GSC_TOKEN_ENCRYPTION_KEY?.trim() || undefined,
+      clientId: (process.env.GOOGLE_CLIENT_ID || process.env.GSC_CLIENT_ID)?.trim() || undefined,
+      clientSecret: (process.env.GOOGLE_CLIENT_SECRET || process.env.GSC_CLIENT_SECRET)?.trim() || undefined,
     },
     uploadsDir,
     appUrl: process.env.APP_URL || `http://localhost:${port}`,

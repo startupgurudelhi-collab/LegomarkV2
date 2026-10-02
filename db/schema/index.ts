@@ -918,3 +918,26 @@ export type NewBlogComment = typeof blogComments.$inferInsert;
  * ============================================================================
  */
 export * from './analytics.schema';
+
+/**
+ * ============================================================================
+ * LACS MODULE #19: GOOGLE SEARCH CONSOLE INTEGRATION SCHEMA
+ * ============================================================================
+ */
+export const gscConnections = pgTable('gsc_connections', {
+  id: varchar('id', { length: 64 }).primaryKey().default('default'),
+  connectedByAdminId: uuid('connected_by_admin_id').references(() => adminUsers.id, { onDelete: 'set null' }),
+  connectedEmail: varchar('connected_email', { length: 255 }),
+  selectedProperty: varchar('selected_property', { length: 255 }),
+  encryptedAccessToken: text('encrypted_access_token'),
+  encryptedRefreshToken: text('encrypted_refresh_token'),
+  tokenExpiry: timestamp('token_expiry', { withTimezone: true }),
+  scope: text('scope'),
+  isConnected: boolean('is_connected').default(false).notNull(),
+  lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type GscConnection = typeof gscConnections.$inferSelect;
+export type NewGscConnection = typeof gscConnections.$inferInsert;

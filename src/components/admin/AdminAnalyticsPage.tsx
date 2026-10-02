@@ -19,7 +19,17 @@ import {
   Award,
   ExternalLink,
   Filter,
+  CheckCircle2,
+  AlertCircle,
+  X,
+  Unlink2,
+  Lock,
 } from 'lucide-react';
+import {
+  fetchGscStatus,
+  disconnectGsc,
+  GscConnectionMetadata,
+} from '../../services/adminGsc.service';
 
 interface PeriodMetric {
   uniqueVisitors: number;
@@ -152,7 +162,15 @@ export interface SeoAnalyticsDashboardData {
 }
 
 export const AdminAnalyticsPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'traffic' | 'seo'>('traffic');
+  const [activeTab, setActiveTab] = useState<'traffic' | 'seo'>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('tab') === 'seo' || params.get('gsc') || params.get('gsc_error')) {
+        return 'seo';
+      }
+    }
+    return 'traffic';
+  });
 
   // Existing Website Analytics state
   const [data, setData] = useState<AnalyticsData | null>(null);
@@ -168,6 +186,16 @@ export const AdminAnalyticsPage: React.FC = () => {
   const [hoveredSeoIndex, setHoveredSeoIndex] = useState<number | null>(null);
   const [articleSearchQuery, setArticleSearchQuery] = useState<string>('');
   const [articleGradeFilter, setArticleGradeFilter] = useState<string>('all');
+
+  // LACS #19 Google Search Console state
+  const [gscMetadata, setGscMetadata] = useState<GscConnectionMetadata | null>(null);
+  const [isGscConfigured, setIsGscConfigured] = useState<boolean>(false);
+  const [isGscLoading, setIsGscLoading] = useState<boolean>(false);
+  const [isGscDisconnecting, setIsGscDisconnecting] = useState<boolean>(false);
+  const [gscNotification, setGscNotification] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
 
   const fetchAnalytics = useCallback(async () => {
     try {
@@ -225,15 +253,123 @@ export const AdminAnalyticsPage: React.FC = () => {
     }
   }, []);
 
+  const loadGscStatus = useCallback(async () => {
+    try {
+      setIsGscLoading(true);
+      const res = await fetchGscStatus();
+      if (res.success) {
+        setGscMetadata(res.data);
+        setIsGscConfigured(Boolean(res.isConfigured));
+      }
+    } catch {
+      // Non-fatal fallback
+    } finally {
+      setIsGscLoading(false);
+    }
+  }, []);
+
+  const handleDisconnectGsc = async () => {
+    if (
+      !window.confirm(
+        'Are you sure you want to disconnect Google Search Console? Token authorization grants will be revoked.'
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setIsGscDisconnecting(true);
+      await disconnectGsc();
+      setGscMetadata(null);
+      setGscNotification({
+        type: 'success',
+        message: 'Google Search Console successfully disconnected and revoked.',
+      });
+    } catch (err: any) {
+      setGscNotification({
+        type: 'error',
+        message: err?.message || 'Failed to disconnect Google Search Console.',
+      });
+    } finally {
+      setIsGscDisconnecting(false);
+    }
+  };
+
+  const handleConnectGsc = () => {
+    window.location.href = '/api/admin/gsc/auth-url';
+  };
+
+  // Inspect OAuth callback redirect query params (?gsc=connected or ?gsc_error=...)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const gscStatus = params.get('gsc');
+    const gscErr = params.get('gsc_error');
+    const tabParam = params.get('tab');
+
+    if (tabParam === 'seo' || gscStatus || gscErr) {
+      setActiveTab('seo');
+    }
+
+    if (gscStatus === 'connected') {
+      setGscNotification({
+        type: 'success',
+        message:
+          'Google Search Console account successfully connected. Access and refresh tokens are securely encrypted.',
+      });
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('gsc');
+      window.history.replaceState({}, '', newUrl.toString());
+    } else if (gscErr) {
+      let friendlyError = 'Failed to connect Google Search Console. Please try again.';
+      switch (gscErr) {
+        case 'access_denied':
+          friendlyError = 'Google account authorization was cancelled or denied.';
+          break;
+        case 'invalid_grant':
+          friendlyError = 'Google authorization has expired or was revoked. Please reconnect.';
+          break;
+        case 'missing_refresh_token':
+          friendlyError =
+            'Google did not return a refresh token. Revoke app access in your Google Account security settings and reconnect.';
+          break;
+        case 'oauth_not_configured':
+          friendlyError =
+            'Google Search Console OAuth is not configured on the server. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.';
+          break;
+        case 'state_mismatch':
+        case 'invalid_state':
+          friendlyError =
+            'OAuth security verification failed (state mismatch or expired). Please try connecting again.';
+          break;
+        case 'missing_code':
+          friendlyError = 'Google authorization code was missing in the callback.';
+          break;
+        default:
+          friendlyError = `Google connection error: ${gscErr.replace(/_/g, ' ')}`;
+      }
+      setGscNotification({
+        type: 'error',
+        message: friendlyError,
+      });
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('gsc_error');
+      window.history.replaceState({}, '', newUrl.toString());
+    }
+  }, []);
+
   useEffect(() => {
     fetchAnalytics();
   }, [fetchAnalytics]);
 
   useEffect(() => {
-    if (activeTab === 'seo' && !seoData && !isSeoLoading) {
-      fetchSeoAnalytics();
+    if (activeTab === 'seo') {
+      if (!seoData && !isSeoLoading) {
+        fetchSeoAnalytics();
+      }
+      loadGscStatus();
     }
-  }, [activeTab, seoData, isSeoLoading, fetchSeoAnalytics]);
+  }, [activeTab, seoData, isSeoLoading, fetchSeoAnalytics, loadGscStatus]);
 
   // Filter daily trend data for chart range
   const filteredTrend = React.useMemo(() => {
@@ -351,11 +487,11 @@ export const AdminAnalyticsPage: React.FC = () => {
           </div>
 
           <button
-            onClick={activeTab === 'seo' ? fetchSeoAnalytics : fetchAnalytics}
-            disabled={activeTab === 'seo' ? isSeoLoading : isLoading}
+            onClick={activeTab === 'seo' ? () => { fetchSeoAnalytics(); loadGscStatus(); } : fetchAnalytics}
+            disabled={activeTab === 'seo' ? (isSeoLoading || isGscLoading) : isLoading}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium border border-slate-700 transition-colors disabled:opacity-50 cursor-pointer"
           >
-            <RefreshCw className={`w-4 h-4 ${(activeTab === 'seo' ? isSeoLoading : isLoading) ? 'animate-spin text-orange-400' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${(activeTab === 'seo' ? (isSeoLoading || isGscLoading) : isLoading) ? 'animate-spin text-orange-400' : ''}`} />
             <span>Refresh</span>
           </button>
         </div>
@@ -818,6 +954,143 @@ export const AdminAnalyticsPage: React.FC = () => {
   {/* TAB 2: LACS #17 SEO ANALYTICS & SEARCH ENGINE PERFORMANCE */}
   {activeTab === 'seo' && (
     <div className="space-y-8 animate-in fade-in duration-300">
+      {/* LACS #19: GSC OAuth Feedback Alert */}
+      {gscNotification && (
+        <div
+          className={`p-4 rounded-xl border text-sm flex items-center justify-between transition-all ${
+            gscNotification.type === 'success'
+              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
+              : 'bg-rose-500/10 border-rose-500/20 text-rose-300'
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            {gscNotification.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            )}
+            <span>{gscNotification.message}</span>
+          </div>
+          <button
+            onClick={() => setGscNotification(null)}
+            className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+            aria-label="Dismiss alert"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* LACS #19: Compact Google Search Console Connection Card */}
+      <div className="p-5 rounded-xl bg-[#0B132B] border border-slate-800/80 shadow-sm transition-colors hover:border-slate-700/80">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="p-2.5 rounded-lg bg-white/5 border border-white/10 shrink-0 mt-0.5">
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.97 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+                />
+              </svg>
+            </div>
+            <div>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h2 className="text-base font-semibold text-white tracking-tight">
+                  Google Search Console
+                </h2>
+                <div className="flex items-center gap-1.5 text-xs">
+                  {isGscLoading ? (
+                    <span className="text-slate-500 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-500 animate-pulse" />
+                      Checking connection...
+                    </span>
+                  ) : gscMetadata?.isConnected ? (
+                    <span className="text-emerald-400 font-medium flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      Connected
+                    </span>
+                  ) : (
+                    <span className="text-slate-400 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-slate-500" />
+                      Not Connected
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-1 text-xs text-slate-400 flex items-center gap-2 flex-wrap">
+                {gscMetadata?.isConnected ? (
+                  <>
+                    <span className="text-slate-200 font-medium font-mono">
+                      {gscMetadata.connectedEmail || 'Authenticated Google Account'}
+                    </span>
+                    <span aria-hidden="true" className="text-slate-600">·</span>
+                    <span>Tokens Encrypted (AES-256-GCM)</span>
+                    <span aria-hidden="true" className="text-slate-600">·</span>
+                    <span>Read-Only Scope</span>
+                  </>
+                ) : (
+                  <>
+                    <span>
+                      Connect official Google Search Console to import live SERP queries, rankings, impressions & CTR
+                    </span>
+                    {!isGscConfigured && (
+                      <>
+                        <span aria-hidden="true" className="text-slate-600">·</span>
+                        <span className="text-amber-400/90">Requires GOOGLE_CLIENT_ID & GOOGLE_CLIENT_SECRET in .env</span>
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 shrink-0 self-start md:self-center">
+            {gscMetadata?.isConnected ? (
+              <button
+                onClick={handleDisconnectGsc}
+                disabled={isGscDisconnecting}
+                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 hover:text-rose-200 border border-rose-500/25 text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <Unlink2 className={`w-3.5 h-3.5 ${isGscDisconnecting ? 'animate-spin' : ''}`} />
+                <span>{isGscDisconnecting ? 'Revoking...' : 'Disconnect'}</span>
+              </button>
+            ) : isGscConfigured ? (
+              <button
+                onClick={handleConnectGsc}
+                disabled={isGscLoading}
+                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-900 text-xs font-semibold shadow-sm transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <span>Connect Google Account</span>
+                <ArrowUpRight className="w-3.5 h-3.5" />
+              </button>
+            ) : (
+              <button
+                disabled
+                title="OAuth credentials are missing in server environment"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 text-slate-500 border border-slate-700/60 text-xs font-medium cursor-not-allowed"
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span>OAuth Not Configured</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Error state */}
       {seoError && (
         <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm flex items-center justify-between">
