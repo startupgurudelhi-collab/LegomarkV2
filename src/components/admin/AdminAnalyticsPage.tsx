@@ -24,6 +24,8 @@ import {
   X,
   Unlink2,
   Lock,
+  MousePointerClick,
+  Percent,
 } from 'lucide-react';
 import {
   fetchGscStatus,
