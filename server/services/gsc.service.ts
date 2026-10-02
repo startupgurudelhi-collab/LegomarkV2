@@ -131,10 +131,19 @@ export class GscService {
 
     if (!tokenRes.ok) {
       const errorJson = (await tokenRes.json().catch(() => ({}))) as any;
-      const errorMsg =
-        errorJson?.error_description ||
-        errorJson?.error ||
-        `HTTP ${tokenRes.status} ${tokenRes.statusText}`;
+      const googleError = errorJson?.error;
+      const googleErrorDesc = errorJson?.error_description;
+      const statusText = tokenRes.statusText ? ` ${tokenRes.statusText}` : '';
+
+      const errorParts = [`HTTP ${tokenRes.status}${statusText}`];
+      if (googleError) {
+        errorParts.push(String(googleError));
+      }
+      if (googleErrorDesc && googleErrorDesc !== googleError) {
+        errorParts.push(`(${googleErrorDesc})`);
+      }
+
+      const errorMsg = errorParts.join(' - ');
       logger.error('Google token exchange failed', 'GscService', errorMsg);
       throw new Error(`Google OAuth token exchange failed: ${errorMsg}`);
     }
