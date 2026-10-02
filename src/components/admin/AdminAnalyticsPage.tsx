@@ -30,8 +30,13 @@ import {
   fetchGscProperties,
   selectGscProperty,
   disconnectGsc,
+  fetchGscSearchAnalytics,
   GscConnectionMetadata,
   GscSiteProperty,
+  GscSearchAnalyticsData,
+  GscQueryRow,
+  GscPageRow,
+  GscDateRow,
 } from '../../services/adminGsc.service';
 
 interface PeriodMetric {
@@ -207,6 +212,15 @@ export const AdminAnalyticsPage: React.FC = () => {
   const [selectedPropertyInput, setSelectedPropertyInput] = useState<string>('');
   const [isGscSavingProperty, setIsGscSavingProperty] = useState<boolean>(false);
 
+  // LACS #19 Google Search Analytics state
+  const [gscSearchAnalytics, setGscSearchAnalytics] = useState<GscSearchAnalyticsData | null>(null);
+  const [isGscAnalyticsLoading, setIsGscAnalyticsLoading] = useState<boolean>(false);
+  const [gscAnalyticsError, setGscAnalyticsError] = useState<string | null>(null);
+  const [gscAnalyticsDays, setGscAnalyticsDays] = useState<number>(28);
+  const [gscDimensionTab, setGscDimensionTab] = useState<'queries' | 'pages'>('queries');
+  const [gscFilterQuery, setGscFilterQuery] = useState<string>('');
+  const [hoveredGscDateIndex, setHoveredGscDateIndex] = useState<number | null>(null);
+
   const fetchAnalytics = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -283,6 +297,23 @@ export const AdminAnalyticsPage: React.FC = () => {
     }
   }, []);
 
+  const loadGscSearchAnalytics = useCallback(async (days: number = gscAnalyticsDays) => {
+    try {
+      setIsGscAnalyticsLoading(true);
+      setGscAnalyticsError(null);
+      const res = await fetchGscSearchAnalytics({ days });
+      if (res.success && res.data) {
+        setGscSearchAnalytics(res.data);
+      } else {
+        throw new Error(res.error || 'Failed to retrieve Search Analytics data');
+      }
+    } catch (err: any) {
+      setGscAnalyticsError(err?.message || 'Failed to load Google Search Console analytics.');
+    } finally {
+      setIsGscAnalyticsLoading(false);
+    }
+  }, [gscAnalyticsDays]);
+
   const loadGscStatus = useCallback(async () => {
     try {
       setIsGscLoading(true);
@@ -295,6 +326,9 @@ export const AdminAnalyticsPage: React.FC = () => {
         }
         if (res.data?.isConnected) {
           loadGscProperties();
+          if (res.data?.selectedProperty) {
+            loadGscSearchAnalytics(gscAnalyticsDays);
+          }
         }
       }
     } catch {
@@ -302,7 +336,7 @@ export const AdminAnalyticsPage: React.FC = () => {
     } finally {
       setIsGscLoading(false);
     }
-  }, [loadGscProperties]);
+  }, [loadGscProperties, loadGscSearchAnalytics, gscAnalyticsDays]);
 
   const handleSelectProperty = async (propertyUrlToSave?: string) => {
     const propertyUrl = (propertyUrlToSave ?? selectedPropertyInput).trim();
@@ -324,6 +358,9 @@ export const AdminAnalyticsPage: React.FC = () => {
           type: 'success',
           message: `Active Search Console property saved: ${res.data.selectedProperty || propertyUrl}`,
         });
+        if (res.data.selectedProperty) {
+          loadGscSearchAnalytics(gscAnalyticsDays);
+        }
       }
     } catch (err: any) {
       setGscNotification({
@@ -350,6 +387,7 @@ export const AdminAnalyticsPage: React.FC = () => {
       setGscMetadata(null);
       setGscProperties([]);
       setSelectedPropertyInput('');
+      setGscSearchAnalytics(null);
       setGscNotification({
         type: 'success',
         message: 'Google Search Console successfully disconnected and revoked.',
@@ -465,6 +503,34 @@ export const AdminAnalyticsPage: React.FC = () => {
     return peak === 0 ? 10 : Math.ceil(peak * 1.15);
   }, [seoData?.stats.dailyOrganicTrend]);
 
+  // Filtered GSC Queries and Pages
+  const filteredGscQueries = React.useMemo(() => {
+    if (!gscSearchAnalytics?.queries) return [];
+    if (!gscFilterQuery.trim()) return gscSearchAnalytics.queries;
+    const term = gscFilterQuery.toLowerCase();
+    return gscSearchAnalytics.queries.filter((q) => q.query.toLowerCase().includes(term));
+  }, [gscSearchAnalytics?.queries, gscFilterQuery]);
+
+  const filteredGscPages = React.useMemo(() => {
+    if (!gscSearchAnalytics?.pages) return [];
+    if (!gscFilterQuery.trim()) return gscSearchAnalytics.pages;
+    const term = gscFilterQuery.toLowerCase();
+    return gscSearchAnalytics.pages.filter((p) => p.page.toLowerCase().includes(term));
+  }, [gscSearchAnalytics?.pages, gscFilterQuery]);
+
+  // Max value calculation for GSC daily trend chart
+  const maxGscTrendClicks = React.useMemo(() => {
+    if (!gscSearchAnalytics?.dates || gscSearchAnalytics.dates.length === 0) return 10;
+    const peak = Math.max(...gscSearchAnalytics.dates.map((d) => d.clicks));
+    return peak === 0 ? 10 : Math.ceil(peak * 1.15);
+  }, [gscSearchAnalytics?.dates]);
+
+  const maxGscTrendImpressions = React.useMemo(() => {
+    if (!gscSearchAnalytics?.dates || gscSearchAnalytics.dates.length === 0) return 50;
+    const peak = Math.max(...gscSearchAnalytics.dates.map((d) => d.impressions));
+    return peak === 0 ? 50 : Math.ceil(peak * 1.15);
+  }, [gscSearchAnalytics?.dates]);
+
   // Filtered articles list for SEO score vs traffic correlation table
   const filteredArticles = React.useMemo(() => {
     if (!seoData?.articlesSeoTraffic) return [];
@@ -556,11 +622,21 @@ export const AdminAnalyticsPage: React.FC = () => {
           </div>
 
           <button
-            onClick={activeTab === 'seo' ? () => { fetchSeoAnalytics(); loadGscStatus(); } : fetchAnalytics}
-            disabled={activeTab === 'seo' ? (isSeoLoading || isGscLoading) : isLoading}
+            onClick={
+              activeTab === 'seo'
+                ? () => {
+                    fetchSeoAnalytics();
+                    loadGscStatus();
+                    if (gscMetadata?.selectedProperty) {
+                      loadGscSearchAnalytics(gscAnalyticsDays);
+                    }
+                  }
+                : fetchAnalytics
+            }
+            disabled={activeTab === 'seo' ? (isSeoLoading || isGscLoading || isGscAnalyticsLoading) : isLoading}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium border border-slate-700 transition-colors disabled:opacity-50 cursor-pointer"
           >
-            <RefreshCw className={`w-4 h-4 ${(activeTab === 'seo' ? (isSeoLoading || isGscLoading) : isLoading) ? 'animate-spin text-orange-400' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${(activeTab === 'seo' ? (isSeoLoading || isGscLoading || isGscAnalyticsLoading) : isLoading) ? 'animate-spin text-orange-400' : ''}`} />
             <span>Refresh</span>
           </button>
         </div>
@@ -1265,6 +1341,488 @@ export const AdminAnalyticsPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* ========================================================================= */}
+      {/* LACS #19: GOOGLE SEARCH PERFORMANCE (Search Console Search Analytics)   */}
+      {/* ========================================================================= */}
+      {gscMetadata?.isConnected && gscMetadata?.selectedProperty && (
+        <div className="p-6 rounded-2xl bg-[#0B132B] border border-slate-800/80 shadow-sm space-y-6 animate-in fade-in duration-300">
+          {/* Section Header */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
+            <div>
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                  <TrendingUp className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-lg font-bold text-white tracking-tight">
+                      Google Search Performance
+                    </h2>
+                    <span className="text-[11px] font-medium text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 font-mono">
+                      GSC Live
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                    <span>Performance data for</span>
+                    <span className="text-slate-200 font-mono font-medium">{gscMetadata.selectedProperty}</span>
+                    {gscSearchAnalytics && (
+                      <span className="text-slate-500">
+                        ({gscSearchAnalytics.startDate} to {gscSearchAnalytics.endDate})
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Date Range Selector & Refresh */}
+            <div className="flex items-center gap-2.5 shrink-0 self-start md:self-center">
+              <div className="flex items-center bg-slate-900 border border-slate-800 rounded-lg p-1 text-xs">
+                {[7, 14, 28, 90].map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => {
+                      setGscAnalyticsDays(d);
+                      loadGscSearchAnalytics(d);
+                    }}
+                    disabled={isGscAnalyticsLoading}
+                    className={`px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+                      gscAnalyticsDays === d
+                        ? 'bg-emerald-500 text-white shadow-xs'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                    }`}
+                  >
+                    {d}d
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => loadGscSearchAnalytics(gscAnalyticsDays)}
+                disabled={isGscAnalyticsLoading}
+                title="Refresh Search Analytics"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isGscAnalyticsLoading ? 'animate-spin text-emerald-400' : ''}`} />
+                <span>Refresh</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Error Alert */}
+          {gscAnalyticsError && (
+            <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{gscAnalyticsError}</span>
+              </div>
+              <button
+                onClick={() => loadGscSearchAnalytics(gscAnalyticsDays)}
+                className="text-xs text-rose-200 hover:text-white underline font-medium cursor-pointer"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* 4 KPI Metric Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Total Clicks */}
+            <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-blue-500/40 transition-colors">
+              <div className="flex items-center justify-between text-slate-400 mb-2">
+                <span className="text-xs font-medium uppercase tracking-wider text-slate-400">Total Clicks</span>
+                <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400">
+                  <MousePointerClick className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-2xl font-bold text-white tracking-tight">
+                {isGscAnalyticsLoading && !gscSearchAnalytics ? (
+                  <div className="h-8 w-20 bg-slate-800 animate-pulse rounded" />
+                ) : (
+                  (gscSearchAnalytics?.summary.clicks || 0).toLocaleString()
+                )}
+              </div>
+              <p className="text-xs text-slate-500 mt-1">Google Search result clicks</p>
+            </div>
+
+            {/* Total Impressions */}
+            <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-purple-500/40 transition-colors">
+              <div className="flex items-center justify-between text-slate-400 mb-2">
+                <span className="text-xs font-medium uppercase tracking-wider text-slate-400">Total Impressions</span>
+                <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-400">
+                  <Eye className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-2xl font-bold text-white tracking-tight">
+                {isGscAnalyticsLoading && !gscSearchAnalytics ? (
+                  <div className="h-8 w-24 bg-slate-800 animate-pulse rounded" />
+                ) : (
+                  (gscSearchAnalytics?.summary.impressions || 0).toLocaleString()
+                )}
+              </div>
+              <p className="text-xs text-slate-500 mt-1">Search appearance frequency</p>
+            </div>
+
+            {/* Average CTR */}
+            <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-emerald-500/40 transition-colors">
+              <div className="flex items-center justify-between text-slate-400 mb-2">
+                <span className="text-xs font-medium uppercase tracking-wider text-slate-400">Average CTR</span>
+                <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
+                  <Percent className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-2xl font-bold text-emerald-400 tracking-tight">
+                {isGscAnalyticsLoading && !gscSearchAnalytics ? (
+                  <div className="h-8 w-20 bg-slate-800 animate-pulse rounded" />
+                ) : (
+                  `${((gscSearchAnalytics?.summary.ctr || 0) * 100).toFixed(2)}%`
+                )}
+              </div>
+              <p className="text-xs text-slate-500 mt-1">Click-through percentage</p>
+            </div>
+
+            {/* Average Position */}
+            <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-amber-500/40 transition-colors">
+              <div className="flex items-center justify-between text-slate-400 mb-2">
+                <span className="text-xs font-medium uppercase tracking-wider text-slate-400">Average Position</span>
+                <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400">
+                  <Award className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-2xl font-bold text-white tracking-tight">
+                {isGscAnalyticsLoading && !gscSearchAnalytics ? (
+                  <div className="h-8 w-16 bg-slate-800 animate-pulse rounded" />
+                ) : (
+                  (gscSearchAnalytics?.summary.position || 0).toFixed(1)
+                )}
+              </div>
+              <p className="text-xs text-slate-500 mt-1">Mean rank in Google results</p>
+            </div>
+          </div>
+
+          {/* Daily Trend Chart */}
+          <div className="p-5 rounded-xl bg-slate-900/60 border border-slate-800/80">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <div>
+                <h3 className="text-sm font-semibold text-white tracking-tight flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-emerald-400" />
+                  <span>Daily Search Performance Trend</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Daily clicks (bars) and search impressions (line) over time
+                </p>
+              </div>
+
+              <div className="flex items-center gap-4 text-xs">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-xs bg-emerald-500" />
+                  <span className="text-slate-300">Clicks</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-purple-500" />
+                  <span className="text-slate-300">Impressions</span>
+                </div>
+              </div>
+            </div>
+
+            {/* SVG Chart Area */}
+            {isGscAnalyticsLoading && !gscSearchAnalytics ? (
+              <div className="h-44 w-full flex items-center justify-center bg-slate-900/40 rounded-lg">
+                <div className="flex items-center gap-2 text-xs text-slate-400">
+                  <RefreshCw className="w-4 h-4 animate-spin text-emerald-400" />
+                  <span>Loading search trend data...</span>
+                </div>
+              </div>
+            ) : !gscSearchAnalytics?.dates || gscSearchAnalytics.dates.length === 0 ? (
+              <div className="h-40 w-full flex items-center justify-center bg-slate-900/40 rounded-lg text-xs text-slate-500">
+                No daily search trend records found for this range.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="relative h-44 w-full">
+                  <svg
+                    className="w-full h-full overflow-visible"
+                    viewBox={`0 0 ${Math.max(600, gscSearchAnalytics.dates.length * 28)} 160`}
+                    preserveAspectRatio="none"
+                  >
+                    {/* Background grid lines */}
+                    <line x1="0" y1="40" x2="100%" y2="40" stroke="#334155" strokeDasharray="3 3" opacity="0.3" />
+                    <line x1="0" y1="80" x2="100%" y2="80" stroke="#334155" strokeDasharray="3 3" opacity="0.3" />
+                    <line x1="0" y1="120" x2="100%" y2="120" stroke="#334155" strokeDasharray="3 3" opacity="0.3" />
+
+                    {/* Bars for Clicks */}
+                    {gscSearchAnalytics.dates.map((d, i) => {
+                      const totalBars = gscSearchAnalytics.dates.length;
+                      const width = Math.max(600, totalBars * 28);
+                      const barWidth = Math.max(6, Math.min(16, (width / totalBars) * 0.55));
+                      const x = (i + 0.5) * (width / totalBars) - barWidth / 2;
+                      const barHeight = Math.max(2, (d.clicks / maxGscTrendClicks) * 120);
+                      const y = 140 - barHeight;
+                      const isHovered = hoveredGscDateIndex === i;
+
+                      return (
+                        <g key={d.date}>
+                          <rect
+                            x={x}
+                            y={y}
+                            width={barWidth}
+                            height={barHeight}
+                            rx="2"
+                            fill={isHovered ? '#34D399' : '#10B981'}
+                            opacity={isHovered ? 1 : 0.85}
+                            className="transition-all duration-150 cursor-pointer"
+                            onMouseEnter={() => setHoveredGscDateIndex(i)}
+                            onMouseLeave={() => setHoveredGscDateIndex(null)}
+                          />
+                        </g>
+                      );
+                    })}
+
+                    {/* Line for Impressions */}
+                    {(() => {
+                      const totalBars = gscSearchAnalytics.dates.length;
+                      const width = Math.max(600, totalBars * 28);
+                      const points = gscSearchAnalytics.dates.map((d, i) => {
+                        const x = (i + 0.5) * (width / totalBars);
+                        const y = 140 - Math.max(2, (d.impressions / maxGscTrendImpressions) * 120);
+                        return `${x},${y}`;
+                      });
+
+                      return (
+                        <g>
+                          <polyline
+                            fill="none"
+                            stroke="#A855F7"
+                            strokeWidth="2"
+                            strokeLinejoin="round"
+                            strokeLinecap="round"
+                            points={points.join(' ')}
+                          />
+                          {gscSearchAnalytics.dates.map((d, i) => {
+                            const x = (i + 0.5) * (width / totalBars);
+                            const y = 140 - Math.max(2, (d.impressions / maxGscTrendImpressions) * 120);
+                            const isHovered = hoveredGscDateIndex === i;
+
+                            return (
+                              <circle
+                                key={d.date}
+                                cx={x}
+                                cy={y}
+                                r={isHovered ? 4.5 : 2.5}
+                                fill="#C084FC"
+                                stroke="#0B132B"
+                                strokeWidth="1.5"
+                                className="transition-all duration-150 cursor-pointer"
+                                onMouseEnter={() => setHoveredGscDateIndex(i)}
+                                onMouseLeave={() => setHoveredGscDateIndex(null)}
+                              />
+                            );
+                          })}
+                        </g>
+                      );
+                    })()}
+                  </svg>
+                </div>
+
+                {/* Hover Tooltip Info Bar */}
+                <div className="flex items-center justify-between text-xs px-2 py-1.5 rounded-lg bg-slate-800/50 border border-slate-800">
+                  {hoveredGscDateIndex !== null && gscSearchAnalytics.dates[hoveredGscDateIndex] ? (
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <span className="text-white font-mono font-medium">
+                        {gscSearchAnalytics.dates[hoveredGscDateIndex].date}
+                      </span>
+                      <span className="text-emerald-400">
+                        Clicks: <strong>{gscSearchAnalytics.dates[hoveredGscDateIndex].clicks}</strong>
+                      </span>
+                      <span className="text-purple-400">
+                        Impressions: <strong>{gscSearchAnalytics.dates[hoveredGscDateIndex].impressions}</strong>
+                      </span>
+                      <span className="text-slate-300">
+                        CTR: <strong>{((gscSearchAnalytics.dates[hoveredGscDateIndex].ctr || 0) * 100).toFixed(2)}%</strong>
+                      </span>
+                      <span className="text-amber-400">
+                        Avg Pos: <strong>{gscSearchAnalytics.dates[hoveredGscDateIndex].position.toFixed(1)}</strong>
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="text-slate-400 flex items-center justify-between w-full">
+                      <span>Hover over any day on the chart to inspect daily breakdown.</span>
+                      <span className="text-slate-500 font-mono">
+                        {gscSearchAnalytics.startDate} → {gscSearchAnalytics.endDate}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Top Queries & Top Pages Dimensions Card */}
+          <div className="p-5 rounded-xl bg-slate-900/60 border border-slate-800/80 space-y-4">
+            {/* Header with Switcher Tabs & Filter */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setGscDimensionTab('queries')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                    gscDimensionTab === 'queries'
+                      ? 'bg-slate-800 text-white border border-slate-700/80 shadow-xs'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Top Search Queries ({gscSearchAnalytics?.queries.length || 0})
+                </button>
+                <button
+                  onClick={() => setGscDimensionTab('pages')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                    gscDimensionTab === 'pages'
+                      ? 'bg-slate-800 text-white border border-slate-700/80 shadow-xs'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Top Landing Pages ({gscSearchAnalytics?.pages.length || 0})
+                </button>
+              </div>
+
+              {/* Filter search bar */}
+              <div className="relative w-full sm:w-64">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder={gscDimensionTab === 'queries' ? 'Filter queries...' : 'Filter pages...'}
+                  value={gscFilterQuery}
+                  onChange={(e) => setGscFilterQuery(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+            </div>
+
+            {/* Table Area */}
+            {isGscAnalyticsLoading && !gscSearchAnalytics ? (
+              <div className="py-12 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+                <RefreshCw className="w-4 h-4 animate-spin text-emerald-400" />
+                <span>Loading Search Console dimensions...</span>
+              </div>
+            ) : gscDimensionTab === 'queries' ? (
+              /* Queries Table */
+              filteredGscQueries.length === 0 ? (
+                <div className="py-8 text-center text-xs text-slate-500">
+                  {gscFilterQuery ? 'No queries match your filter.' : 'No search query records found for this period.'}
+                </div>
+              ) : (
+                <div className="overflow-x-auto max-h-96 overflow-y-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-900/80 text-slate-400 sticky top-0 border-b border-slate-800">
+                      <tr>
+                        <th className="py-2.5 px-3 font-semibold">Search Query</th>
+                        <th className="py-2.5 px-3 font-semibold text-right">Clicks</th>
+                        <th className="py-2.5 px-3 font-semibold text-right">Impressions</th>
+                        <th className="py-2.5 px-3 font-semibold text-right">CTR</th>
+                        <th className="py-2.5 px-3 font-semibold text-right">Avg Position</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {filteredGscQueries.map((q, idx) => (
+                        <tr key={`${q.query}-${idx}`} className="hover:bg-slate-800/40 transition-colors">
+                          <td className="py-2 px-3 text-slate-200 font-medium">
+                            {q.query}
+                          </td>
+                          <td className="py-2 px-3 text-right font-semibold text-emerald-400">
+                            {q.clicks.toLocaleString()}
+                          </td>
+                          <td className="py-2 px-3 text-right text-slate-300">
+                            {q.impressions.toLocaleString()}
+                          </td>
+                          <td className="py-2 px-3 text-right text-slate-300">
+                            {((q.ctr || 0) * 100).toFixed(2)}%
+                          </td>
+                          <td className="py-2 px-3 text-right">
+                            <span
+                              className={`px-2 py-0.5 rounded font-mono text-[11px] font-semibold ${
+                                q.position <= 3
+                                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25'
+                                  : q.position <= 10
+                                  ? 'bg-blue-500/15 text-blue-400 border border-blue-500/25'
+                                  : 'bg-slate-800 text-slate-400 border border-slate-700/60'
+                              }`}
+                            >
+                              #{q.position.toFixed(1)}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            ) : (
+              /* Pages Table */
+              filteredGscPages.length === 0 ? (
+                <div className="py-8 text-center text-xs text-slate-500">
+                  {gscFilterQuery ? 'No pages match your filter.' : 'No landing page records found for this period.'}
+                </div>
+              ) : (
+                <div className="overflow-x-auto max-h-96 overflow-y-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-900/80 text-slate-400 sticky top-0 border-b border-slate-800">
+                      <tr>
+                        <th className="py-2.5 px-3 font-semibold">Landing Page URL</th>
+                        <th className="py-2.5 px-3 font-semibold text-right">Clicks</th>
+                        <th className="py-2.5 px-3 font-semibold text-right">Impressions</th>
+                        <th className="py-2.5 px-3 font-semibold text-right">CTR</th>
+                        <th className="py-2.5 px-3 font-semibold text-right">Avg Position</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {filteredGscPages.map((p, idx) => (
+                        <tr key={`${p.page}-${idx}`} className="hover:bg-slate-800/40 transition-colors">
+                          <td className="py-2 px-3 text-slate-200 font-mono text-[11px] max-w-md truncate">
+                            <div className="flex items-center gap-1.5">
+                              <span className="truncate">{p.page}</span>
+                              <a
+                                href={p.page}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-slate-500 hover:text-emerald-400 shrink-0"
+                                title="Open page"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            </div>
+                          </td>
+                          <td className="py-2 px-3 text-right font-semibold text-emerald-400">
+                            {p.clicks.toLocaleString()}
+                          </td>
+                          <td className="py-2 px-3 text-right text-slate-300">
+                            {p.impressions.toLocaleString()}
+                          </td>
+                          <td className="py-2 px-3 text-right text-slate-300">
+                            {((p.ctr || 0) * 100).toFixed(2)}%
+                          </td>
+                          <td className="py-2 px-3 text-right">
+                            <span
+                              className={`px-2 py-0.5 rounded font-mono text-[11px] font-semibold ${
+                                p.position <= 3
+                                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25'
+                                  : p.position <= 10
+                                  ? 'bg-blue-500/15 text-blue-400 border border-blue-500/25'
+                                  : 'bg-slate-800 text-slate-400 border border-slate-700/60'
+                              }`}
+                            >
+                              #{p.position.toFixed(1)}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Error state */}
       {seoError && (
