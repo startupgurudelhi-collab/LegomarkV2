@@ -12,6 +12,13 @@ import {
   Sparkles,
   Layers,
   Clock,
+  Search,
+  Compass,
+  FileText,
+  Briefcase,
+  Award,
+  ExternalLink,
+  Filter,
 } from 'lucide-react';
 
 interface PeriodMetric {
@@ -49,12 +56,118 @@ interface AnalyticsData {
   generatedAt: string;
 }
 
+// ==========================================
+// LACS #17: SEO Analytics Definitions
+// ==========================================
+
+export type CanonicalSearchEngine =
+  | 'Google'
+  | 'Bing'
+  | 'Yahoo'
+  | 'DuckDuckGo'
+  | 'Ecosia'
+  | 'Baidu'
+  | 'Yandex'
+  | 'Other Search';
+
+export interface SeoSearchEngineDistribution {
+  engine: CanonicalSearchEngine;
+  sessions: number;
+  percentage: number;
+}
+
+export interface SeoOrganicLandingPage {
+  path: string;
+  organicSessions: number;
+  uniqueOrganicVisitors: number;
+  percentage: number;
+  dominantEngine: CanonicalSearchEngine;
+  contentType: 'blog' | 'service' | 'core';
+}
+
+export interface SeoContentTypeTraffic {
+  contentType: 'blog' | 'service' | 'core';
+  label: string;
+  organicSessions: number;
+  totalSessions: number;
+  organicSharePercentage: number;
+}
+
+export interface SeoDailyOrganicTrend {
+  date: string;
+  label: string;
+  organicLandings: number;
+  totalLandings: number;
+  organicSharePercentage: number;
+}
+
+export interface SeoAnalyticsSummaryStats {
+  periodDays: number;
+  startDate: string;
+  endDate: string;
+  organicLandings: {
+    today: number;
+    yesterday: number;
+    last7Days: number;
+    last30Days: number;
+    totalPeriod: number;
+  };
+  totalLandings: {
+    today: number;
+    yesterday: number;
+    last7Days: number;
+    last30Days: number;
+    totalPeriod: number;
+  };
+  organicSharePercentage: number;
+  searchEngineDistribution: SeoSearchEngineDistribution[];
+  topLandingPages: SeoOrganicLandingPage[];
+  contentTypeTraffic: SeoContentTypeTraffic[];
+  dailyOrganicTrend: SeoDailyOrganicTrend[];
+  generatedAt: string;
+}
+
+export interface ArticleSeoTrafficMetric {
+  articleId: string;
+  title: string;
+  slug: string;
+  category: string;
+  score: number;
+  grade: 'Excellent' | 'Good' | 'Needs Improvement' | 'Critical' | 'Unrated';
+  organicSessions: number;
+  uniqueOrganicVisitors: number;
+  percentageOfOrganicTraffic: number;
+  primaryPath: string;
+}
+
+export interface SeoAnalyticsDashboardData {
+  stats: SeoAnalyticsSummaryStats;
+  articlesSeoTraffic: ArticleSeoTrafficMetric[];
+  catalogAuditMetadata: {
+    auditedAt: string | null;
+    totalAuditedArticles: number;
+    averageScore: number;
+  };
+  generatedAt: string;
+}
+
 export const AdminAnalyticsPage: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'traffic' | 'seo'>('traffic');
+
+  // Existing Website Analytics state
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [chartRange, setChartRange] = useState<'7d' | '14d' | '30d'>('14d');
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
+  // LACS #17 SEO Analytics state
+  const [seoData, setSeoData] = useState<SeoAnalyticsDashboardData | null>(null);
+  const [isSeoLoading, setIsSeoLoading] = useState<boolean>(false);
+  const [seoError, setSeoError] = useState<string | null>(null);
+  const [hoveredSeoIndex, setHoveredSeoIndex] = useState<number | null>(null);
+  const [articleSearchQuery, setArticleSearchQuery] = useState<string>('');
+  const [articleGradeFilter, setArticleGradeFilter] = useState<string>('all');
 
   const fetchAnalytics = useCallback(async () => {
     try {
@@ -84,9 +197,43 @@ export const AdminAnalyticsPage: React.FC = () => {
     }
   }, []);
 
+  const fetchSeoAnalytics = useCallback(async () => {
+    try {
+      setIsSeoLoading(true);
+      setSeoError(null);
+      const res = await fetch('/api/admin/analytics/seo-stats?rangeDays=30', {
+        headers: {
+          Accept: 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to load SEO analytics (HTTP ${res.status})`);
+      }
+
+      const json = await res.json();
+      if (json.success && json.data) {
+        setSeoData(json.data);
+      } else {
+        throw new Error(json.error || 'Failed to parse SEO analytics payload');
+      }
+    } catch (err: any) {
+      setSeoError(err?.message || 'Unable to retrieve SEO analytics');
+    } finally {
+      setIsSeoLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchAnalytics();
   }, [fetchAnalytics]);
+
+  useEffect(() => {
+    if (activeTab === 'seo' && !seoData && !isSeoLoading) {
+      fetchSeoAnalytics();
+    }
+  }, [activeTab, seoData, isSeoLoading, fetchSeoAnalytics]);
 
   // Filter daily trend data for chart range
   const filteredTrend = React.useMemo(() => {
@@ -103,6 +250,57 @@ export const AdminAnalyticsPage: React.FC = () => {
     );
     return peak === 0 ? 10 : Math.ceil(peak * 1.15);
   }, [filteredTrend]);
+
+  // Max value calculation for SEO 30-day chart
+  const maxSeoChartValue = React.useMemo(() => {
+    if (!seoData?.stats.dailyOrganicTrend || seoData.stats.dailyOrganicTrend.length === 0) return 10;
+    const peak = Math.max(
+      ...seoData.stats.dailyOrganicTrend.map((d) => Math.max(d.totalLandings, d.organicLandings))
+    );
+    return peak === 0 ? 10 : Math.ceil(peak * 1.15);
+  }, [seoData?.stats.dailyOrganicTrend]);
+
+  // Filtered articles list for SEO score vs traffic correlation table
+  const filteredArticles = React.useMemo(() => {
+    if (!seoData?.articlesSeoTraffic) return [];
+    return seoData.articlesSeoTraffic.filter((art) => {
+      const q = articleSearchQuery.trim().toLowerCase();
+      const matchesSearch =
+        q === '' ||
+        art.title.toLowerCase().includes(q) ||
+        art.slug.toLowerCase().includes(q) ||
+        art.category.toLowerCase().includes(q);
+
+      const matchesGrade =
+        articleGradeFilter === 'all' ||
+        art.grade.toLowerCase() === articleGradeFilter.toLowerCase();
+
+      return matchesSearch && matchesGrade;
+    });
+  }, [seoData?.articlesSeoTraffic, articleSearchQuery, articleGradeFilter]);
+
+  const getGradeBadgeClass = (grade: string) => {
+    switch (grade) {
+      case 'Excellent':
+        return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+      case 'Good':
+        return 'bg-blue-500/10 text-blue-400 border-blue-500/30';
+      case 'Needs Improvement':
+        return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+      case 'Critical':
+        return 'bg-rose-500/10 text-rose-400 border-rose-500/30';
+      default:
+        return 'bg-slate-800 text-slate-400 border-slate-700';
+    }
+  };
+
+  const getScoreColorClass = (score: number) => {
+    if (score >= 85) return 'text-emerald-400';
+    if (score >= 70) return 'text-blue-400';
+    if (score >= 50) return 'text-amber-400';
+    if (score > 0) return 'text-rose-400';
+    return 'text-slate-500';
+  };
 
   // Helper to format friendly page titles
   const formatPageTitle = (path: string): string => {
@@ -131,14 +329,16 @@ export const AdminAnalyticsPage: React.FC = () => {
         <div>
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400">
-              <BarChart3 className="w-6 h-6" />
+              {activeTab === 'seo' ? <Sparkles className="w-6 h-6 text-amber-400" /> : <BarChart3 className="w-6 h-6" />}
             </div>
             <div>
               <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-                Website Visitor Analytics
+                {activeTab === 'seo' ? 'SEO Analytics & Search Performance' : 'Website Visitor Analytics'}
               </h1>
               <p className="text-sm text-slate-400 mt-0.5">
-                Privacy-centric traffic intelligence, daily unique visitors, and page view metrics
+                {activeTab === 'seo'
+                  ? 'Organic search acquisitions, landing path attribution, and on-page SEO score correlation (LACS #17)'
+                  : 'Privacy-centric traffic intelligence, daily unique visitors, and page view metrics'}
               </p>
             </div>
           </div>
@@ -151,28 +351,60 @@ export const AdminAnalyticsPage: React.FC = () => {
           </div>
 
           <button
-            onClick={fetchAnalytics}
-            disabled={isLoading}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium border border-slate-700 transition-colors disabled:opacity-50"
+            onClick={activeTab === 'seo' ? fetchSeoAnalytics : fetchAnalytics}
+            disabled={activeTab === 'seo' ? isSeoLoading : isLoading}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium border border-slate-700 transition-colors disabled:opacity-50 cursor-pointer"
           >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-orange-400' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${(activeTab === 'seo' ? isSeoLoading : isLoading) ? 'animate-spin text-orange-400' : ''}`} />
             <span>Refresh</span>
           </button>
         </div>
       </div>
 
-      {/* Error state */}
-      {error && (
-        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm flex items-center justify-between">
-          <span>{error}</span>
-          <button
-            onClick={fetchAnalytics}
-            className="text-xs text-rose-200 underline font-medium hover:text-white"
-          >
-            Retry
-          </button>
-        </div>
-      )}
+      {/* Sub-Tab Navigation: Website Traffic vs SEO Analytics */}
+      <div className="flex items-center gap-2 border-b border-slate-800">
+        <button
+          onClick={() => setActiveTab('traffic')}
+          className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors cursor-pointer ${
+            activeTab === 'traffic'
+              ? 'border-orange-500 text-orange-400 font-semibold'
+              : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-700'
+          }`}
+        >
+          <BarChart3 className="w-4 h-4" />
+          <span>Website Traffic</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('seo')}
+          className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors cursor-pointer ${
+            activeTab === 'seo'
+              ? 'border-orange-500 text-orange-400 font-semibold'
+              : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-700'
+          }`}
+        >
+          <Sparkles className="w-4 h-4 text-amber-400" />
+          <span>SEO Analytics</span>
+          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/20">
+            LACS #17
+          </span>
+        </button>
+      </div>
+
+      {/* TAB 1: WEBSITE VISITOR ANALYTICS (EXISTING) */}
+      {activeTab === 'traffic' && (
+        <div className="space-y-8 animate-in fade-in duration-300">
+          {/* Error state */}
+          {error && (
+            <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm flex items-center justify-between">
+              <span>{error}</span>
+              <button
+                onClick={fetchAnalytics}
+                className="text-xs text-rose-200 underline font-medium hover:text-white"
+              >
+                Retry
+              </button>
+            </div>
+          )}
 
       {/* Key Metric Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
@@ -580,6 +812,584 @@ export const AdminAnalyticsPage: React.FC = () => {
           </div>
         </div>
       </div>
+    </div>
+  )}
+
+  {/* TAB 2: LACS #17 SEO ANALYTICS & SEARCH ENGINE PERFORMANCE */}
+  {activeTab === 'seo' && (
+    <div className="space-y-8 animate-in fade-in duration-300">
+      {/* Error state */}
+      {seoError && (
+        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm flex items-center justify-between">
+          <span>{seoError}</span>
+          <button
+            onClick={fetchSeoAnalytics}
+            className="text-xs text-rose-200 underline font-medium hover:text-white cursor-pointer"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Top 4 Organic KPI Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Organic Landing Sessions */}
+        <div className="p-5 rounded-xl bg-[#0B132B] border border-slate-800/80 shadow-sm relative overflow-hidden group hover:border-emerald-500/40 transition-colors">
+          <div className="flex items-center justify-between text-slate-400 mb-3">
+            <span className="text-xs font-medium uppercase tracking-wider text-slate-400">
+              Organic Landings (30d)
+            </span>
+            <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
+              <Globe className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl font-bold text-white tracking-tight">
+            {isSeoLoading ? (
+              <div className="h-8 w-20 bg-slate-800 animate-pulse rounded" />
+            ) : (
+              (seoData?.stats.organicLandings.totalPeriod || 0).toLocaleString()
+            )}
+          </div>
+          <div className="text-xs text-slate-400 mt-2 flex items-center gap-2">
+            <span>Today: {seoData?.stats.organicLandings.today || 0}</span>
+            <span>·</span>
+            <span>7d: {seoData?.stats.organicLandings.last7Days || 0}</span>
+          </div>
+        </div>
+
+        {/* Organic Search Share % */}
+        <div className="p-5 rounded-xl bg-[#0B132B] border border-slate-800/80 shadow-sm relative overflow-hidden group hover:border-amber-500/40 transition-colors">
+          <div className="flex items-center justify-between text-slate-400 mb-3">
+            <span className="text-xs font-medium uppercase tracking-wider text-slate-400">
+              Organic Search Share
+            </span>
+            <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400">
+              <Compass className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl font-bold text-amber-300 tracking-tight">
+            {isSeoLoading ? (
+              <div className="h-8 w-16 bg-slate-800 animate-pulse rounded" />
+            ) : (
+              `${seoData?.stats.organicSharePercentage || 0}%`
+            )}
+          </div>
+          <div className="text-xs text-slate-400 mt-2 flex items-center justify-between">
+            <span>of {seoData?.stats.totalLandings.totalPeriod || 0} total entry sessions</span>
+          </div>
+          <div className="w-full bg-slate-800 h-1.5 rounded-full mt-2.5 overflow-hidden">
+            <div
+              className="bg-amber-400 h-full rounded-full transition-all duration-500"
+              style={{ width: `${Math.min(100, seoData?.stats.organicSharePercentage || 0)}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Top Search Provider */}
+        <div className="p-5 rounded-xl bg-[#0B132B] border border-slate-800/80 shadow-sm relative overflow-hidden group hover:border-blue-500/40 transition-colors">
+          <div className="flex items-center justify-between text-slate-400 mb-3">
+            <span className="text-xs font-medium uppercase tracking-wider text-slate-400">
+              Leading Search Engine
+            </span>
+            <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400">
+              <Search className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl font-bold text-white tracking-tight">
+            {isSeoLoading ? (
+              <div className="h-8 w-24 bg-slate-800 animate-pulse rounded" />
+            ) : (
+              seoData?.stats.searchEngineDistribution[0]?.engine || 'No Data'
+            )}
+          </div>
+          <div className="text-xs text-slate-400 mt-2">
+            {seoData?.stats.searchEngineDistribution[0] ? (
+              <span>
+                {seoData.stats.searchEngineDistribution[0].sessions} sessions ({seoData.stats.searchEngineDistribution[0].percentage}%)
+              </span>
+            ) : (
+              <span>No search acquisitions yet</span>
+            )}
+          </div>
+        </div>
+
+        {/* Top Organic Content Channel */}
+        <div className="p-5 rounded-xl bg-[#0B132B] border border-slate-800/80 shadow-sm relative overflow-hidden group hover:border-purple-500/40 transition-colors">
+          <div className="flex items-center justify-between text-slate-400 mb-3">
+            <span className="text-xs font-medium uppercase tracking-wider text-slate-400">
+              Top Content Channel
+            </span>
+            <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-400">
+              <Layers className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-xl font-bold text-white tracking-tight truncate">
+            {isSeoLoading ? (
+              <div className="h-8 w-28 bg-slate-800 animate-pulse rounded" />
+            ) : (
+              seoData?.stats.contentTypeTraffic.slice().sort((a, b) => b.organicSessions - a.organicSessions)[0]?.label || 'Blog & Knowledge'
+            )}
+          </div>
+          <div className="text-xs text-slate-400 mt-2">
+            {seoData?.stats.contentTypeTraffic ? (
+              <span>
+                {seoData.stats.contentTypeTraffic.slice().sort((a, b) => b.organicSessions - a.organicSessions)[0]?.organicSessions || 0} organic entries
+              </span>
+            ) : (
+              <span>Awaiting organic hits</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 30-Day Organic Trend Chart */}
+      <div className="p-6 rounded-2xl bg-[#0B132B] border border-slate-800/80 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h2 className="text-base font-semibold text-white tracking-tight flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-emerald-400" />
+              <span>30-Day Organic Search Trend</span>
+            </h2>
+            <p className="text-xs text-slate-400 mt-1">
+              Daily organic search landing sessions compared against total website session entrances
+            </p>
+          </div>
+
+          <div className="flex items-center gap-4 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-xs bg-emerald-500" />
+              <span className="text-slate-300">Organic Search</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-xs bg-slate-700" />
+              <span className="text-slate-400">Total Entries</span>
+            </div>
+          </div>
+        </div>
+
+        {/* SVG Chart Visualization */}
+        <div className="relative pt-6">
+          {isSeoLoading ? (
+            <div className="h-56 w-full flex items-center justify-center bg-slate-900/40 rounded-xl">
+              <div className="flex flex-col items-center gap-2 text-slate-500">
+                <RefreshCw className="w-6 h-6 animate-spin text-orange-400" />
+                <span className="text-xs">Loading 30-day search trend...</span>
+              </div>
+            </div>
+          ) : !seoData?.stats.dailyOrganicTrend || seoData.stats.dailyOrganicTrend.length === 0 ? (
+            <div className="h-56 w-full flex items-center justify-center bg-slate-900/40 rounded-xl text-slate-500 text-xs">
+              No trend data available for current window
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="h-56 w-full flex items-end justify-between gap-1.5 px-2">
+                {seoData.stats.dailyOrganicTrend.map((d, i) => {
+                  const organicHeight = Math.max(4, Math.round((d.organicLandings / maxSeoChartValue) * 100));
+                  const totalHeight = Math.max(4, Math.round((d.totalLandings / maxSeoChartValue) * 100));
+                  const isHovered = hoveredSeoIndex === i;
+
+                  return (
+                    <div
+                      key={d.date}
+                      className="flex-1 flex flex-col items-center h-full justify-end relative group cursor-pointer"
+                      onMouseEnter={() => setHoveredSeoIndex(i)}
+                      onMouseLeave={() => setHoveredSeoIndex(null)}
+                    >
+                      {/* Tooltip */}
+                      {isHovered && (
+                        <div className="absolute -top-24 z-30 p-2.5 rounded-lg bg-slate-900 border border-slate-700 shadow-xl text-xs whitespace-nowrap min-w-[150px] pointer-events-none">
+                          <p className="font-semibold text-white border-b border-slate-800 pb-1 mb-1.5">
+                            {d.label} ({d.date})
+                          </p>
+                          <div className="flex justify-between items-center text-emerald-400 text-[11px]">
+                            <span>Organic Search:</span>
+                            <span className="font-mono font-bold">{d.organicLandings}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-slate-300 text-[11px] mt-0.5">
+                            <span>Total Landings:</span>
+                            <span className="font-mono font-bold">{d.totalLandings}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-amber-300 text-[11px] mt-0.5 pt-0.5 border-t border-slate-800">
+                            <span>Organic Share:</span>
+                            <span className="font-mono font-bold">{d.organicSharePercentage}%</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Bar Group */}
+                      <div className="w-full max-w-[20px] flex items-end justify-center relative h-full">
+                        {/* Background total bar */}
+                        <div
+                          className={`w-full rounded-t-xs transition-all duration-200 ${
+                            isHovered ? 'bg-slate-600' : 'bg-slate-800'
+                          }`}
+                          style={{ height: `${totalHeight}%` }}
+                        />
+                        {/* Overlay organic bar */}
+                        <div
+                          className={`w-full absolute bottom-0 rounded-t-xs transition-all duration-200 ${
+                            isHovered ? 'bg-emerald-400' : 'bg-emerald-500'
+                          }`}
+                          style={{ height: `${organicHeight}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Date Labels */}
+              <div className="flex justify-between text-[10px] text-slate-500 pt-3 border-t border-slate-800/80 px-2 font-mono">
+                <span>{seoData.stats.dailyOrganicTrend[0]?.label}</span>
+                <span>{seoData.stats.dailyOrganicTrend[Math.floor(seoData.stats.dailyOrganicTrend.length / 2)]?.label}</span>
+                <span>{seoData.stats.dailyOrganicTrend[seoData.stats.dailyOrganicTrend.length - 1]?.label}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 2-Column Grid: Search Engine Distribution & Content Architecture Split */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Search Engine Distribution */}
+        <div className="p-6 rounded-2xl bg-[#0B132B] border border-slate-800/80 shadow-sm flex flex-col">
+          <div className="mb-5">
+            <h2 className="text-base font-semibold text-white tracking-tight flex items-center gap-2">
+              <Search className="w-4 h-4 text-blue-400" />
+              <span>Search Engine Distribution</span>
+            </h2>
+            <p className="text-xs text-slate-400 mt-1">
+              Distribution of organic visitors acquired from canonical search engines
+            </p>
+          </div>
+
+          <div className="flex-1 flex flex-col justify-start">
+            {isSeoLoading ? (
+              <div className="space-y-3 py-2">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="h-10 bg-slate-800 animate-pulse rounded-lg" />
+                ))}
+              </div>
+            ) : !seoData?.stats.searchEngineDistribution || seoData.stats.searchEngineDistribution.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-slate-500 py-10">
+                <Globe className="w-8 h-8 mb-2 opacity-40" />
+                <p className="text-xs">No search engine acquisitions detected yet in this period</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {seoData.stats.searchEngineDistribution.map((item) => (
+                  <div
+                    key={item.engine}
+                    className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 flex flex-col gap-2"
+                  >
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-slate-200">{item.engine}</span>
+                        <span className="text-[11px] text-slate-400">
+                          {item.sessions.toLocaleString()} sessions
+                        </span>
+                      </div>
+                      <span className="font-mono font-bold text-blue-400">{item.percentage}%</span>
+                    </div>
+                    <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                      <div
+                        className="bg-blue-500 h-full rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min(100, item.percentage)}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Traffic by Content Architecture */}
+        <div className="p-6 rounded-2xl bg-[#0B132B] border border-slate-800/80 shadow-sm flex flex-col">
+          <div className="mb-5">
+            <h2 className="text-base font-semibold text-white tracking-tight flex items-center gap-2">
+              <Layers className="w-4 h-4 text-purple-400" />
+              <span>Traffic by Content Architecture</span>
+            </h2>
+            <p className="text-xs text-slate-400 mt-1">
+              Organic search volume and capture rate across structural page categories
+            </p>
+          </div>
+
+          <div className="flex-1 flex flex-col justify-start">
+            {isSeoLoading ? (
+              <div className="space-y-3 py-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="h-14 bg-slate-800 animate-pulse rounded-lg" />
+                ))}
+              </div>
+            ) : !seoData?.stats.contentTypeTraffic || seoData.stats.contentTypeTraffic.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-slate-500 py-10">
+                <Layers className="w-8 h-8 mb-2 opacity-40" />
+                <p className="text-xs">No content type metrics recorded yet</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {seoData.stats.contentTypeTraffic.map((c) => {
+                  const getIcon = () => {
+                    if (c.contentType === 'blog') return <FileText className="w-4 h-4 text-emerald-400" />;
+                    if (c.contentType === 'service') return <Briefcase className="w-4 h-4 text-blue-400" />;
+                    return <Layers className="w-4 h-4 text-slate-400" />;
+                  };
+
+                  return (
+                    <div
+                      key={c.contentType}
+                      className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 flex flex-col gap-2"
+                    >
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-1.5 rounded-lg bg-slate-800 shrink-0">{getIcon()}</div>
+                          <div>
+                            <span className="font-semibold text-slate-200 block">{c.label}</span>
+                            <span className="text-[11px] text-slate-400">
+                              {c.organicSessions.toLocaleString()} organic of {c.totalSessions.toLocaleString()} total entrances
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-mono font-bold text-purple-300 text-sm block">
+                            {c.organicSharePercentage}%
+                          </span>
+                          <span className="text-[10px] text-slate-500 uppercase tracking-wider">Search Share</span>
+                        </div>
+                      </div>
+                      <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden mt-1">
+                        <div
+                          className="bg-purple-500 h-full rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min(100, c.organicSharePercentage)}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Top Organic Landing Pages Table */}
+      <div className="p-6 rounded-2xl bg-[#0B132B] border border-slate-800/80 shadow-sm">
+        <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h2 className="text-base font-semibold text-white tracking-tight flex items-center gap-2">
+              <Compass className="w-4 h-4 text-orange-400" />
+              <span>Top Organic Landing Pages</span>
+            </h2>
+            <p className="text-xs text-slate-400 mt-1">
+              Top specific URL destinations entered directly via search engine queries
+            </p>
+          </div>
+          <span className="text-xs font-mono text-slate-400">
+            {seoData?.stats.topLandingPages.length || 0} active landing paths
+          </span>
+        </div>
+
+        <div className="overflow-x-auto">
+          {isSeoLoading ? (
+            <div className="space-y-3 py-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-10 bg-slate-800 animate-pulse rounded-lg" />
+              ))}
+            </div>
+          ) : !seoData?.stats.topLandingPages || seoData.stats.topLandingPages.length === 0 ? (
+            <div className="text-center py-10 text-slate-500 text-xs">
+              No organic search landing paths recorded in this period
+            </div>
+          ) : (
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-slate-800 text-slate-400 font-semibold uppercase text-[10px] tracking-wider">
+                  <th className="pb-3 pl-2">Landing URL Route</th>
+                  <th className="pb-3 px-3">Content Type</th>
+                  <th className="pb-3 px-3">Top Search Engine</th>
+                  <th className="pb-3 px-3 text-right">Organic Sessions</th>
+                  <th className="pb-3 px-3 text-right">Unique Visitors</th>
+                  <th className="pb-3 pr-2 text-right">Search Share %</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60 font-mono">
+                {seoData.stats.topLandingPages.map((page) => (
+                  <tr key={page.path} className="hover:bg-slate-800/30 transition-colors">
+                    <td className="py-3 pl-2 font-sans font-medium text-slate-200">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate max-w-[320px]">{page.path}</span>
+                        <a
+                          href={page.path}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-slate-500 hover:text-orange-400 transition-colors"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+                    </td>
+                    <td className="py-3 px-3">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-800 text-slate-300 border border-slate-700">
+                        {page.contentType}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-300 border border-blue-500/20">
+                        {page.dominantEngine}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 text-right font-semibold text-emerald-400">
+                      {page.organicSessions.toLocaleString()}
+                    </td>
+                    <td className="py-3 px-3 text-right text-slate-300">
+                      {page.uniqueOrganicVisitors.toLocaleString()}
+                    </td>
+                    <td className="py-3 pr-2 text-right font-bold text-amber-300">
+                      {page.percentage}%
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {/* Article SEO Score vs. Organic Traffic Correlation Matrix Table */}
+      <div className="p-6 rounded-2xl bg-[#0B132B] border border-slate-800/80 shadow-sm">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-semibold text-white tracking-tight flex items-center gap-2">
+                <Award className="w-4 h-4 text-amber-400" />
+                <span>Article SEO Score vs. Organic Traffic Matrix</span>
+              </h2>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/20">
+                LACS #18 Correlation
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 mt-1">
+              Factual alignment of deterministic on-page SEO scores (#18) against measured search engine landings (#17)
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 text-xs">
+            <div className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 flex items-center gap-1.5">
+              <span className="text-slate-500">Catalog Articles:</span>
+              <span className="font-bold text-white font-mono">{seoData?.catalogAuditMetadata.totalAuditedArticles || 0}</span>
+            </div>
+            <div className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 flex items-center gap-1.5">
+              <span className="text-slate-500">Catalog Avg Score:</span>
+              <span className="font-bold text-emerald-400 font-mono">{seoData?.catalogAuditMetadata.averageScore || 0}/100</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Filter and Search Bar */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-4">
+          <div className="relative flex-1 max-w-md">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <input
+              type="text"
+              placeholder="Filter articles by title, slug, or category..."
+              value={articleSearchQuery}
+              onChange={(e) => setArticleSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-200 text-xs focus:outline-hidden focus:border-orange-500/60 placeholder:text-slate-600"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Filter className="w-3.5 h-3.5 text-slate-500" />
+            <select
+              value={articleGradeFilter}
+              onChange={(e) => setArticleGradeFilter(e.target.value)}
+              className="px-3 py-2 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-300 text-xs focus:outline-hidden focus:border-orange-500/60 cursor-pointer"
+            >
+              <option value="all">All Grades</option>
+              <option value="excellent">Excellent (85+)</option>
+              <option value="good">Good (70-84)</option>
+              <option value="needs improvement">Needs Improvement (50-69)</option>
+              <option value="critical">Critical (&lt;50)</option>
+              <option value="unrated">Unrated</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Articles Table */}
+        <div className="overflow-x-auto">
+          {isSeoLoading ? (
+            <div className="space-y-3 py-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-10 bg-slate-800 animate-pulse rounded-lg" />
+              ))}
+            </div>
+          ) : filteredArticles.length === 0 ? (
+            <div className="text-center py-12 text-slate-500 text-xs">
+              No articles match the current filter criteria
+            </div>
+          ) : (
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-slate-800 text-slate-400 font-semibold uppercase text-[10px] tracking-wider">
+                  <th className="pb-3 pl-2">Article Title & Slug</th>
+                  <th className="pb-3 px-3">Category</th>
+                  <th className="pb-3 px-3 text-center">SEO Score (#18)</th>
+                  <th className="pb-3 px-3 text-center">Quality Grade</th>
+                  <th className="pb-3 px-3 text-right">Organic Sessions (30d)</th>
+                  <th className="pb-3 px-3 text-right">Unique Visitors</th>
+                  <th className="pb-3 pr-2 text-right">Share of Organic %</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60">
+                {filteredArticles.map((art) => (
+                  <tr key={art.articleId} className="hover:bg-slate-800/30 transition-colors">
+                    <td className="py-3 pl-2 max-w-[280px]">
+                      <div className="font-medium text-slate-200 truncate">{art.title}</div>
+                      <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-mono mt-0.5">
+                        <span className="truncate">/blog/{art.slug}</span>
+                        <a
+                          href={art.primaryPath}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="hover:text-orange-400 transition-colors"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    </td>
+                    <td className="py-3 px-3 text-slate-400 text-[11px]">
+                      {art.category}
+                    </td>
+                    <td className="py-3 px-3 text-center">
+                      <span className={`font-mono font-bold text-sm ${getScoreColorClass(art.score)}`}>
+                        {art.score > 0 ? `${art.score}/100` : '—'}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 text-center">
+                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${getGradeBadgeClass(art.grade)}`}>
+                        {art.grade}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 text-right font-mono font-semibold text-emerald-400">
+                      {art.organicSessions.toLocaleString()}
+                    </td>
+                    <td className="py-3 px-3 text-right font-mono text-slate-300">
+                      {art.uniqueOrganicVisitors.toLocaleString()}
+                    </td>
+                    <td className="py-3 pr-2 text-right font-mono font-bold text-amber-300">
+                      {art.percentageOfOrganicTraffic}%
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  )}
     </div>
   );
 };
