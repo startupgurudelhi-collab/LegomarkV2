@@ -1,5 +1,10 @@
 import crypto from 'crypto';
-import { analyticsRepository, AnalyticsSummaryStats } from '../repositories/analytics.repository';
+import {
+  analyticsRepository,
+  AnalyticsSummaryStats,
+  SeoAnalyticsSummaryStats,
+} from '../repositories/analytics.repository';
+import { seoOptimizerService } from './seo-optimizer.service';
 import { logger } from '../utils/logger';
 
 // Server-side salt used for one-way SHA-256 hashing.
@@ -12,6 +17,30 @@ export interface TrackVisitPayload {
   referrer?: string | null;
   sessionId?: string | null;
   isLandingPage?: boolean;
+}
+
+export interface ArticleSeoTrafficMetric {
+  articleId: string;
+  title: string;
+  slug: string;
+  category: string;
+  score: number;
+  grade: 'Excellent' | 'Good' | 'Needs Improvement' | 'Critical' | 'Unrated';
+  organicSessions: number;
+  uniqueOrganicVisitors: number;
+  percentageOfOrganicTraffic: number;
+  primaryPath: string;
+}
+
+export interface SeoAnalyticsDashboardData {
+  stats: SeoAnalyticsSummaryStats;
+  articlesSeoTraffic: ArticleSeoTrafficMetric[];
+  catalogAuditMetadata: {
+    auditedAt: string | null;
+    totalAuditedArticles: number;
+    averageScore: number;
+  };
+  generatedAt: string;
 }
 
 export class AnalyticsService {
@@ -143,6 +172,111 @@ export class AnalyticsService {
    */
   async getDashboardStats(): Promise<AnalyticsSummaryStats> {
     return analyticsRepository.getAnalyticsStats();
+  }
+
+  /**
+   * Returns specialized SEO analytics dashboard data (LACS Module #17)
+   * Bridges organic landing sessions with Module #18 catalog SEO audit scores.
+   */
+  async getSeoAnalyticsDashboard(rangeDays: number = 30): Promise<SeoAnalyticsDashboardData> {
+    const stats = await analyticsRepository.getSeoAnalyticsStats(rangeDays);
+
+    let catalogAudit = null;
+    try {
+      catalogAudit = await seoOptimizerService.getCatalogAudit();
+    } catch (err: any) {
+      logger.warn(
+        `Unable to load catalog SEO audit scores for analytics correlation (${err?.message || err})`,
+        'AnalyticsService'
+      );
+    }
+
+    const articles = catalogAudit?.articles || [];
+    const matchedSlugs = new Set<string>();
+
+    const articlesSeoTraffic: ArticleSeoTrafficMetric[] = articles.map((article) => {
+      const slug = (article.slug || '').trim().toLowerCase();
+      matchedSlugs.add(slug);
+
+      const candidatePaths = [
+        `/blog/${slug}`,
+        `/resources/blog/${slug}`,
+        `/blog/${slug}/`,
+        `/resources/blog/${slug}/`,
+      ];
+
+      const landingMatch = stats.topLandingPages.find((p) => {
+        const normalizedPath = p.path.toLowerCase().trim();
+        return candidatePaths.includes(normalizedPath);
+      });
+
+      const organicSessions = landingMatch ? landingMatch.organicSessions : 0;
+      const uniqueOrganicVisitors = landingMatch ? landingMatch.uniqueOrganicVisitors : 0;
+      const percentageOfOrganicTraffic =
+        stats.organicLandings.totalPeriod > 0
+          ? Math.round((organicSessions / stats.organicLandings.totalPeriod) * 1000) / 10
+          : 0;
+
+      return {
+        articleId: article.articleId,
+        title: article.title,
+        slug: article.slug,
+        category: article.category || 'General',
+        score: article.score,
+        grade: article.grade,
+        organicSessions,
+        uniqueOrganicVisitors,
+        percentageOfOrganicTraffic,
+        primaryPath: `/blog/${article.slug}`,
+      };
+    });
+
+    // Capture any blog landing pages in stats not yet evaluated in the catalog
+    for (const landing of stats.topLandingPages) {
+      if (landing.contentType === 'blog') {
+        const rawSlug = landing.path
+          .replace(/^\/resources\/blog\//i, '')
+          .replace(/^\/blog\//i, '')
+          .replace(/\/$/, '')
+          .trim()
+          .toLowerCase();
+
+        if (rawSlug && !matchedSlugs.has(rawSlug)) {
+          matchedSlugs.add(rawSlug);
+          articlesSeoTraffic.push({
+            articleId: `unrated_${rawSlug}`,
+            title: rawSlug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+            slug: rawSlug,
+            category: 'Blog Article',
+            score: 0,
+            grade: 'Unrated',
+            organicSessions: landing.organicSessions,
+            uniqueOrganicVisitors: landing.uniqueOrganicVisitors,
+            percentageOfOrganicTraffic: landing.percentage,
+            primaryPath: landing.path,
+          });
+        }
+      }
+    }
+
+    // Sort by organic sessions descending, then by score descending
+    articlesSeoTraffic.sort((a, b) => {
+      if (b.organicSessions !== a.organicSessions) {
+        return b.organicSessions - a.organicSessions;
+      }
+      return b.score - a.score;
+    });
+
+    return {
+      stats,
+      articlesSeoTraffic,
+      catalogAuditMetadata: {
+        auditedAt: catalogAudit?.auditedAt || null,
+        totalAuditedArticles: catalogAudit?.totalArticles || articles.length,
+        averageScore: catalogAudit?.averageScore || 0,
+      },
+      generatedAt: new Date().toISOString(),
+    };
   }
 }
 

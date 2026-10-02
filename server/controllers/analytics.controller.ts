@@ -50,6 +50,38 @@ export class AnalyticsController {
       });
     }
   }
+
+  /**
+   * GET /api/admin/analytics/seo-stats
+   * Protected administrative endpoint returning specialized SEO analytics and catalog correlation.
+   * Query params: ?rangeDays=30 (optional, clamped between 1 and 365)
+   */
+  async getSeoStats(req: Request, res: Response): Promise<void> {
+    try {
+      const rawRange = req.query.rangeDays;
+      let rangeDays = 30;
+
+      if (typeof rawRange === 'string' && rawRange.trim() !== '') {
+        const parsed = parseInt(rawRange.trim(), 10);
+        if (!isNaN(parsed)) {
+          rangeDays = Math.max(1, Math.min(365, parsed));
+        }
+      }
+
+      const seoDashboard = await analyticsService.getSeoAnalyticsDashboard(rangeDays);
+
+      res.status(200).json({
+        success: true,
+        data: seoDashboard,
+      });
+    } catch (err: any) {
+      logger.error(`Error in AnalyticsController.getSeoStats: ${err?.message || err}`, 'AnalyticsCtrl', err);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to retrieve SEO analytics statistics',
+      });
+    }
+  }
 }
 
 export const analyticsController = new AnalyticsController();

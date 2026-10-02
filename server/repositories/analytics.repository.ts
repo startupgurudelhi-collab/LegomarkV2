@@ -53,6 +53,132 @@ export interface AnalyticsSummaryStats {
   generatedAt: string;
 }
 
+// ==========================================
+// LACS Module #17: SEO Analytics Definitions
+// ==========================================
+
+export type CanonicalSearchEngine =
+  | 'Google'
+  | 'Bing'
+  | 'Yahoo'
+  | 'DuckDuckGo'
+  | 'Ecosia'
+  | 'Baidu'
+  | 'Yandex'
+  | 'Other Search';
+
+export interface SeoSearchEngineDistribution {
+  engine: CanonicalSearchEngine;
+  sessions: number;
+  percentage: number;
+}
+
+export interface SeoOrganicLandingPage {
+  path: string;
+  organicSessions: number;
+  uniqueOrganicVisitors: number;
+  percentage: number;
+  dominantEngine: CanonicalSearchEngine;
+  contentType: 'blog' | 'service' | 'core';
+}
+
+export interface SeoContentTypeTraffic {
+  contentType: 'blog' | 'service' | 'core';
+  label: string;
+  organicSessions: number;
+  totalSessions: number;
+  organicSharePercentage: number;
+}
+
+export interface SeoDailyOrganicTrend {
+  date: string;
+  label: string;
+  organicLandings: number;
+  totalLandings: number;
+  organicSharePercentage: number;
+}
+
+export interface SeoAnalyticsSummaryStats {
+  periodDays: number;
+  startDate: string;
+  endDate: string;
+  organicLandings: {
+    today: number;
+    yesterday: number;
+    last7Days: number;
+    last30Days: number;
+    totalPeriod: number;
+  };
+  totalLandings: {
+    today: number;
+    yesterday: number;
+    last7Days: number;
+    last30Days: number;
+    totalPeriod: number;
+  };
+  organicSharePercentage: number;
+  searchEngineDistribution: SeoSearchEngineDistribution[];
+  topLandingPages: SeoOrganicLandingPage[];
+  contentTypeTraffic: SeoContentTypeTraffic[];
+  dailyOrganicTrend: SeoDailyOrganicTrend[];
+  generatedAt: string;
+}
+
+/**
+ * Classifies a sanitized referrer into a recognized organic search engine.
+ * Supports Google, Bing, Yahoo, DuckDuckGo, Ecosia, Baidu, and Yandex.
+ */
+export function matchSearchEngine(referrer?: string | null): CanonicalSearchEngine | null {
+  if (!referrer || typeof referrer !== 'string') return null;
+  const ref = referrer.toLowerCase().trim();
+
+  if (ref.includes('google.') || ref.startsWith('google.') || ref.includes('.google.')) {
+    return 'Google';
+  }
+  if (ref.includes('bing.') || ref.startsWith('bing.') || ref.includes('.bing.')) {
+    return 'Bing';
+  }
+  if (ref.includes('yahoo.') || ref.startsWith('yahoo.') || ref.includes('.yahoo.')) {
+    return 'Yahoo';
+  }
+  if (ref.includes('duckduckgo.') || ref.startsWith('duckduckgo.')) {
+    return 'DuckDuckGo';
+  }
+  if (ref.includes('ecosia.') || ref.startsWith('ecosia.')) {
+    return 'Ecosia';
+  }
+  if (ref.includes('baidu.') || ref.startsWith('baidu.')) {
+    return 'Baidu';
+  }
+  if (ref.includes('yandex.') || ref.startsWith('yandex.')) {
+    return 'Yandex';
+  }
+  if (ref.includes('search.') || ref.includes('/search')) {
+    return 'Other Search';
+  }
+
+  return null;
+}
+
+export function isOrganicSearchReferrer(referrer?: string | null): boolean {
+  return matchSearchEngine(referrer) !== null;
+}
+
+/**
+ * Categorizes a page route according to website architecture.
+ */
+export function classifyContentType(path: string): 'blog' | 'service' | 'core' {
+  if (!path) return 'core';
+  const p = path.toLowerCase().trim();
+  if (p.startsWith('/blog') || p.startsWith('/resources/blog')) {
+    return 'blog';
+  }
+  if (p.startsWith('/services')) {
+    return 'service';
+  }
+  return 'core';
+}
+
 interface MemoryPageViewRecord {
   id: string;
   date: string;
@@ -429,6 +555,314 @@ class AnalyticsRepository {
       dailyTrend,
       topPages,
       topReferrers,
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Retrieve specialized SEO analytics dashboard data (LACS Module #17)
+   * Evaluates strictly organic landing-page sessions and search acquisitions.
+   */
+  async getSeoAnalyticsStats(rangeDays: number = 30): Promise<SeoAnalyticsSummaryStats> {
+    const days = Math.max(1, Math.min(365, Number(rangeDays) || 30));
+    const now = new Date();
+    const todayStr = this.formatDateKey(now);
+
+    const yesterdayDate = new Date(now);
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterdayStr = this.formatDateKey(yesterdayDate);
+
+    const sevenDaysAgoDate = new Date(now);
+    sevenDaysAgoDate.setDate(sevenDaysAgoDate.getDate() - 6);
+    const sevenDaysAgoStr = this.formatDateKey(sevenDaysAgoDate);
+
+    const thirtyDaysAgoDate = new Date(now);
+    thirtyDaysAgoDate.setDate(thirtyDaysAgoDate.getDate() - 29);
+    const thirtyDaysAgoStr = this.formatDateKey(thirtyDaysAgoDate);
+
+    const startDateDate = new Date(now);
+    startDateDate.setDate(startDateDate.getDate() - (days - 1));
+    const startDateStr = this.formatDateKey(startDateDate);
+
+    const isConnected = await pingDatabase();
+    if (isConnected) {
+      try {
+        const db = getDatabase();
+        const landingRows = await db
+          .select({
+            id: websitePageViews.id,
+            date: websitePageViews.date,
+            path: websitePageViews.path,
+            visitorHash: websitePageViews.visitorHash,
+            referrer: websitePageViews.referrer,
+          })
+          .from(websitePageViews)
+          .where(eq(websitePageViews.isLandingPage, true));
+
+        return this.processSeoAnalyticsData(
+          landingRows,
+          days,
+          todayStr,
+          yesterdayStr,
+          sevenDaysAgoStr,
+          thirtyDaysAgoStr,
+          startDateStr,
+          now,
+          startDateDate
+        );
+      } catch (err: any) {
+        logger.warn(
+          `Failed to load SEO analytics from database, falling back to memory store (${err?.message || err})`,
+          'AnalyticsRepo'
+        );
+      }
+    }
+
+    // In-memory fallback
+    const memoryLandings = this.memoryPageViews.filter((p) => p.isLandingPage);
+    return this.processSeoAnalyticsData(
+      memoryLandings,
+      days,
+      todayStr,
+      yesterdayStr,
+      sevenDaysAgoStr,
+      thirtyDaysAgoStr,
+      startDateStr,
+      now,
+      startDateDate
+    );
+  }
+
+  private processSeoAnalyticsData(
+    landingRows: { date: string; path: string; visitorHash: string; referrer: string | null }[],
+    days: number,
+    todayStr: string,
+    yesterdayStr: string,
+    sevenDaysAgoStr: string,
+    thirtyDaysAgoStr: string,
+    startDateStr: string,
+    now: Date,
+    startDateDate: Date
+  ): SeoAnalyticsSummaryStats {
+    let organicToday = 0;
+    let organicYesterday = 0;
+    let organic7Days = 0;
+    let organic30Days = 0;
+    let organicTotalPeriod = 0;
+
+    let totalToday = 0;
+    let totalYesterday = 0;
+    let total7Days = 0;
+    let total30Days = 0;
+    let totalTotalPeriod = 0;
+
+    const engineMap = new Map<CanonicalSearchEngine, number>();
+    const pathMap = new Map<
+      string,
+      {
+        path: string;
+        organicSessions: number;
+        uniqueVisitors: Set<string>;
+        engineCounts: Map<CanonicalSearchEngine, number>;
+        contentType: 'blog' | 'service' | 'core';
+      }
+    >();
+
+    const contentTotals = {
+      blog: { organic: 0, total: 0 },
+      service: { organic: 0, total: 0 },
+      core: { organic: 0, total: 0 },
+    };
+
+    const dailyMap = new Map<string, { organic: number; total: number }>();
+
+    // Pre-populate chronological timeline sequence
+    const iterDate = new Date(startDateDate);
+    while (iterDate <= now) {
+      const dStr = this.formatDateKey(iterDate);
+      dailyMap.set(dStr, { organic: 0, total: 0 });
+      iterDate.setDate(iterDate.getDate() + 1);
+    }
+
+    for (const row of landingRows) {
+      const engine = matchSearchEngine(row.referrer);
+      const isOrganic = engine !== null;
+      const cType = classifyContentType(row.path);
+
+      // Total landings counts by period
+      if (row.date === todayStr) totalToday++;
+      if (row.date === yesterdayStr) totalYesterday++;
+      if (row.date >= sevenDaysAgoStr) total7Days++;
+      if (row.date >= thirtyDaysAgoStr) total30Days++;
+      if (row.date >= startDateStr) totalTotalPeriod++;
+
+      // Organic landings counts by period
+      if (isOrganic) {
+        if (row.date === todayStr) organicToday++;
+        if (row.date === yesterdayStr) organicYesterday++;
+        if (row.date >= sevenDaysAgoStr) organic7Days++;
+        if (row.date >= thirtyDaysAgoStr) organic30Days++;
+        if (row.date >= startDateStr) organicTotalPeriod++;
+      }
+
+      // Range-filtered aggregations
+      if (row.date >= startDateStr) {
+        // Daily trend
+        const dayStat = dailyMap.get(row.date);
+        if (dayStat) {
+          dayStat.total++;
+          if (isOrganic) dayStat.organic++;
+        }
+
+        // Content type traffic
+        contentTotals[cType].total++;
+        if (isOrganic) {
+          contentTotals[cType].organic++;
+
+          // Search engine distribution
+          if (engine) {
+            engineMap.set(engine, (engineMap.get(engine) || 0) + 1);
+          }
+
+          // Top landing pages
+          let pageRecord = pathMap.get(row.path);
+          if (!pageRecord) {
+            pageRecord = {
+              path: row.path,
+              organicSessions: 0,
+              uniqueVisitors: new Set(),
+              engineCounts: new Map(),
+              contentType: cType,
+            };
+            pathMap.set(row.path, pageRecord);
+          }
+          pageRecord.organicSessions++;
+          if (row.visitorHash) pageRecord.uniqueVisitors.add(row.visitorHash);
+          if (engine) {
+            pageRecord.engineCounts.set(engine, (pageRecord.engineCounts.get(engine) || 0) + 1);
+          }
+        }
+      }
+    }
+
+    // Organic share percentage for the requested range
+    const organicSharePercentage =
+      totalTotalPeriod > 0
+        ? Math.round((organicTotalPeriod / totalTotalPeriod) * 1000) / 10
+        : 0;
+
+    // Search Engine Distribution sorted descending
+    const searchEngineDistribution: SeoSearchEngineDistribution[] = Array.from(engineMap.entries())
+      .map(([engine, sessions]) => ({
+        engine,
+        sessions,
+        percentage:
+          organicTotalPeriod > 0
+            ? Math.round((sessions / organicTotalPeriod) * 1000) / 10
+            : 0,
+      }))
+      .sort((a, b) => b.sessions - a.sessions);
+
+    // Top Landing Pages sorted descending (top 20)
+    const topLandingPages: SeoOrganicLandingPage[] = Array.from(pathMap.values())
+      .sort((a, b) => b.organicSessions - a.organicSessions)
+      .slice(0, 20)
+      .map((entry) => {
+        let dominantEngine: CanonicalSearchEngine = 'Google';
+        let maxCount = -1;
+        for (const [eng, count] of entry.engineCounts.entries()) {
+          if (count > maxCount) {
+            maxCount = count;
+            dominantEngine = eng;
+          }
+        }
+        return {
+          path: entry.path,
+          organicSessions: entry.organicSessions,
+          uniqueOrganicVisitors: entry.uniqueVisitors.size,
+          percentage:
+            organicTotalPeriod > 0
+              ? Math.round((entry.organicSessions / organicTotalPeriod) * 1000) / 10
+              : 0,
+          dominantEngine,
+          contentType: entry.contentType,
+        };
+      });
+
+    // Content Type Traffic
+    const contentTypeTraffic: SeoContentTypeTraffic[] = [
+      {
+        contentType: 'blog',
+        label: 'Blog & Knowledge Base',
+        organicSessions: contentTotals.blog.organic,
+        totalSessions: contentTotals.blog.total,
+        organicSharePercentage:
+          contentTotals.blog.total > 0
+            ? Math.round((contentTotals.blog.organic / contentTotals.blog.total) * 1000) / 10
+            : 0,
+      },
+      {
+        contentType: 'service',
+        label: 'Commercial Service Landing Pages',
+        organicSessions: contentTotals.service.organic,
+        totalSessions: contentTotals.service.total,
+        organicSharePercentage:
+          contentTotals.service.total > 0
+            ? Math.round((contentTotals.service.organic / contentTotals.service.total) * 1000) / 10
+            : 0,
+      },
+      {
+        contentType: 'core',
+        label: 'Corporate & Core Pages',
+        organicSessions: contentTotals.core.organic,
+        totalSessions: contentTotals.core.total,
+        organicSharePercentage:
+          contentTotals.core.total > 0
+            ? Math.round((contentTotals.core.organic / contentTotals.core.total) * 1000) / 10
+            : 0,
+      },
+    ];
+
+    // Daily Trend
+    const dailyOrganicTrend: SeoDailyOrganicTrend[] = Array.from(dailyMap.entries()).map(
+      ([date, stat]) => {
+        const parts = date.split('-');
+        const dateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        const label = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        return {
+          date,
+          label,
+          organicLandings: stat.organic,
+          totalLandings: stat.total,
+          organicSharePercentage:
+            stat.total > 0 ? Math.round((stat.organic / stat.total) * 1000) / 10 : 0,
+        };
+      }
+    );
+
+    return {
+      periodDays: days,
+      startDate: startDateStr,
+      endDate: todayStr,
+      organicLandings: {
+        today: organicToday,
+        yesterday: organicYesterday,
+        last7Days: organic7Days,
+        last30Days: organic30Days,
+        totalPeriod: organicTotalPeriod,
+      },
+      totalLandings: {
+        today: totalToday,
+        yesterday: totalYesterday,
+        last7Days: total7Days,
+        last30Days: total30Days,
+        totalPeriod: totalTotalPeriod,
+      },
+      organicSharePercentage,
+      searchEngineDistribution,
+      topLandingPages,
+      contentTypeTraffic,
+      dailyOrganicTrend,
       generatedAt: new Date().toISOString(),
     };
   }
