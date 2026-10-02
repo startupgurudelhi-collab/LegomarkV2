@@ -3,6 +3,8 @@ import { gscConnections, GscConnection, NewGscConnection } from '../../db/schema
 import { eq } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 
+export type { GscConnection, NewGscConnection };
+
 /**
  * ============================================================================
  * LACS Module #19: Google Search Console (GSC) Repository
@@ -167,8 +169,16 @@ export class GscRepository {
 
     // In-memory fallback
     const fallbackItem: GscConnection = {
-      ...mergedRecord,
       id: GSC_SINGLETON_ID,
+      connectedByAdminId: mergedRecord.connectedByAdminId ?? null,
+      connectedEmail: mergedRecord.connectedEmail ?? null,
+      selectedProperty: mergedRecord.selectedProperty ?? null,
+      encryptedAccessToken: mergedRecord.encryptedAccessToken ?? null,
+      encryptedRefreshToken: mergedRecord.encryptedRefreshToken ?? null,
+      tokenExpiry: mergedRecord.tokenExpiry ?? null,
+      scope: mergedRecord.scope ?? null,
+      isConnected: mergedRecord.isConnected ?? true,
+      lastSyncedAt: mergedRecord.lastSyncedAt ?? null,
       createdAt: this.fallbackStore?.createdAt || now,
       updatedAt: now,
     };

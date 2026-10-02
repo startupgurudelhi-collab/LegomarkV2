@@ -174,6 +174,73 @@ export class AdminGscController {
   }
 
   /**
+   * GET /api/admin/gsc/properties
+   * ADMIN-only endpoint that discovers verified sites/properties from Google Search Console.
+   * Calls sites.list using stored credentials and returns safe metadata only.
+   */
+  public async getProperties(req: Request, res: Response): Promise<void> {
+    try {
+      const discovery = await gscService.listProperties();
+      res.status(200).json({
+        success: true,
+        data: discovery,
+      });
+    } catch (error: any) {
+      logger.error('Failed to discover GSC properties', 'AdminGscController', error);
+      const isNotConnected =
+        error instanceof Error && error.message.toLowerCase().includes('not connected');
+      res.status(isNotConnected ? 400 : 500).json({
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to retrieve Google Search Console properties.',
+      });
+    }
+  }
+
+  /**
+   * POST /api/admin/gsc/select-property
+   * ADMIN-only endpoint to validate and save the active Search Console property.
+   */
+  public async selectProperty(req: Request, res: Response): Promise<void> {
+    try {
+      const siteUrl = (req.body?.siteUrl || req.body?.propertyUrl) as string | undefined;
+
+      if (!siteUrl || typeof siteUrl !== 'string' || siteUrl.trim().length === 0) {
+        res.status(400).json({
+          success: false,
+          error: 'A valid siteUrl is required in the request body.',
+        });
+        return;
+      }
+
+      const updatedMetadata = await gscService.selectProperty(siteUrl);
+
+      res.status(200).json({
+        success: true,
+        message: `Active property successfully set to ${siteUrl.trim()}`,
+        data: updatedMetadata,
+      });
+    } catch (error: any) {
+      logger.error('Failed to select GSC property', 'AdminGscController', error);
+      const isClientError =
+        error instanceof Error &&
+        (error.message.includes('not found') ||
+          error.message.includes('not connected') ||
+          error.message.includes('required'));
+
+      res.status(isClientError ? 400 : 500).json({
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to save Google Search Console property.',
+      });
+    }
+  }
+
+  /**
    * POST /api/admin/gsc/disconnect
    * ADMIN-only clean disconnect and token grant revocation.
    */
@@ -189,6 +256,64 @@ export class AdminGscController {
       res.status(500).json({
         success: false,
         error: 'Failed to disconnect Google Search Console.',
+      });
+    }
+  }
+
+  /**
+   * GET /api/admin/gsc/search-analytics
+   * ADMIN-only endpoint that queries Google Search Console Search Analytics API.
+   * Returns clicks, impressions, CTR, average position, plus query and page dimensions.
+   *
+   * Query params:
+   *  - days (number, default 28)
+   *  - startDate (YYYY-MM-DD, optional)
+   *  - endDate (YYYY-MM-DD, optional)
+   *  - rowLimit (number, default 100, max 1000)
+   */
+  public async getSearchAnalytics(req: Request, res: Response): Promise<void> {
+    try {
+      const days = req.query.days ? parseInt(req.query.days as string, 10) : undefined;
+      const startDate = typeof req.query.startDate === 'string' ? req.query.startDate.trim() : undefined;
+      const endDate = typeof req.query.endDate === 'string' ? req.query.endDate.trim() : undefined;
+      const rowLimit = req.query.rowLimit ? parseInt(req.query.rowLimit as string, 10) : undefined;
+
+      const data = await gscService.querySearchAnalytics({
+        days,
+        startDate,
+        endDate,
+        rowLimit,
+      });
+
+      res.status(200).json({
+        success: true,
+        data,
+      });
+    } catch (error: any) {
+      logger.error('Failed to query GSC search analytics', 'AdminGscController', error);
+      const isClientError =
+        error instanceof Error &&
+        (error.message.includes('not connected') ||
+          error.message.includes('No Google Search Console property') ||
+          error.message.includes('not found') ||
+          error.message.includes('invalid') ||
+          error.message.toLowerCase().includes('date range'));
+
+      const status =
+        error?.status === 401
+          ? 401
+          : error?.status === 403
+          ? 403
+          : isClientError
+          ? 400
+          : 500;
+
+      res.status(status).json({
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to retrieve Google Search Console search analytics.',
       });
     }
   }

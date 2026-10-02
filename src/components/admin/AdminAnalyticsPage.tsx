@@ -27,8 +27,11 @@ import {
 } from 'lucide-react';
 import {
   fetchGscStatus,
+  fetchGscProperties,
+  selectGscProperty,
   disconnectGsc,
   GscConnectionMetadata,
+  GscSiteProperty,
 } from '../../services/adminGsc.service';
 
 interface PeriodMetric {
@@ -197,6 +200,13 @@ export const AdminAnalyticsPage: React.FC = () => {
     message: string;
   } | null>(null);
 
+  // LACS #19 GSC Property Selection state
+  const [gscProperties, setGscProperties] = useState<GscSiteProperty[]>([]);
+  const [isGscPropertiesLoading, setIsGscPropertiesLoading] = useState<boolean>(false);
+  const [gscPropertiesError, setGscPropertiesError] = useState<string | null>(null);
+  const [selectedPropertyInput, setSelectedPropertyInput] = useState<string>('');
+  const [isGscSavingProperty, setIsGscSavingProperty] = useState<boolean>(false);
+
   const fetchAnalytics = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -253,6 +263,26 @@ export const AdminAnalyticsPage: React.FC = () => {
     }
   }, []);
 
+  const loadGscProperties = useCallback(async () => {
+    try {
+      setIsGscPropertiesLoading(true);
+      setGscPropertiesError(null);
+      const res = await fetchGscProperties();
+      if (res.success && res.data) {
+        setGscProperties(res.data.properties || []);
+        if (res.data.selectedProperty) {
+          setSelectedPropertyInput(res.data.selectedProperty);
+        }
+      } else {
+        throw new Error(res.error || 'Failed to retrieve Search Console properties');
+      }
+    } catch (err: any) {
+      setGscPropertiesError(err?.message || 'Failed to load Search Console properties.');
+    } finally {
+      setIsGscPropertiesLoading(false);
+    }
+  }, []);
+
   const loadGscStatus = useCallback(async () => {
     try {
       setIsGscLoading(true);
@@ -260,13 +290,50 @@ export const AdminAnalyticsPage: React.FC = () => {
       if (res.success) {
         setGscMetadata(res.data);
         setIsGscConfigured(Boolean(res.isConfigured));
+        if (res.data?.selectedProperty) {
+          setSelectedPropertyInput(res.data.selectedProperty);
+        }
+        if (res.data?.isConnected) {
+          loadGscProperties();
+        }
       }
     } catch {
       // Non-fatal fallback
     } finally {
       setIsGscLoading(false);
     }
-  }, []);
+  }, [loadGscProperties]);
+
+  const handleSelectProperty = async (propertyUrlToSave?: string) => {
+    const propertyUrl = (propertyUrlToSave ?? selectedPropertyInput).trim();
+    if (!propertyUrl) {
+      setGscNotification({
+        type: 'error',
+        message: 'Please select a Search Console property to save.',
+      });
+      return;
+    }
+
+    try {
+      setIsGscSavingProperty(true);
+      const res = await selectGscProperty(propertyUrl);
+      if (res.success && res.data) {
+        setGscMetadata(res.data);
+        setSelectedPropertyInput(res.data.selectedProperty || propertyUrl);
+        setGscNotification({
+          type: 'success',
+          message: `Active Search Console property saved: ${res.data.selectedProperty || propertyUrl}`,
+        });
+      }
+    } catch (err: any) {
+      setGscNotification({
+        type: 'error',
+        message: err?.message || 'Failed to save Google Search Console property.',
+      });
+    } finally {
+      setIsGscSavingProperty(false);
+    }
+  };
 
   const handleDisconnectGsc = async () => {
     if (
@@ -281,6 +348,8 @@ export const AdminAnalyticsPage: React.FC = () => {
       setIsGscDisconnecting(true);
       await disconnectGsc();
       setGscMetadata(null);
+      setGscProperties([]);
+      setSelectedPropertyInput('');
       setGscNotification({
         type: 'success',
         message: 'Google Search Console successfully disconnected and revoked.',
@@ -1089,6 +1158,112 @@ export const AdminAnalyticsPage: React.FC = () => {
             )}
           </div>
         </div>
+
+        {/* LACS #19: Active Property Selection Sub-panel */}
+        {gscMetadata?.isConnected && (
+          <div className="mt-4 pt-4 border-t border-slate-800/80">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-1 min-w-0">
+                <div className="flex items-center gap-2 shrink-0">
+                  <Globe className="w-4 h-4 text-emerald-400" />
+                  <span className="text-xs font-semibold text-slate-300">Active Property:</span>
+                </div>
+
+                {isGscPropertiesLoading ? (
+                  <div className="flex items-center gap-2 text-xs text-slate-400 py-1">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-500" />
+                    <span>Discovering verified properties from Search Console...</span>
+                  </div>
+                ) : gscPropertiesError ? (
+                  <div className="flex items-center gap-2 text-xs text-rose-300">
+                    <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                    <span>{gscPropertiesError}</span>
+                    <button
+                      onClick={loadGscProperties}
+                      className="text-xs underline text-rose-200 hover:text-white cursor-pointer ml-1"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                ) : gscProperties.length === 0 ? (
+                  <div className="flex items-center gap-2 text-xs text-amber-300">
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <span>No verified properties found in this Google account.</span>
+                    <button
+                      onClick={loadGscProperties}
+                      className="text-xs underline text-amber-200 hover:text-white cursor-pointer ml-1"
+                    >
+                      Refresh
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 flex-1 max-w-lg min-w-0">
+                    <select
+                      value={selectedPropertyInput}
+                      onChange={(e) => setSelectedPropertyInput(e.target.value)}
+                      disabled={isGscSavingProperty}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer disabled:opacity-50"
+                    >
+                      <option value="" disabled>-- Select a verified Search Console property --</option>
+                      {gscProperties.map((prop) => (
+                        <option key={prop.siteUrl} value={prop.siteUrl}>
+                          {prop.siteUrl} ({prop.permissionLevel})
+                        </option>
+                      ))}
+                    </select>
+
+                    <button
+                      onClick={() => handleSelectProperty()}
+                      disabled={
+                        isGscSavingProperty ||
+                        !selectedPropertyInput ||
+                        selectedPropertyInput === gscMetadata.selectedProperty
+                      }
+                      className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                        selectedPropertyInput === gscMetadata.selectedProperty
+                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 cursor-default'
+                          : 'bg-emerald-500 hover:bg-emerald-600 text-white cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-sm'
+                      }`}
+                    >
+                      {isGscSavingProperty ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          <span>Saving...</span>
+                        </>
+                      ) : selectedPropertyInput === gscMetadata.selectedProperty ? (
+                        <>
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Active</span>
+                        </>
+                      ) : (
+                        <span>Save Property</span>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={loadGscProperties}
+                      disabled={isGscPropertiesLoading}
+                      title="Refresh properties list from Google Search Console"
+                      className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700/60 transition-colors cursor-pointer disabled:opacity-40 shrink-0"
+                      aria-label="Refresh properties list"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isGscPropertiesLoading ? 'animate-spin' : ''}`} />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {gscMetadata.selectedProperty && (
+                <div className="flex items-center gap-1.5 text-xs text-slate-400 shrink-0">
+                  <span className="text-slate-500">Selected:</span>
+                  <span className="font-mono text-emerald-300 font-medium px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
+                    {gscMetadata.selectedProperty}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Error state */}

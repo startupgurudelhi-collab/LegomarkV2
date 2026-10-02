@@ -36,6 +36,64 @@ export async function fetchGscStatus(): Promise<GscStatusResponse> {
   return res.json();
 }
 
+export interface GscSiteProperty {
+  siteUrl: string;
+  permissionLevel: string;
+}
+
+export interface GscPropertyDiscoveryResult {
+  properties: GscSiteProperty[];
+  selectedProperty: string | null;
+  connectedEmail: string | null;
+  lastSyncedAt: string | null;
+}
+
+export interface GscPropertiesResponse {
+  success: boolean;
+  data: GscPropertyDiscoveryResult | null;
+  error?: string;
+}
+
+export async function fetchGscProperties(): Promise<GscPropertiesResponse> {
+  const res = await fetch('/api/admin/gsc/properties', {
+    headers: {
+      Accept: 'application/json',
+    },
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    const errorJson = (await res.json().catch(() => ({}))) as any;
+    throw new Error(errorJson?.error || `Failed to fetch GSC properties (HTTP ${res.status})`);
+  }
+
+  return res.json();
+}
+
+export async function selectGscProperty(siteUrl: string): Promise<{
+  success: boolean;
+  message?: string;
+  data?: GscConnectionMetadata;
+  error?: string;
+}> {
+  const res = await fetch('/api/admin/gsc/select-property', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({ siteUrl }),
+  });
+
+  const json = await res.json();
+  if (!res.ok || !json.success) {
+    throw new Error(json.error || `Failed to save selected property (HTTP ${res.status})`);
+  }
+
+  return json;
+}
+
 export async function disconnectGsc(): Promise<{ success: boolean; message?: string; error?: string }> {
   const res = await fetch('/api/admin/gsc/disconnect', {
     method: 'POST',
