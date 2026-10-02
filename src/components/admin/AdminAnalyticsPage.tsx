@@ -984,8 +984,14 @@ export const AdminAnalyticsPage: React.FC = () => {
             <div className="space-y-2">
               <div className="h-56 w-full flex items-end justify-between gap-1.5 px-2">
                 {seoData.stats.dailyOrganicTrend.map((d, i) => {
-                  const organicHeight = Math.max(4, Math.round((d.organicLandings / maxSeoChartValue) * 100));
-                  const totalHeight = Math.max(4, Math.round((d.totalLandings / maxSeoChartValue) * 100));
+                  const organicHeight =
+                    d.organicLandings > 0
+                      ? Math.max(4, Math.round((d.organicLandings / maxSeoChartValue) * 100))
+                      : 0;
+                  const totalHeight =
+                    d.totalLandings > 0
+                      ? Math.max(4, Math.round((d.totalLandings / maxSeoChartValue) * 100))
+                      : 2;
                   const isHovered = hoveredSeoIndex === i;
 
                   return (
@@ -1026,12 +1032,14 @@ export const AdminAnalyticsPage: React.FC = () => {
                           style={{ height: `${totalHeight}%` }}
                         />
                         {/* Overlay organic bar */}
-                        <div
-                          className={`w-full absolute bottom-0 rounded-t-xs transition-all duration-200 ${
-                            isHovered ? 'bg-emerald-400' : 'bg-emerald-500'
-                          }`}
-                          style={{ height: `${organicHeight}%` }}
-                        />
+                        {d.organicLandings > 0 && (
+                          <div
+                            className={`w-full absolute bottom-0 rounded-t-xs transition-all duration-200 ${
+                              isHovered ? 'bg-emerald-400' : 'bg-emerald-500'
+                            }`}
+                            style={{ height: `${organicHeight}%` }}
+                          />
+                        )}
                       </div>
                     </div>
                   );
