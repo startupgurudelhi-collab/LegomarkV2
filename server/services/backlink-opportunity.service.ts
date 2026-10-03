@@ -74,56 +74,119 @@ export interface BacklinkOpportunityResult {
   generatedAt: string;
 }
 
-// Fallback baseline services if database is temporarily unavailable or during initialization
+// Fallback baseline services matching canonical live /services/... routes
 const FALLBACK_SERVICE_TARGETS = [
   {
     title: 'Private Limited Company Registration',
-    slug: 'private-limited-company',
+    slug: 'private-limited-company-registration',
     category: 'Company Registration',
     excerpt: 'Fast-track MCA SPICe+ incorporation with DIN, DSC, PAN, TAN, and Certificate of Incorporation.',
     keywords: ['private limited company registration', 'pvt ltd incorporation india', 'mca spice+ company registration'],
   },
   {
-    title: 'Trademark Registration & Protection',
-    slug: 'trademark-registration',
-    category: 'Trademark & IP',
-    excerpt: 'Comprehensive TM search, Class 1-45 filing under Trademark Act 1999, and IP protection.',
-    keywords: ['trademark registration online', 'brand name registration india', 'tm application filing'],
-  },
-  {
-    title: 'Limited Liability Partnership (LLP) Registration',
-    slug: 'limited-liability-partnership-llp',
+    title: 'LLP Registration',
+    slug: 'llp-registration',
     category: 'Company Registration',
     excerpt: 'Incorporation of LLP with FiLLiP MCA filing, LLP Agreement drafting, and Form 11 compliance.',
     keywords: ['llp registration india', 'limited liability partnership incorporation', 'fillip mca portal'],
   },
   {
-    title: 'GST Registration & Return Filing',
+    title: 'Partnership Registration',
+    slug: 'partnership-registration',
+    category: 'Company Registration',
+    excerpt: 'Partnership deed drafting, notary attestation, and Registrar of Firms (ROF) registration.',
+    keywords: ['partnership registration india', 'partnership deed drafting', 'rof registration'],
+  },
+  {
+    title: 'Section 8 / NGO Registration',
+    slug: 'section-8-ngo-registration',
+    category: 'Company Registration',
+    excerpt: 'Non-profit company incorporation with Central Government license, 12A, and 80G tax exemptions.',
+    keywords: ['section 8 company registration', 'ngo incorporation india', 'non profit company mca license'],
+  },
+  {
+    title: 'GST Registration',
     slug: 'gst-registration',
     category: 'Taxation & GST',
     excerpt: 'Statutory GSTIN registration, threshold advisory, and monthly/quarterly GSTR compliance.',
     keywords: ['gst registration online', 'gstin application for businesses', 'gst compliance services'],
   },
   {
-    title: 'Trademark Objection Reply & Hearing',
-    slug: 'trademark-objection-reply',
+    title: 'GST Return Filing',
+    slug: 'gst-return-filing',
+    category: 'Taxation & GST',
+    excerpt: 'Timely filing of GSTR-1, GSTR-3B, and annual GSTR-9 returns with input tax credit reconciliation.',
+    keywords: ['gst return filing', 'gstr-1 gstr-3b filing', 'gst compliance'],
+  },
+  {
+    title: 'GST Refund',
+    slug: 'gst-refund',
+    category: 'Taxation & GST',
+    excerpt: 'Statutory assistance in claiming accumulated ITC, inverted duty refund, and export GST refunds.',
+    keywords: ['gst refund online', 'accumulated itc refund', 'export gst refund'],
+  },
+  {
+    title: 'Income Tax Return / ITR',
+    slug: 'income-tax-return-itr',
+    category: 'Taxation & GST',
+    excerpt: 'Corporate and individual tax computation, advance tax planning, and statutory ITR-1 to ITR-7 filing.',
+    keywords: ['income tax return filing', 'itr corporate filing', 'tax computation india'],
+  },
+  {
+    title: 'Audit-related Services',
+    slug: 'audit-related-services',
+    category: 'Taxation & GST',
+    excerpt: 'Statutory audit facilitation, tax audit under Section 44AB, and internal corporate compliance reviews.',
+    keywords: ['statutory audit services', 'tax audit 44ab', 'corporate compliance audit'],
+  },
+  {
+    title: 'Trademark Registration',
+    slug: 'trademark-registration',
     category: 'Trademark & IP',
-    excerpt: 'Legal drafting of reply to Examination Report under Section 9 & 11 and representation at TMR hearings.',
-    keywords: ['trademark objection reply draft', 'section 9 11 trademark reply', 'tmr examination report response'],
+    excerpt: 'Comprehensive TM search, Class 1-45 filing under Trademark Act 1999, and IP protection.',
+    keywords: ['trademark registration online', 'brand name registration india', 'tm application filing'],
   },
   {
-    title: 'Section 8 (NGO / Non-Profit) Company Incorporation',
-    slug: 'section-8-company',
-    category: 'Company Registration',
-    excerpt: 'Non-profit company incorporation with Central Government license, 12A, and 80G tax exemptions.',
-    keywords: ['section 8 company registration', 'ngo incorporation india', 'non profit company mca license'],
+    title: 'Trademark Protection',
+    slug: 'trademark-protection',
+    category: 'Trademark & IP',
+    excerpt: 'Trademark watch services, opposition handling, and defense against brand infringement.',
+    keywords: ['trademark protection', 'brand infringement defense', 'tm opposition'],
   },
   {
-    title: 'FSSAI Food Safety License Registration',
-    slug: 'fssai-food-license',
+    title: 'ROC Filing',
+    slug: 'roc-filing',
+    category: 'Compliance & ROC',
+    excerpt: 'Mandatory annual ROC returns, AOC-4, MGT-7, and event-based director/share capital filings.',
+    keywords: ['roc filing services', 'aoc-4 mgt-7 filing', 'mca compliance'],
+  },
+  {
+    title: 'Annual Compliance',
+    slug: 'annual-compliance',
+    category: 'Compliance & ROC',
+    excerpt: 'Comprehensive annual corporate secretarial package for Private Limited and LLP entities.',
+    keywords: ['annual corporate compliance', 'pvt ltd annual compliance', 'statutory maintenance'],
+  },
+  {
+    title: 'FSSAI License / Registration',
+    slug: 'fssai-license-registration',
     category: 'FSSAI & Licensing',
     excerpt: 'FoSCoS registration, State & Central food business licensing for manufacturers and cloud kitchens.',
     keywords: ['fssai license registration', 'foscos food license apply', 'food business permit fssai'],
+  },
+  {
+    title: 'Other Business Licenses / Registrations',
+    slug: 'other-business-licenses-registrations',
+    category: 'FSSAI & Licensing',
+    excerpt: 'Shop & Establishment, MSME Udyam, Import Export Code (IEC), and Trade Licenses.',
+    keywords: ['business licenses india', 'msme udyam registration', 'iec code registration'],
+  },
+  {
+    title: 'Advisory & Secretarial Consultation',
+    slug: 'advisory-secretarial-consultation',
+    category: 'Corporate Advisory',
+    excerpt: 'Board restructuring, shareholder agreements, corporate governance, and investment readiness advisory.',
+    keywords: ['corporate advisory consultation', 'secretarial legal advisory', 'board restructuring'],
   },
 ];
 
@@ -221,7 +284,23 @@ export class BacklinkOpportunityService {
     // A. Process Services
     for (const service of publicServices) {
       const targetUrl = `/services/${service.slug}`;
-      const gscPage = gscPageMap.get(targetUrl);
+      let gscPage = gscPageMap.get(targetUrl);
+
+      // Check legacy/shorthand aliases if exact canonical path isn't present in GSC
+      if (!gscPage) {
+        const serviceAliases: Record<string, string[]> = {
+          'private-limited-company-registration': ['/services/private-limited-company'],
+          'llp-registration': ['/services/limited-liability-partnership-llp', '/services/llp'],
+          'section-8-ngo-registration': ['/services/section-8-company', '/services/section-8-ngo'],
+          'fssai-license-registration': ['/services/fssai-food-license', '/services/fssai'],
+        };
+        const candidateAliases = serviceAliases[service.slug] || [];
+        for (const alias of candidateAliases) {
+          gscPage = gscPageMap.get(alias);
+          if (gscPage) break;
+        }
+      }
+
       const matchingQueries = this.findMatchingQueries(gscQueries, service.title, service.slug);
 
       const candidate = this.evaluateCandidate({
@@ -240,8 +319,8 @@ export class BacklinkOpportunityService {
 
     // B. Process Published Blogs
     for (const blog of publishedBlogs) {
-      const targetUrl = `/blog/${blog.slug}`;
-      const gscPage = gscPageMap.get(targetUrl);
+      const targetUrl = `/resources/blog/${blog.slug}`;
+      const gscPage = gscPageMap.get(targetUrl) || gscPageMap.get(`/blog/${blog.slug}`);
       const matchingQueries = this.findMatchingQueries(gscQueries, blog.title, blog.slug);
 
       const candidate = this.evaluateCandidate({
@@ -265,9 +344,31 @@ export class BacklinkOpportunityService {
         const normPath = this.normalizeUrlPath(pageRow.page);
         if (!normPath || candidateMap.has(normPath)) continue;
 
+        // Skip legacy alias if canonical candidate already mapped
+        if (normPath.startsWith('/blog/') && candidateMap.has(normPath.replace('/blog/', '/resources/blog/'))) {
+          continue;
+        }
+        if (normPath === '/services/private-limited-company' && candidateMap.has('/services/private-limited-company-registration')) {
+          continue;
+        }
+        if (normPath === '/services/limited-liability-partnership-llp' && candidateMap.has('/services/llp-registration')) {
+          continue;
+        }
+        if (normPath === '/services/section-8-company' && candidateMap.has('/services/section-8-ngo-registration')) {
+          continue;
+        }
+        if (normPath === '/services/fssai-food-license' && candidateMap.has('/services/fssai-license-registration')) {
+          continue;
+        }
+
         // Only evaluate legitimate site paths
-        if (normPath.startsWith('/services/') || normPath.startsWith('/blog/') || normPath === '/') {
-          const isBlog = normPath.startsWith('/blog/');
+        if (
+          normPath.startsWith('/services/') ||
+          normPath.startsWith('/resources/blog/') ||
+          normPath.startsWith('/blog/') ||
+          normPath === '/'
+        ) {
+          const isBlog = normPath.startsWith('/resources/blog/') || normPath.startsWith('/blog/');
           const isService = normPath.startsWith('/services/');
           const slug = normPath.split('/').filter(Boolean).pop() || 'homepage';
           const title = slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
