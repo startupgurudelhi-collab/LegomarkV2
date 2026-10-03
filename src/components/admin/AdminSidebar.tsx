@@ -48,6 +48,7 @@ export type AdminNavSection =
   | 'blog-series'
   | 'internal-linking'
   | 'orphan-detector'
+  | 'backlinks'
   | 'settings';
 
 interface AdminSidebarProps {
@@ -175,8 +176,16 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       id: 'backlinks',
       title: 'Backlinks',
       icon: Share2,
-      badge: 'Upcoming',
-      items: [],
+      badge: 'LACS #21',
+      items: [
+        {
+          id: 'backlinks',
+          label: 'Backlink Opportunities',
+          description: 'SERP Elevation & Outreach',
+          icon: Share2,
+          badge: 'SERP',
+        },
+      ],
     },
     {
       id: 'analytics-group',

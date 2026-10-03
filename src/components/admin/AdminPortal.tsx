@@ -22,6 +22,7 @@ import { AdminAiSeoOptimizer } from './AdminAiSeoOptimizer';
 import { AdminWebsiteSettingsCMS } from './AdminWebsiteSettingsCMS';
 import { AdminClientLogosCMS } from './AdminClientLogosCMS';
 import { AdminAnalyticsPage } from './AdminAnalyticsPage';
+import { AdminBacklinkOpportunitiesPage } from './AdminBacklinkOpportunitiesPage';
 import { AdminPlaceholderView } from './AdminPlaceholderView';
 import { AdminErrorBoundary } from './AdminErrorBoundary';
 import { Loader2 } from 'lucide-react';
@@ -127,6 +128,12 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
     ) {
       return 'orphan-detector';
     }
+    if (
+      currentPath.includes('/admin/backlinks') ||
+      currentPath.includes('/admin/backlink-opportunities')
+    ) {
+      return 'backlinks';
+    }
     if (currentPath.includes('/admin/settings')) return 'settings';
     return 'dashboard';
   };
@@ -150,6 +157,7 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
       'blog-series': '/admin/blog-series',
       'internal-linking': '/admin/internal-linking',
       'orphan-detector': '/admin/orphan-detector',
+      backlinks: '/admin/backlinks',
       settings: '/admin/settings',
     };
     navigateTo(routeMap[section]);
@@ -288,6 +296,7 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
           {activeSection === 'orphan-detector' && (
             <AdminOrphanPageDetector onNavigateSection={handleNavigateSection} />
           )}
+          {activeSection === 'backlinks' && <AdminBacklinkOpportunitiesPage />}
           {activeSection === 'settings' && (
             <AdminWebsiteSettingsCMS
               onNavigateToSection={(sec) => {
