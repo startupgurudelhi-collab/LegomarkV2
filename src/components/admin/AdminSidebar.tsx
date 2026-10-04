@@ -31,6 +31,7 @@ import {
 import { AdminUser } from '../../types/admin';
 
 export type AdminNavSection =
+  | 'command-center'
   | 'dashboard'
   | 'analytics'
   | 'website'
@@ -49,6 +50,7 @@ export type AdminNavSection =
   | 'internal-linking'
   | 'orphan-detector'
   | 'backlinks'
+  | 'tracked-backlinks'
   | 'settings';
 
 interface AdminSidebarProps {
@@ -176,7 +178,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       id: 'backlinks',
       title: 'Backlinks',
       icon: Share2,
-      badge: 'LACS #21',
+      badge: 'LACS',
       items: [
         {
           id: 'backlinks',
@@ -184,6 +186,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           description: 'SERP Elevation & Outreach',
           icon: Share2,
           badge: 'SERP',
+        },
+        {
+          id: 'tracked-backlinks',
+          label: 'Tracked Backlinks',
+          description: 'Verification & Monitoring',
+          icon: Link2,
+          badge: 'Tracker',
         },
       ],
     },
@@ -350,9 +359,9 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           {/* PROMINENT AI SEO COMMAND CENTER AT TOP */}
           <div className="px-1">
             <button
-              onClick={() => handleItemClick('ai-seo-optimizer')}
+              onClick={() => handleItemClick('command-center')}
               className={`w-full relative overflow-hidden rounded-xl border transition-all duration-200 text-left group cursor-pointer ${
-                currentSection === 'ai-seo-optimizer'
+                currentSection === 'command-center'
                   ? 'bg-gradient-to-r from-orange-600 to-amber-600 border-orange-400 text-white shadow-lg shadow-orange-600/30'
                   : 'bg-gradient-to-r from-slate-900 via-[#101B36] to-slate-900 border-orange-500/30 hover:border-orange-500/60 text-slate-200 shadow-md'
               } ${isCollapsed ? 'p-2.5 flex justify-center' : 'p-3'}`}
@@ -364,7 +373,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               <div className="flex items-center space-x-2.5 relative z-10">
                 <div
                   className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 ${
-                    currentSection === 'ai-seo-optimizer'
+                    currentSection === 'command-center'
                       ? 'bg-white/20 text-white'
                       : 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
                   }`}
@@ -380,20 +389,20 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                       </span>
                       <span
                         className={`text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded tracking-wider ${
-                          currentSection === 'ai-seo-optimizer'
+                          currentSection === 'command-center'
                             ? 'bg-white/25 text-white'
                             : 'bg-orange-500/20 text-orange-300 border border-orange-500/30'
                         }`}
                       >
-                        LACS
+                        LACS #23
                       </span>
                     </div>
                     <p
                       className={`text-[10px] truncate mt-0.5 ${
-                        currentSection === 'ai-seo-optimizer' ? 'text-orange-100' : 'text-slate-400'
+                        currentSection === 'command-center' ? 'text-orange-100' : 'text-slate-400'
                       }`}
                     >
-                      Central Intelligence & Audit
+                      Unified Health & Priority Queue
                     </p>
                   </div>
                 )}

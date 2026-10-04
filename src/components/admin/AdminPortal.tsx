@@ -23,6 +23,8 @@ import { AdminWebsiteSettingsCMS } from './AdminWebsiteSettingsCMS';
 import { AdminClientLogosCMS } from './AdminClientLogosCMS';
 import { AdminAnalyticsPage } from './AdminAnalyticsPage';
 import { AdminBacklinkOpportunitiesPage } from './AdminBacklinkOpportunitiesPage';
+import { AdminTrackedBacklinksPage } from './AdminTrackedBacklinksPage';
+import { AdminCommandCenterPage } from './AdminCommandCenterPage';
 import { AdminPlaceholderView } from './AdminPlaceholderView';
 import { AdminErrorBoundary } from './AdminErrorBoundary';
 import { Loader2 } from 'lucide-react';
@@ -129,6 +131,19 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
       return 'orphan-detector';
     }
     if (
+      currentPath.includes('/admin/command-center') ||
+      currentPath.includes('/admin/commandcenter') ||
+      currentPath.includes('/admin/seo-command-center')
+    ) {
+      return 'command-center';
+    }
+    if (
+      currentPath.includes('/admin/tracked-backlinks') ||
+      currentPath.includes('/admin/backlinks/tracked')
+    ) {
+      return 'tracked-backlinks';
+    }
+    if (
       currentPath.includes('/admin/backlinks') ||
       currentPath.includes('/admin/backlink-opportunities')
     ) {
@@ -140,6 +155,7 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
 
   const handleNavigateSection = (section: AdminNavSection) => {
     const routeMap: Record<AdminNavSection, string> = {
+      'command-center': '/admin/command-center',
       dashboard: '/admin/dashboard',
       analytics: '/admin/analytics',
       website: '/admin/website',
@@ -158,6 +174,7 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
       'internal-linking': '/admin/internal-linking',
       'orphan-detector': '/admin/orphan-detector',
       backlinks: '/admin/backlinks',
+      'tracked-backlinks': '/admin/backlinks/tracked',
       settings: '/admin/settings',
     };
     navigateTo(routeMap[section]);
@@ -256,6 +273,9 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
               onNavigateHome={onNavigateHome}
             />
           )}
+          {activeSection === 'command-center' && (
+            <AdminCommandCenterPage onNavigateSection={handleNavigateSection} />
+          )}
           {activeSection === 'analytics' && <AdminAnalyticsPage />}
           {activeSection === 'website' && (
             <AdminWebsiteCMS
@@ -297,6 +317,9 @@ const AdminPortalInner: React.FC<AdminPortalInnerProps> = ({ initialPath, onNavi
             <AdminOrphanPageDetector onNavigateSection={handleNavigateSection} />
           )}
           {activeSection === 'backlinks' && <AdminBacklinkOpportunitiesPage />}
+          {activeSection === 'tracked-backlinks' && (
+            <AdminTrackedBacklinksPage onNavigateSection={handleNavigateSection} />
+          )}
           {activeSection === 'settings' && (
             <AdminWebsiteSettingsCMS
               onNavigateToSection={(sec) => {

@@ -941,3 +941,11 @@ export const gscConnections = pgTable('gsc_connections', {
 
 export type GscConnection = typeof gscConnections.$inferSelect;
 export type NewGscConnection = typeof gscConnections.$inferInsert;
+
+/**
+ * ============================================================================
+ * LACS MODULE #22: BACKLINK TRACKING SCHEMA
+ * ============================================================================
+ */
+export * from './backlink-tracker.schema';
+

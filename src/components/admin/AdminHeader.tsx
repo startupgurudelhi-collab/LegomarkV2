@@ -21,6 +21,10 @@ interface AdminHeaderProps {
 }
 
 const SECTION_TITLES: Record<AdminNavSection, { title: string; subtitle: string }> = {
+  'command-center': {
+    title: 'AI SEO Command Center',
+    subtitle: 'Unified Organic Search Intelligence, 0–100 Health Index, KPIs, and Priority Action Queue (LACS #23)',
+  },
   dashboard: {
     title: 'Executive Dashboard',
     subtitle: 'High-level business activity & catalog overview',
@@ -88,6 +92,14 @@ const SECTION_TITLES: Record<AdminNavSection, { title: string; subtitle: string 
   'orphan-detector': {
     title: 'AI Orphan Page Detector',
     subtitle: 'Identify orphaned articles and services with zero or low inbound links, and review link injection candidates',
+  },
+  backlinks: {
+    title: 'Backlink Opportunities & SERP Elevation',
+    subtitle: 'Deterministic inbound link acquisition candidates derived from real GSC metrics (LACS #21)',
+  },
+  'tracked-backlinks': {
+    title: 'Tracked Backlinks & Link Monitor',
+    subtitle: 'Live crawler monitoring, anchor text detection, HTTP verification, and attribute tracking (LACS #22)',
   },
   settings: {
     title: 'Admin Settings',
