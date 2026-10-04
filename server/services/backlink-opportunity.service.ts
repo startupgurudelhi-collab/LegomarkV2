@@ -363,13 +363,20 @@ export class BacklinkOpportunityService {
 
         // Only evaluate legitimate site paths
         if (
+          normPath === '/services' ||
           normPath.startsWith('/services/') ||
+          normPath === '/resources/blog' ||
           normPath.startsWith('/resources/blog/') ||
+          normPath === '/blog' ||
           normPath.startsWith('/blog/') ||
           normPath === '/'
         ) {
-          const isBlog = normPath.startsWith('/resources/blog/') || normPath.startsWith('/blog/');
-          const isService = normPath.startsWith('/services/');
+          const isBlog =
+            normPath === '/resources/blog' ||
+            normPath.startsWith('/resources/blog/') ||
+            normPath === '/blog' ||
+            normPath.startsWith('/blog/');
+          const isService = normPath === '/services' || normPath.startsWith('/services/');
           const slug = normPath.split('/').filter(Boolean).pop() || 'homepage';
           const title = slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
           const matchingQueries = this.findMatchingQueries(gscQueries, title, slug);
