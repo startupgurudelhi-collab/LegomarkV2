@@ -342,22 +342,53 @@ export class BacklinkOpportunityService {
     if (gscData?.pages) {
       for (const pageRow of gscData.pages) {
         const normPath = this.normalizeUrlPath(pageRow.page);
-        if (!normPath || candidateMap.has(normPath)) continue;
+        if (!normPath) continue;
 
-        // Skip legacy alias if canonical candidate already mapped
-        if (normPath.startsWith('/blog/') && candidateMap.has(normPath.replace('/blog/', '/resources/blog/'))) {
-          continue;
+        // Resolve canonical path if this normPath is a known alias
+        let canonicalPath = normPath;
+        if (normPath.startsWith('/blog/')) {
+          const blogCanonical = normPath.replace('/blog/', '/resources/blog/');
+          if (candidateMap.has(blogCanonical)) {
+            canonicalPath = blogCanonical;
+          }
+        } else if (normPath === '/services/private-limited-company' && candidateMap.has('/services/private-limited-company-registration')) {
+          canonicalPath = '/services/private-limited-company-registration';
+        } else if (
+          (normPath === '/services/limited-liability-partnership-llp' || normPath === '/services/llp') &&
+          candidateMap.has('/services/llp-registration')
+        ) {
+          canonicalPath = '/services/llp-registration';
+        } else if (
+          (normPath === '/services/section-8-company' || normPath === '/services/section-8-ngo') &&
+          candidateMap.has('/services/section-8-ngo-registration')
+        ) {
+          canonicalPath = '/services/section-8-ngo-registration';
+        } else if (
+          (normPath === '/services/fssai-food-license' || normPath === '/services/fssai') &&
+          candidateMap.has('/services/fssai-license-registration')
+        ) {
+          canonicalPath = '/services/fssai-license-registration';
         }
-        if (normPath === '/services/private-limited-company' && candidateMap.has('/services/private-limited-company-registration')) {
-          continue;
-        }
-        if (normPath === '/services/limited-liability-partnership-llp' && candidateMap.has('/services/llp-registration')) {
-          continue;
-        }
-        if (normPath === '/services/section-8-company' && candidateMap.has('/services/section-8-ngo-registration')) {
-          continue;
-        }
-        if (normPath === '/services/fssai-food-license' && candidateMap.has('/services/fssai-license-registration')) {
+
+        // If candidate already exists in catalog (either directly or via resolved alias), enrich with GSC metrics
+        if (candidateMap.has(canonicalPath)) {
+          const existing = candidateMap.get(canonicalPath)!;
+          if (!existing.gscMetrics || (pageRow.impressions || 0) > (existing.gscMetrics.impressions || 0)) {
+            const slug = canonicalPath.split('/').filter(Boolean).pop() || '';
+            const matchingQueries = this.findMatchingQueries(gscQueries, existing.targetTitle, slug);
+            const enriched = this.evaluateCandidate({
+              targetUrl: existing.targetUrl,
+              targetTitle: existing.targetTitle,
+              targetType: existing.targetType,
+              category: existing.category,
+              contentExcerpt: existing.contentExcerpt,
+              keywords: [existing.targetTitle.toLowerCase()],
+              publishedAt: existing.publishedAt,
+              gscPage: pageRow,
+              matchingQueries,
+            });
+            candidateMap.set(canonicalPath, enriched);
+          }
           continue;
         }
 
