@@ -949,3 +949,10 @@ export type NewGscConnection = typeof gscConnections.$inferInsert;
  */
 export * from './backlink-tracker.schema';
 
+/**
+ * ============================================================================
+ * COMPANY NAME SEARCH SCHEMA
+ * ============================================================================
+ */
+export * from './company-search.schema';
+

@@ -27,6 +27,7 @@ import { TermsAndConditionsPage } from './components/legal/TermsAndConditionsPag
 import { RefundPolicyPage } from './components/legal/RefundPolicyPage';
 import { LegalPolicyType } from './components/legal/LegalPageLayout';
 import { PaymentSuccessPage, VerifiedPaymentReceipt } from './components/payment/PaymentSuccessPage';
+import { CompanyNameSearchPage } from './components/tools/CompanyNameSearchPage';
 import { getServiceBySlug } from './data/websiteData';
 import { X } from 'lucide-react';
 import { useHealthReport } from './services/useHealthReport';
@@ -286,7 +287,12 @@ export default function App() {
       />
 
       {/* 2. Page Content: Legal Policy Pages OR Dedicated Article Page OR Resources Landing Page OR Service Landing Page OR Homepage */}
-      {currentPath === '/privacy-policy' ? (
+      {currentPath === '/company-name-search' ? (
+        <CompanyNameSearchPage
+          onOpenConsultation={handleOpenConsultation}
+          onNavigateHome={handleNavigateHome}
+        />
+      ) : currentPath === '/privacy-policy' ? (
         <PrivacyPolicyPage
           onNavigatePolicy={handleNavigatePolicy}
           onNavigateHome={handleNavigateHome}

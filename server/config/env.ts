@@ -36,6 +36,10 @@ export interface AppConfig {
     clientId?: string;
     clientSecret?: string;
   };
+  rapidApi: {
+    key?: string;
+    host?: string;
+  };
   uploadsDir: string;
   appUrl?: string;
 }
@@ -106,6 +110,10 @@ function resolveConfig(): AppConfig {
       tokenEncryptionKey: process.env.GSC_TOKEN_ENCRYPTION_KEY?.trim() || undefined,
       clientId: (process.env.GOOGLE_CLIENT_ID || process.env.GSC_CLIENT_ID)?.trim() || undefined,
       clientSecret: (process.env.GOOGLE_CLIENT_SECRET || process.env.GSC_CLIENT_SECRET)?.trim() || undefined,
+    },
+    rapidApi: {
+      key: (process.env.RAPIDAPI_KEY || process.env.RAPID_API_KEY)?.trim() || undefined,
+      host: (process.env.RAPIDAPI_HOST || process.env.RAPID_API_HOST)?.trim() || undefined,
     },
     uploadsDir,
     appUrl: process.env.APP_URL || `http://localhost:${port}`,

@@ -37,6 +37,7 @@ import adminContentRefreshRoutes from './admin-content-refresh.routes';
 import adminGscRoutes from './admin-gsc.routes';
 import adminBacklinkRoutes from './admin-backlink.routes';
 import adminCommandCenterRoutes from './admin-command-center.routes';
+import companySearchRoutes from './company-search.routes';
 
 const apiRouter = Router();
 
@@ -54,6 +55,7 @@ apiRouter.use('/client-logos', clientLogoRoutes);
 apiRouter.use('/association-logos', associationLogoRoutes);
 apiRouter.use('/leads', leadRoutes);
 apiRouter.use('/consultations', leadRoutes);
+apiRouter.use('/company-search', companySearchRoutes);
 apiRouter.use('/admin/analytics', adminAnalyticsRoutes);
 apiRouter.use('/admin/packages', adminPackageRoutes);
 apiRouter.use('/admin/service-categories', adminServiceCategoryRoutes);
