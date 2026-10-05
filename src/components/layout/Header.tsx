@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Phone, Mail, Clock, Menu, X, ArrowRight, Search, User, ChevronDown, ChevronUp, HelpCircle, ShieldCheck, FileText, Sparkles, Building2, Receipt, Award, Briefcase } from 'lucide-react';
+import { Phone, Mail, Clock, Menu, X, ArrowRight, Search, ChevronDown, ChevronUp, HelpCircle, ShieldCheck, FileText, Sparkles, Building2, Receipt, Award, Briefcase } from 'lucide-react';
 import { COMPANY_PROFILE, SERVICE_CATEGORIES, SERVICES } from '../../data/websiteData';
 import { ServicesMegaMenu } from './ServicesMegaMenu';
 import { fetchPublicSettings } from '../../services/settings.service';
@@ -275,24 +275,24 @@ export const Header: React.FC<HeaderProps> = ({
               <Search className="w-4 h-4" />
             </button>
 
-            {/* Subtle Login Link to Admin / Client Portal */}
+            {/* Search Company Name Button */}
             <a
-              href="/admin/login"
+              href="/company-name-search"
               onClick={(e) => {
                 if (!e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0) {
                   e.preventDefault();
                   if (onNavigatePath) {
-                    onNavigatePath('/admin/login');
+                    onNavigatePath('/company-name-search');
                   } else {
-                    window.location.assign('/admin/login');
+                    window.location.assign('/company-name-search');
                   }
                 }
               }}
-              className="flex items-center gap-1 text-xs font-bold text-slate-700 hover:text-[#0B132B] px-2.5 py-2 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
-              title="Portal Login"
+              className="flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-orange-600 px-2.5 py-2 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer whitespace-nowrap"
+              title="Search Company Name & Check MCA Availability"
             >
-              <User className="w-3.5 h-3.5 text-slate-500" />
-              <span>Login</span>
+              <Building2 className="w-3.5 h-3.5 text-orange-600" />
+              <span>Search Company Name</span>
             </a>
 
             {/* Orange Consultation CTA */}
@@ -374,22 +374,23 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
             <a
-              href="/admin/login"
+              href="/company-name-search"
               onClick={(e) => {
                 if (!e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0) {
                   e.preventDefault();
                   setMobileMenuOpen(false);
                   if (onNavigatePath) {
-                    onNavigatePath('/admin/login');
+                    onNavigatePath('/company-name-search');
                   } else {
-                    window.location.assign('/admin/login');
+                    window.location.assign('/company-name-search');
                   }
                 }
               }}
-              className="flex items-center gap-1 text-xs font-bold text-slate-700 px-2.5 py-1.5 bg-white border border-slate-200 rounded-md cursor-pointer"
+              className="flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-orange-600 px-2.5 py-1.5 bg-white border border-slate-200 rounded-md cursor-pointer whitespace-nowrap"
+              title="Search Company Name"
             >
-              <User className="w-3.5 h-3.5 text-slate-500" />
-              <span>Login</span>
+              <Building2 className="w-3.5 h-3.5 text-orange-600" />
+              <span>Search Company Name</span>
             </a>
           </div>
 
