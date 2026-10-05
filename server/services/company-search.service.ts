@@ -1,6 +1,6 @@
 import { EntityType, RuleCheckResult, SimilarNameResult, NameSearchResponse } from '../../src/types/company-search';
 import { logger } from '../utils/logger';
-import { config } from '../config/env';
+import { config, getRuntimeEnv } from '../config/env';
 
 export interface McaRecordItem {
   name: string;
@@ -282,8 +282,18 @@ export class CompanySearchService {
     records: McaRecordItem[];
     status: 'connected' | 'no_records' | 'error' | 'unconfigured';
   }> {
-    const apiKey = config.rapidApi.key || process.env.RAPIDAPI_KEY;
-    const apiHost = config.rapidApi.host || process.env.RAPIDAPI_HOST;
+    const apiKey =
+      config.rapidApi.key ||
+      getRuntimeEnv('RAPIDAPI_KEY', 'RAPID_API_KEY', 'VITE_RAPIDAPI_KEY', 'X_RAPIDAPI_KEY');
+    const apiHost =
+      config.rapidApi.host ||
+      getRuntimeEnv('RAPIDAPI_HOST', 'RAPID_API_HOST', 'VITE_RAPIDAPI_HOST', 'X_RAPIDAPI_HOST');
+
+    // Safe server-side diagnostic check (never logs the API key value)
+    logger.info(
+      `MCA RapidAPI Runtime Check -> Key configured: ${Boolean(apiKey)} (length: ${apiKey?.length || 0}), Host: ${apiHost || 'unconfigured'}`,
+      'CompanySearchService'
+    );
 
     if (!apiKey || !apiHost) {
       logger.info(

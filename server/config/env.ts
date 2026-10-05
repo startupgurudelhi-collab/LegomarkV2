@@ -1,8 +1,112 @@
 import path from 'path';
+import fs from 'fs';
 import dotenv from 'dotenv';
 import { logger } from '../utils/logger';
 
-dotenv.config();
+// Load .env from multiple candidate paths for local development and containerized deployments
+const candidateEnvPaths = [
+  path.resolve(process.cwd(), '.env'),
+  path.resolve(process.cwd(), '.env.local'),
+  path.resolve(process.cwd(), '.env.production'),
+  path.resolve(process.cwd(), 'server/.env'),
+  path.resolve(process.cwd(), '../.env'),
+  '/app/.env',
+  '/app/applet/.env',
+];
+
+for (const envPath of candidateEnvPaths) {
+  try {
+    if (fs.existsSync(envPath)) {
+      dotenv.config({ path: envPath });
+    }
+  } catch {
+    // Ignore non-readable files
+  }
+}
+
+/**
+ * Safely resolves and cleans runtime environment variables.
+ * In Coolify / Docker container environments, if a variable was injected
+ * into PID 1 or an alternate .env location, it dynamically recovers it.
+ */
+export function getRuntimeEnv(...names: string[]): string | undefined {
+  // 1. Direct process.env check across aliases
+  for (const name of names) {
+    const val = process.env[name];
+    if (typeof val === 'string') {
+      const clean = val.trim().replace(/^['"]|['"]$/g, '').trim();
+      if (clean.length > 0) return clean;
+    }
+  }
+
+  // 2. Candidate .env files
+  for (const candidate of candidateEnvPaths) {
+    try {
+      if (fs.existsSync(candidate)) {
+        const content = fs.readFileSync(candidate, 'utf8');
+        const parsed = dotenv.parse(content);
+        for (const name of names) {
+          const val = parsed[name];
+          if (typeof val === 'string') {
+            const clean = val.trim().replace(/^['"]|['"]$/g, '').trim();
+            if (clean.length > 0) {
+              process.env[name] = clean;
+              return clean;
+            }
+          }
+        }
+      }
+    } catch {
+      // Continue to next candidate
+    }
+  }
+
+  // 3. Linux container init process (/proc/1/environ)
+  try {
+    if (fs.existsSync('/proc/1/environ')) {
+      const p1Data = fs.readFileSync('/proc/1/environ', 'utf8');
+      for (const item of p1Data.split('\0')) {
+        if (!item) continue;
+        const eqIdx = item.indexOf('=');
+        if (eqIdx !== -1) {
+          const key = item.slice(0, eqIdx);
+          const val = item.slice(eqIdx + 1);
+          if (names.includes(key)) {
+            const clean = val.trim().replace(/^['"]|['"]$/g, '').trim();
+            if (clean.length > 0) {
+              process.env[key] = clean;
+              return clean;
+            }
+          }
+        }
+      }
+    }
+  } catch {
+    // Non-Linux or restricted procfs
+  }
+
+  // 4. Linux system /etc/environment
+  try {
+    if (fs.existsSync('/etc/environment')) {
+      const envContent = fs.readFileSync('/etc/environment', 'utf8');
+      const parsed = dotenv.parse(envContent);
+      for (const name of names) {
+        const val = parsed[name];
+        if (typeof val === 'string') {
+          const clean = val.trim().replace(/^['"]|['"]$/g, '').trim();
+          if (clean.length > 0) {
+            process.env[name] = clean;
+            return clean;
+          }
+        }
+      }
+    }
+  } catch {
+    // Ignore
+  }
+
+  return undefined;
+}
 
 export interface AppConfig {
   env: 'development' | 'production' | 'test';
@@ -112,8 +216,12 @@ function resolveConfig(): AppConfig {
       clientSecret: (process.env.GOOGLE_CLIENT_SECRET || process.env.GSC_CLIENT_SECRET)?.trim() || undefined,
     },
     rapidApi: {
-      key: (process.env.RAPIDAPI_KEY || process.env.RAPID_API_KEY)?.trim() || undefined,
-      host: (process.env.RAPIDAPI_HOST || process.env.RAPID_API_HOST)?.trim() || undefined,
+      get key(): string | undefined {
+        return getRuntimeEnv('RAPIDAPI_KEY', 'RAPID_API_KEY', 'VITE_RAPIDAPI_KEY', 'X_RAPIDAPI_KEY');
+      },
+      get host(): string | undefined {
+        return getRuntimeEnv('RAPIDAPI_HOST', 'RAPID_API_HOST', 'VITE_RAPIDAPI_HOST', 'X_RAPIDAPI_HOST');
+      },
     },
     uploadsDir,
     appUrl: process.env.APP_URL || `http://localhost:${port}`,
