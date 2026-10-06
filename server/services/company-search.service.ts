@@ -588,11 +588,6 @@ Output pure JSON matching this exact structure:
         }
       }
 
-      const riskLevel: 'low' | 'medium' | 'high' =
-        ['low', 'medium', 'high'].includes(parsed.riskLevel)
-          ? parsed.riskLevel
-          : 'low';
-
       const brandsFound: BrandEntityFound[] = Array.isArray(parsed.brandsFound)
         ? parsed.brandsFound
             .filter((b: any) => b && typeof b === 'object' && b.name)
@@ -609,6 +604,18 @@ Output pure JSON matching this exact structure:
       const hasCommercialUsage = Boolean(
         parsed.hasCommercialUsage || brandsFound.some((b) => b.usageStrength === 'strong')
       );
+
+      let riskLevel: 'low' | 'medium' | 'high' =
+        ['low', 'medium', 'high'].includes(parsed.riskLevel)
+          ? parsed.riskLevel
+          : 'low';
+
+      // Elevate risk if strong commercial brand entities were identified
+      if (brandsFound.some((b) => b.usageStrength === 'strong')) {
+        riskLevel = 'high';
+      } else if (brandsFound.some((b) => b.usageStrength === 'moderate') && riskLevel === 'low') {
+        riskLevel = 'medium';
+      }
 
       const findingSummary = parsed.findingSummary
         ? String(parsed.findingSummary).trim()
@@ -812,7 +819,18 @@ Output pure JSON matching this exact structure:
       ? 'medium'
       : 'low';
 
-    const brandRisk: 'low' | 'medium' | 'high' = onlineBrandPresence.riskLevel;
+    const hasStrongBrand = onlineBrandPresence.brandsFound.some((b) => b.usageStrength === 'strong');
+    const hasModerateBrand = onlineBrandPresence.brandsFound.some((b) => b.usageStrength === 'moderate');
+    const hasWeakBrand = onlineBrandPresence.brandsFound.some((b) => b.usageStrength === 'weak');
+
+    const brandRisk: 'low' | 'medium' | 'high' =
+      onlineBrandPresence.status === 'unavailable'
+        ? 'low'
+        : (onlineBrandPresence.riskLevel === 'high' || hasStrongBrand)
+        ? 'high'
+        : (onlineBrandPresence.riskLevel === 'medium' || hasModerateBrand)
+        ? 'medium'
+        : 'low';
 
     let overallRisk: 'low' | 'medium' | 'high' = 'low';
     let combinedGuidance = '';
@@ -826,7 +844,7 @@ Output pure JSON matching this exact structure:
       // Low MCA + High Web Presence = caution/high brand conflict signal
       overallRisk = 'medium';
       combinedGuidance =
-        'Favorable preliminary MCA registry status, but significant commercial brand presence was detected on the public web. While no registered corporate entity was found in MCA Master Data, operating commercial brands pose potential trademark conflict or passing-off objections under common law.';
+        'Favorable preliminary MCA registry status, but significant commercial brand presence was detected on the public web. While no registered corporate entity was found in MCA Master Data, operating commercial brands pose potential trademark conflict or common-law passing-off objections.';
     } else if (mcaRisk === 'medium' || brandRisk === 'medium') {
       overallRisk = 'medium';
       combinedGuidance =
@@ -835,7 +853,7 @@ Output pure JSON matching this exact structure:
       // Low MCA + Low Web Presence = better preliminary position
       overallRisk = 'low';
       combinedGuidance =
-        'Favorable preliminary position. No identical corporate records were detected in MCA Master Data, and real-time public web search indicates low commercial brand presence for this coined mark.';
+        'Favorable preliminary position. No identical corporate records were detected in MCA Master Data, and real-time public web search indicates low commercial brand footprint for this coined mark.';
     }
 
     const combinedAssessment: CombinedAssessment = {
@@ -845,37 +863,74 @@ Output pure JSON matching this exact structure:
       guidance: combinedGuidance,
     };
 
-    // Compute deterministic preliminary Name Strength Score (0 to 100)
-    let score = 95;
+    // 1. Compute deterministic MCA Assessment Score (0 to 100, 70% weight)
+    let mcaScore = 95;
 
     // Deduct for format errors
-    if (!minLengthValid || hasSpecialChars) score -= 30;
+    if (!minLengthValid || hasSpecialChars) mcaScore -= 30;
 
     // Deduct for prohibited words (instant critical)
-    if (prohibitedFound.length > 0) score -= 50;
+    if (prohibitedFound.length > 0) mcaScore -= 50;
 
     // Deduct for regulatory approval required
-    if (regulatoryFound.length > 0) score -= 20;
+    if (regulatoryFound.length > 0) mcaScore -= 20;
 
     // Deduct for generic single word
-    if (isSingleGenericWord) score -= 35;
+    if (isSingleGenericWord) mcaScore -= 35;
 
     // Strong score reduction when live MCA/Falcon results contain an exact or highly similar registered company/LLP name
     if (hasExactMcaConflict) {
       // Exact or coined match with registered MCA entity: major penalty, capped at 15-20
-      score = Math.min(20, score - 75);
+      mcaScore = Math.min(20, mcaScore - 75);
     } else if (hasHighMcaConflict) {
       // High similarity conflict (>= 80%): strong score reduction, capped at 30-32
-      score = Math.min(32, score - 60);
+      mcaScore = Math.min(32, mcaScore - 60);
     } else if (similarRegisteredNames.length > 0) {
       const topSim = similarRegisteredNames[0].similarity;
-      if (topSim >= 90) score -= 70;
-      else if (topSim >= 80) score -= 45;
-      else if (topSim >= 65) score -= 25;
-      else if (topSim >= 50) score -= 15;
+      if (topSim >= 90) mcaScore -= 70;
+      else if (topSim >= 80) mcaScore -= 45;
+      else if (topSim >= 65) mcaScore -= 25;
+      else if (topSim >= 50) mcaScore -= 15;
     }
 
-    score = Math.max(10, Math.min(98, score));
+    mcaScore = Math.max(10, Math.min(98, mcaScore));
+
+    // 2. Compute deterministic Online Brand Presence Score (0 to 100, 30% weight)
+    // - Strong commercial usage causes significant reduction.
+    // - Weak or incidental mentions do NOT get treated the same as strong commercial usage.
+    let brandScore = 95;
+    if (onlineBrandPresence.status === 'unavailable') {
+      // Neutral baseline matching mcaScore if search is offline so absence of service doesn't penalize
+      brandScore = mcaScore;
+    } else if (brandRisk === 'high') {
+      // Strong commercial usage in market: major brand deduction
+      brandScore = hasStrongBrand ? 20 : 30;
+    } else if (brandRisk === 'medium') {
+      // Moderate commercial presence: moderate deduction
+      brandScore = hasModerateBrand ? 50 : 60;
+    } else {
+      // Low brand risk: clean or only weak/incidental mentions
+      brandScore = hasWeakBrand ? 85 : 95;
+    }
+
+    // 3. Combined Overall Name Strength Score: 70% MCA weight + 30% Online Brand Presence weight
+    let overallScore = Math.round(mcaScore * 0.7 + brandScore * 0.3);
+
+    // Hard conflict cap: exact or high MCA conflict keeps very low score cap; web evidence must NEVER override MCA conflict
+    if (hasExactMcaConflict) {
+      overallScore = Math.min(20, overallScore);
+    } else if (hasHighMcaConflict) {
+      overallScore = Math.min(32, overallScore);
+    } else if (brandRisk === 'high') {
+      // MCA clean + High Web/Brand Risk: overall score falls into a clearly cautious range (capped at 72)
+      overallScore = Math.min(72, overallScore);
+    } else if (brandRisk === 'medium') {
+      // MCA clean + Medium Web/Brand Risk: overall score is moderately reduced (capped at 80)
+      overallScore = Math.min(80, overallScore);
+    }
+
+    overallScore = Math.max(10, Math.min(98, overallScore));
+    let score = overallScore;
 
     // If Falcon fails/unavailable, return mcaApiStatus='error' and DO NOT present the name as MCA-verified/available
     let isAvailable = false;
@@ -895,25 +950,36 @@ Output pure JSON matching this exact structure:
       isAvailable = false;
       summaryText = 'Single generic industry word detected. An additional distinctive coined prefix is required under MCA Rule 8.';
     } else if (brandRisk === 'high') {
+      // MCA clean + High Web/Brand Risk: clearly cautious range (e.g. 74/100)
+      isAvailable = false;
+      summaryText =
+        'Caution: Commercial Brand Presence Detected. While no direct entity was found in MCA Master Data, active commercial operations or products were identified on the public web. Operating market usage presents trademark and common-law passing-off risks. Further distinctiveness or name review is recommended.';
+    } else if (brandRisk === 'medium') {
+      // MCA clean + Medium Web Risk
+      isAvailable = prohibitedFound.length === 0 && !isSingleGenericWord && overallScore >= 65;
+      summaryText =
+        'Preliminary assessment shows acceptable MCA compliance with moderate online commercial presence. A comprehensive trademark search across relevant NICE classes is recommended before SPICe+ submission.';
+    } else if (overallScore >= 85) {
+      // MCA clean + Low Web Risk
       isAvailable = prohibitedFound.length === 0 && !isSingleGenericWord;
       summaryText =
-        'Low MCA registry conflict, but significant online commercial brand presence was detected on the public web. Existing commercial brands may present trademark or common-law passing-off objections. Professional caution is advised before committing capital.';
-    } else if (score >= 85) {
+        'Strong overall name strength. High compliance with MCA Rule 8 principles, with no identical corporate records in MCA Master Data and low public web brand footprint.';
+    } else if (overallScore >= 65) {
       isAvailable = prohibitedFound.length === 0 && !isSingleGenericWord;
-      summaryText = 'Strong distinctive coined name. Preliminary checks indicate favorable alignment with MCA Rule 8 principles, with no identical or conflicting MCA corporate records found in integrated company master lookup.';
-    } else if (score >= 65) {
-      isAvailable = prohibitedFound.length === 0 && !isSingleGenericWord;
-      summaryText = 'Preliminary assessment indicates acceptable baseline compliance. It is recommended to conduct a thorough trademark class check and confirm object clause consistency prior to SPICe+ submission.';
-    } else if (score >= 40) {
+      summaryText =
+        'Preliminary assessment indicates acceptable baseline compliance. It is recommended to conduct a thorough trademark class check and confirm object clause consistency prior to SPICe+ submission.';
+    } else if (overallScore >= 40) {
       isAvailable = false;
-      summaryText = 'Moderate risk of ROC resubmission. Name contains regulatory, descriptive, or partially conflicting elements requiring modification.';
+      summaryText =
+        'Moderate risk of ROC resubmission. Name contains regulatory, descriptive, or conflicting elements requiring modification.';
     } else {
       isAvailable = false;
-      summaryText = 'High risk of MCA rejection. Existing corporate conflicts, prohibited terms, or high similarity to registered marks detected. Name modification required.';
+      summaryText =
+        'High risk of MCA rejection. Existing corporate conflicts, prohibited terms, or high similarity to registered marks detected. Name modification required.';
     }
 
     logger.info(
-      `Evaluated company name "${rawName}" -> Score: ${score} (MCA Source: ${mcaSource}, MCA Status: ${mcaResult.status}, Brand Risk: ${brandRisk})`,
+      `Evaluated company name "${rawName}" -> Overall Score: ${overallScore} (MCA: ${mcaScore}, Brand: ${brandScore}, Brand Risk: ${brandRisk})`,
       'CompanySearchService'
     );
 
@@ -923,7 +989,10 @@ Output pure JSON matching this exact structure:
       normalizedName: normalized,
       fullProposedName,
       isAvailable,
-      availabilityScore: score,
+      availabilityScore: overallScore,
+      overallScore,
+      mcaScore,
+      brandScore,
       summary: summaryText,
       checks,
       prohibitedWordsFound: prohibitedFound,

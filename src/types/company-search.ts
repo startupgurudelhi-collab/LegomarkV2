@@ -70,7 +70,10 @@ export interface NameSearchResponse {
   normalizedName: string;
   fullProposedName: string;
   isAvailable: boolean;
-  availabilityScore: number; // 0–100
+  availabilityScore: number; // 0–100 (Overall Combined Score: 70% MCA + 30% Web Brand)
+  overallScore?: number; // 0–100 Overall Combined Name Strength Score
+  mcaScore?: number; // 0–100 MCA Rule 8 Assessment Score (70% weight)
+  brandScore?: number; // 0–100 Online Brand Presence Score (30% weight)
   summary: string;
   checks: RuleCheckResult[];
   prohibitedWordsFound: string[];

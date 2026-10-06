@@ -270,7 +270,11 @@ export const CompanyNameSearchPage: React.FC<CompanyNameSearchPageProps> = ({
     }
   };
 
-  const getScoreTheme = (score: number, hasMcaConflict = false) => {
+  const getScoreTheme = (
+    score: number,
+    hasMcaConflict = false,
+    brandRisk: 'low' | 'medium' | 'high' = 'low'
+  ) => {
     if (hasMcaConflict) {
       return {
         badgeBg: 'bg-rose-50 text-rose-700 border-rose-200',
@@ -278,6 +282,24 @@ export const CompanyNameSearchPage: React.FC<CompanyNameSearchPageProps> = ({
         label: 'High MCA Conflict',
         verdict: 'Preliminary Assessment: Existing MCA Conflict Detected',
         verdictColor: 'text-rose-700',
+      };
+    }
+    if (brandRisk === 'high') {
+      return {
+        badgeBg: 'bg-amber-50 text-amber-800 border-amber-200',
+        ringColor: '#F59E0B',
+        label: 'Caution: Brand Conflict Signal',
+        verdict: 'Preliminary Assessment: Significant Web Brand Presence Detected',
+        verdictColor: 'text-amber-800',
+      };
+    }
+    if (brandRisk === 'medium') {
+      return {
+        badgeBg: 'bg-amber-50 text-amber-800 border-amber-200',
+        ringColor: '#F59E0B',
+        label: 'Moderate Name Strength',
+        verdict: 'Preliminary Assessment: Moderate Web Presence Detected',
+        verdictColor: 'text-amber-800',
       };
     }
     if (score >= 85) {
@@ -293,7 +315,7 @@ export const CompanyNameSearchPage: React.FC<CompanyNameSearchPageProps> = ({
       return {
         badgeBg: 'bg-blue-50 text-blue-700 border-blue-200',
         ringColor: '#3B82F6',
-        label: 'Moderate-High Strength',
+        label: 'Moderate Name Strength',
         verdict: 'Preliminary Assessment: Acceptable Baseline',
         verdictColor: 'text-blue-700',
       };
@@ -302,7 +324,7 @@ export const CompanyNameSearchPage: React.FC<CompanyNameSearchPageProps> = ({
       return {
         badgeBg: 'bg-amber-50 text-amber-800 border-amber-200',
         ringColor: '#F59E0B',
-        label: 'Moderate Strength',
+        label: 'Moderate Name Strength',
         verdict: 'Preliminary Assessment: Review Recommended',
         verdictColor: 'text-amber-800',
       };
@@ -499,7 +521,7 @@ export const CompanyNameSearchPage: React.FC<CompanyNameSearchPageProps> = ({
                 <div className="space-y-2 flex-1">
                   <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
                     <Award className="w-4 h-4 text-orange-600" />
-                    <span>Preliminary Name Strength Assessment</span>
+                    <span>Overall Name Strength Assessment</span>
                   </div>
 
                   {/* 1. Proposed Company Name */}
@@ -531,23 +553,45 @@ export const CompanyNameSearchPage: React.FC<CompanyNameSearchPageProps> = ({
                   </p>
                 </div>
 
-                {/* 4. Name Strength Score /100 with Radial Gauge */}
+                {/* 4. Overall Name Strength Score /100 with Radial Gauge */}
                 {(() => {
                   const hasMcaConflict = Boolean(
                     result.mcaRegisteredNames?.some((m) => m.similarity >= 80)
                   );
-                  const theme = getScoreTheme(result.availabilityScore, hasMcaConflict);
+                  const brandRisk = result.onlineBrandPresence?.riskLevel || 'low';
+                  const displayScore = result.overallScore ?? result.availabilityScore;
+                  const theme = getScoreTheme(displayScore, hasMcaConflict, brandRisk);
+
                   return (
                     <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200/80 shrink-0">
-                      {renderRadialGauge(result.availabilityScore, theme.ringColor)}
+                      {renderRadialGauge(displayScore, theme.ringColor)}
                       <div className="space-y-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
-                            Name Strength Score
+                            Overall Name Strength
                           </span>
-                          {hasMcaConflict && (
+                          {/* MCA Risk Badge */}
+                          {hasMcaConflict ? (
                             <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-300">
-                              MCA Conflict Risk: HIGH
+                              MCA Conflict: HIGH
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              MCA Risk: LOW
+                            </span>
+                          )}
+                          {/* Web/Brand Presence Risk Badge */}
+                          {brandRisk === 'high' ? (
+                            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-300">
+                              Web/Brand Risk: HIGH
+                            </span>
+                          ) : brandRisk === 'medium' ? (
+                            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">
+                              Web/Brand Risk: MEDIUM
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              Web/Brand Risk: LOW
                             </span>
                           )}
                         </div>
@@ -557,11 +601,21 @@ export const CompanyNameSearchPage: React.FC<CompanyNameSearchPageProps> = ({
                         <div className={`text-xs font-semibold ${theme.verdictColor}`}>
                           {theme.verdict}
                         </div>
-                        <div className="text-[11px] text-slate-500">
-                          Preliminary Assessment: <strong>{result.availabilityScore}</strong> / 100
-                          <span className="text-[10px] text-slate-400 block mt-0.5">
-                            (Preliminary diagnostic assessment · Not approval probability)
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-600 pt-0.5">
+                          <span>
+                            MCA Assessment: <strong>{result.mcaScore ?? displayScore}</strong>/100 <span className="text-[10px] text-slate-400">(70% weight)</span>
                           </span>
+                          {result.brandScore !== undefined && (
+                            <>
+                              <span aria-hidden="true" className="text-slate-300">·</span>
+                              <span>
+                                Online Brand Presence: <strong>{result.brandScore}</strong>/100 <span className="text-[10px] text-slate-400">(30% weight)</span>
+                              </span>
+                            </>
+                          )}
+                        </div>
+                        <div className="text-[10px] text-slate-400">
+                          Overall Name Strength: <strong>{displayScore}</strong> / 100 · Preliminary diagnostic assessment
                         </div>
                       </div>
                     </div>
@@ -1080,9 +1134,15 @@ export const CompanyNameSearchPage: React.FC<CompanyNameSearchPageProps> = ({
                   <div className="font-bold text-slate-900 text-sm flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-orange-600" />
                     <span>
-                      {result.availabilityScore >= 80
+                      {result.mcaRegisteredNames?.some((m) => m.similarity >= 80)
+                        ? 'Preliminary Next Step: Modify Proposed Name Elements Prior to Official Submission'
+                        : result.onlineBrandPresence?.riskLevel === 'high'
+                        ? 'Preliminary Next Step: Conduct Comprehensive Trademark & Common Law Brand Review'
+                        : result.onlineBrandPresence?.riskLevel === 'medium'
+                        ? 'Preliminary Next Step: Conduct Trademark Class & Distinctiveness Review'
+                        : (result.overallScore ?? result.availabilityScore) >= 85
                         ? 'Preliminary Next Step: Suitable for Formal SPICe+ Part A / RUN Submission'
-                        : result.availabilityScore >= 60
+                        : (result.overallScore ?? result.availabilityScore) >= 65
                         ? 'Preliminary Next Step: Conduct Trademark Class & Distinctiveness Review'
                         : 'Preliminary Next Step: Modify Proposed Name Elements Prior to Official Submission'}
                     </span>
