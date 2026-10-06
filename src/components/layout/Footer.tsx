@@ -407,7 +407,10 @@ export const Footer: React.FC<FooterProps> = ({
               <span className="text-slate-600 hidden sm:inline">•</span>
               <span>
                 Designed & Developed by <span className="text-slate-300 font-medium hover:text-orange-400 transition-colors">Creattivee</span>
-                {/* Designed & Developed by Creattivee */}
+              </span>
+              <span className="text-slate-600 hidden sm:inline">•</span>
+              <span>
+                Trademark Data powered by <a href="https://trademarx.in" target="_blank" rel="noopener noreferrer" className="text-slate-300 font-medium hover:text-orange-400 underline transition-colors">TradeMarx</a>
               </span>
             </div>
 

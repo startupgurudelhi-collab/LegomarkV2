@@ -147,6 +147,9 @@ export interface AppConfig {
   falcon: {
     key?: string;
   };
+  trademark: {
+    key?: string;
+  };
   uploadsDir: string;
   appUrl?: string;
 }
@@ -229,6 +232,11 @@ function resolveConfig(): AppConfig {
     falcon: {
       get key(): string | undefined {
         return getRuntimeEnv('FALCON_API_KEY', 'FALCON_KEY', 'VITE_FALCON_API_KEY');
+      },
+    },
+    trademark: {
+      get key(): string | undefined {
+        return getRuntimeEnv('TRADEMARK_API_KEY', 'TRADEMARX_API_KEY', 'VITE_TRADEMARK_API_KEY');
       },
     },
     uploadsDir,

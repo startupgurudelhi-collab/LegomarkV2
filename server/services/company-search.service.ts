@@ -6,6 +6,8 @@ import {
   OnlineBrandPresenceResult,
   BrandPresenceSource,
   BrandEntityFound,
+  TrademarkRecord,
+  TrademarkSearchResult,
   CombinedAssessment,
 } from '../../src/types/company-search';
 import { GoogleGenAI } from '@google/genai';
@@ -314,7 +316,173 @@ function calculateCorporateSimilarity(proposedName: string, registeredName: stri
   return fullLev;
 }
 
+/**
+ * Extracts an explicit Nice class number (1-45) from user input if present.
+ * If the input is descriptive text (e.g. "Software", "Shipping"), returns undefined so
+ * we do not force an invalid or invented class parameter to TradeMarx.
+ */
+function extractExplicitNiceClass(input?: string): number | undefined {
+  if (!input || typeof input !== 'string') return undefined;
+  const trimmed = input.trim();
+  const match = trimmed.match(/^(?:class\s*[:#-]?\s*)?(\d{1,2})$/i);
+  if (match) {
+    const num = parseInt(match[1], 10);
+    if (num >= 1 && num <= 45) {
+      return num;
+    }
+  }
+  return undefined;
+}
+
 export class CompanySearchService {
+  /**
+   * Layer 3: Trademark Conflict Analysis via TradeMarx API
+   * Queries the official Trade Marks Registry database for registered, pending, and contested marks.
+   */
+  async fetchTrademarkSearch(
+    proposedName: string,
+    rawClassOrCategory?: string
+  ): Promise<TrademarkSearchResult> {
+    const apiKey =
+      config.trademark.key ||
+      getRuntimeEnv('TRADEMARK_API_KEY', 'TRADEMARX_API_KEY', 'VITE_TRADEMARK_API_KEY');
+
+    if (!apiKey) {
+      logger.info('TRADEMARK_API_KEY not configured. Trademark Conflict Analysis in standby.', 'CompanySearchService');
+      return {
+        status: 'unconfigured',
+        records: [],
+        riskLevel: 'low',
+        findingSummary: 'TradeMarx API key is not configured on the server. Trademark search layer is in standby.',
+      };
+    }
+
+    const explicitClass = extractExplicitNiceClass(rawClassOrCategory);
+    const searchUrl = new URL('https://admin.trademarx.in/api/public/v1/trademarks/search');
+    searchUrl.searchParams.set('name', proposedName);
+    if (explicitClass !== undefined) {
+      searchUrl.searchParams.set('class', String(explicitClass));
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+
+    try {
+      const res = await fetch(searchUrl.toString(), {
+        method: 'GET',
+        headers: {
+          'X-API-Key': apiKey,
+          'Accept': 'application/json',
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+
+      if (!res.ok) {
+        logger.warn(
+          `TradeMarx API returned HTTP status ${res.status} for "${proposedName}"`,
+          'CompanySearchService'
+        );
+        return {
+          status: 'error',
+          records: [],
+          riskLevel: 'low',
+          findingSummary: `Trademark search service returned HTTP status ${res.status}. Non-blocking fallback applied.`,
+        };
+      }
+
+      const raw = await res.json();
+      let list: any[] = [];
+      if (Array.isArray(raw)) {
+        list = raw;
+      } else if (raw && typeof raw === 'object' && Array.isArray(raw.data)) {
+        list = raw.data;
+      } else if (raw && typeof raw === 'object' && Array.isArray(raw.results)) {
+        list = raw.results;
+      }
+
+      const records: TrademarkRecord[] = list
+        .filter((item) => item && typeof item === 'object')
+        .map((item) => {
+          const markName = item.name != null ? String(item.name).trim() : null;
+          const similarity = markName
+            ? Math.round(calculateCorporateSimilarity(proposedName, markName) * 100)
+            : 0;
+          return {
+            name: markName,
+            applicationNo: String(item.applicationNo || item.application_no || item.id || '').trim(),
+            tmClass: String(item.tmClass || item.class || item.tm_class || '').trim(),
+            details: item.details != null ? String(item.details).trim() : null,
+            trademarkStatus: item.trademarkStatus != null ? String(item.trademarkStatus).trim() : null,
+            proprietorName: item.proprietorName != null ? String(item.proprietorName).trim() : null,
+            applicationDate: item.applicationDate != null ? String(item.applicationDate).trim() : null,
+            imgUrl: item.imgUrl != null ? String(item.imgUrl).trim() : null,
+            type: item.type != null ? String(item.type).trim() : null,
+            url: item.url != null ? String(item.url).trim() : null,
+            similarity,
+          };
+        });
+
+      // Sort by similarity descending
+      records.sort((a, b) => (b.similarity || 0) - (a.similarity || 0));
+
+      if (records.length === 0) {
+        return {
+          status: 'no_records',
+          records: [],
+          riskLevel: 'low',
+          searchedClass: explicitClass,
+          totalHits: 0,
+          findingSummary: 'No matching or conflicting trademark records found on the Trade Marks Registry.',
+        };
+      }
+
+      // Calculate Trademark Risk: LOW / MEDIUM / HIGH
+      const topMatch = records[0];
+      const topSim = topMatch.similarity || 0;
+      const statusLower = (topMatch.trademarkStatus || '').toLowerCase();
+      const isDeadStatus = /abandoned|withdrawn|refused|cancelled|removed|invalidated/.test(statusLower);
+
+      let riskLevel: 'low' | 'medium' | 'high' = 'low';
+      let findingSummary = '';
+
+      if (topSim >= 80 && !isDeadStatus) {
+        riskLevel = 'high';
+        findingSummary = `High Trademark Risk: Conflicting registered/pending mark "${topMatch.name || topMatch.applicationNo}" (Class ${topMatch.tmClass || 'N/A'}, Status: ${topMatch.trademarkStatus || 'Active'}) identified with ${topSim}% proximity. Potential statutory objection under Section 11 of the Trade Marks Act, 1999.`;
+      } else if (topSim >= 60 && !isDeadStatus) {
+        riskLevel = 'medium';
+        findingSummary = `Moderate Trademark Risk: Closely resembling trademark "${topMatch.name || topMatch.applicationNo}" (Class ${topMatch.tmClass || 'N/A'}) found on record. Prior rights clearance and Nice class review recommended.`;
+      } else if (topSim >= 80 && isDeadStatus) {
+        riskLevel = 'medium';
+        findingSummary = `Historical trademark conflict record found with ${topSim}% similarity, currently marked as "${topMatch.trademarkStatus}". Low risk of active assertion, but prior rights verification is recommended.`;
+      } else {
+        riskLevel = 'low';
+        findingSummary = `Low trademark conflict footprint. ${records.length} trademark record(s) returned, but none exceed close phonetic or identity thresholds.`;
+      }
+
+      return {
+        status: 'connected',
+        records: records.slice(0, 10),
+        riskLevel,
+        searchedClass: explicitClass,
+        totalHits: records.length,
+        findingSummary,
+      };
+    } catch (err: any) {
+      clearTimeout(timeout);
+      logger.warn(
+        `TradeMarx API call failed or timed out: ${err?.message || err}`,
+        'CompanySearchService'
+      );
+      return {
+        status: 'error',
+        records: [],
+        riskLevel: 'low',
+        findingSummary: 'Trademark search service temporarily unavailable or timed out. Non-blocking fallback applied.',
+      };
+    }
+  }
   /**
    * Suffix string builder according to MCA entity type
    */
@@ -765,10 +933,11 @@ Output pure JSON matching this exact structure:
     }
     heuristicRegisteredNames.sort((a, b) => b.similarity - a.similarity);
 
-    // 7. Live MCA Company Master Lookup via Falcon eBiz + Layer 2 Online Brand Presence via Gemini Google Search Grounding
-    const [mcaResult, onlineBrandPresence] = await Promise.all([
+    // 7. Live MCA Company Master Lookup via Falcon eBiz + Layer 2 Online Brand Presence via Gemini Google Search + Layer 3 Trademark Conflict Analysis via TradeMarx
+    const [mcaResult, onlineBrandPresence, trademarkResult] = await Promise.all([
       this.fetchMcaCompanyMaster(normalized),
       this.analyzeOnlineBrandPresence(normalized, activityCategory),
+      this.fetchTrademarkSearch(normalized, activityCategory),
     ]);
     const mcaRegisteredNames: SimilarNameResult[] = [];
 
@@ -860,6 +1029,7 @@ Output pure JSON matching this exact structure:
       overallRisk,
       mcaRisk,
       brandRisk,
+      trademarkRisk: trademarkResult.riskLevel,
       guidance: combinedGuidance,
     };
 
@@ -1002,6 +1172,7 @@ Output pure JSON matching this exact structure:
       mcaApiStatus: mcaResult.status,
       mcaSource,
       onlineBrandPresence,
+      trademarkResult,
       combinedAssessment,
       timestamp,
     };

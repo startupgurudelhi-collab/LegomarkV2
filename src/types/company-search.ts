@@ -57,10 +57,34 @@ export interface OnlineBrandPresenceResult {
   status: 'completed' | 'no_evidence' | 'unavailable';
 }
 
+export interface TrademarkRecord {
+  name: string | null;
+  applicationNo: string;
+  tmClass: string;
+  details?: string | null;
+  trademarkStatus?: string | null;
+  proprietorName?: string | null;
+  applicationDate?: string | null;
+  imgUrl?: string | null;
+  type?: string | null;
+  url?: string | null;
+  similarity?: number;
+}
+
+export interface TrademarkSearchResult {
+  status: 'connected' | 'no_records' | 'error' | 'unconfigured';
+  records: TrademarkRecord[];
+  riskLevel: 'low' | 'medium' | 'high';
+  searchedClass?: number;
+  totalHits?: number;
+  findingSummary?: string;
+}
+
 export interface CombinedAssessment {
   overallRisk: 'low' | 'medium' | 'high';
   mcaRisk: 'low' | 'medium' | 'high';
   brandRisk: 'low' | 'medium' | 'high';
+  trademarkRisk?: 'low' | 'medium' | 'high';
   guidance: string;
 }
 
@@ -83,6 +107,7 @@ export interface NameSearchResponse {
   mcaApiStatus?: 'connected' | 'no_records' | 'error' | 'unconfigured';
   mcaSource?: 'live_mca_api' | 'local_heuristic';
   onlineBrandPresence?: OnlineBrandPresenceResult;
+  trademarkResult?: TrademarkSearchResult;
   combinedAssessment?: CombinedAssessment;
   timestamp: string;
 }

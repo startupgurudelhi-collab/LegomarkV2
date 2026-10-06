@@ -22,6 +22,7 @@ import {
   FileDown,
   Globe,
   ExternalLink,
+  ShieldAlert,
   X,
   User,
   Phone,
@@ -594,6 +595,20 @@ export const CompanyNameSearchPage: React.FC<CompanyNameSearchPageProps> = ({
                               Web/Brand Risk: LOW
                             </span>
                           )}
+                          {/* Trademark Risk Diagnostic Badge */}
+                          {result.trademarkResult && (
+                            <span
+                              className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded border ${
+                                result.trademarkResult.riskLevel === 'high'
+                                  ? 'bg-rose-100 text-rose-800 border-rose-300'
+                                  : result.trademarkResult.riskLevel === 'medium'
+                                  ? 'bg-amber-100 text-amber-800 border-amber-300'
+                                  : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                              }`}
+                            >
+                              Trademark Risk: {result.trademarkResult.riskLevel.toUpperCase()}
+                            </span>
+                          )}
                         </div>
                         <div className="text-base font-extrabold text-slate-900 leading-tight">
                           {theme.label}
@@ -1119,6 +1134,178 @@ export const CompanyNameSearchPage: React.FC<CompanyNameSearchPageProps> = ({
                   <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-500 flex items-center gap-2">
                     <Info className="w-4 h-4 text-slate-400 shrink-0" />
                     <span>No significant web presence found.</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Layer 3: Trademark Conflict Analysis (TradeMarks Registry / TradeMarx) */}
+              <div className="space-y-3 pt-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                    <ShieldAlert className="w-4 h-4 text-purple-600" />
+                    Layer 3: Trademark Conflict Analysis
+                  </h3>
+                  {result.trademarkResult && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-slate-400">Trade Marks Registry Data</span>
+                      <span
+                        className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-md border ${
+                          result.trademarkResult.riskLevel === 'high'
+                            ? 'bg-rose-50 text-rose-700 border-rose-200'
+                            : result.trademarkResult.riskLevel === 'medium'
+                            ? 'bg-amber-50 text-amber-800 border-amber-200'
+                            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        }`}
+                      >
+                        Trademark Risk: {result.trademarkResult.riskLevel.toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {result.trademarkResult ? (
+                  <div className="p-4 sm:p-5 rounded-xl bg-white border border-slate-200 space-y-4 shadow-sm text-xs">
+                    {/* Concise Finding / Summary */}
+                    {result.trademarkResult.findingSummary && (
+                      <div className="space-y-1">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                          Registry Conflict Finding
+                        </span>
+                        <p className="text-slate-700 leading-relaxed text-xs sm:text-sm">
+                          {result.trademarkResult.findingSummary}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Meta Bar */}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500 pt-1 border-t border-slate-100">
+                      <span>
+                        <strong>Target Mark:</strong> {result.normalizedName}
+                      </span>
+                      <span aria-hidden="true" className="text-slate-300">·</span>
+                      <span>
+                        <strong>Nice Class:</strong>{' '}
+                        {result.trademarkResult.searchedClass !== undefined
+                          ? `Class ${result.trademarkResult.searchedClass}`
+                          : 'Cross-Class Registry Search'}
+                      </span>
+                      <span aria-hidden="true" className="text-slate-300">·</span>
+                      <span>
+                        <strong>Records Found:</strong> {result.trademarkResult.records.length}
+                      </span>
+                    </div>
+
+                    {/* Records List / Table */}
+                    {result.trademarkResult.records.length > 0 ? (
+                      <div className="space-y-2.5 pt-1">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                          Identified Trademark Registry Records
+                        </div>
+                        <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden bg-slate-50/30">
+                          {result.trademarkResult.records.map((rec, rIdx) => (
+                            <div key={rIdx} className="p-3.5 space-y-2 hover:bg-slate-50 transition-colors">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="space-y-0.5">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="font-bold text-slate-900 text-sm">
+                                      {rec.name || 'Figurative / Device Mark'}
+                                    </span>
+                                    {rec.tmClass && (
+                                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
+                                        Class {rec.tmClass}
+                                      </span>
+                                    )}
+                                    {rec.trademarkStatus && (
+                                      <span
+                                        className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${
+                                          /registered/i.test(rec.trademarkStatus)
+                                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                            : /objected|opposed/i.test(rec.trademarkStatus)
+                                            ? 'bg-rose-50 text-rose-800 border-rose-200'
+                                            : /pending|advertised/i.test(rec.trademarkStatus)
+                                            ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                            : 'bg-slate-100 text-slate-600 border-slate-200'
+                                        }`}
+                                      >
+                                        Status: {rec.trademarkStatus}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[11px] text-slate-500 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                                    {rec.applicationNo && (
+                                      <span>Application No: <strong>{rec.applicationNo}</strong></span>
+                                    )}
+                                    {rec.applicationDate && (
+                                      <>
+                                        <span aria-hidden="true" className="text-slate-300">·</span>
+                                        <span>Filed: {rec.applicationDate}</span>
+                                      </>
+                                    )}
+                                    {rec.proprietorName && (
+                                      <>
+                                        <span aria-hidden="true" className="text-slate-300">·</span>
+                                        <span>Proprietor: <strong>{rec.proprietorName}</strong></span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {rec.similarity !== undefined && (
+                                  <div className="text-right shrink-0">
+                                    <span
+                                      className={`text-[10px] font-extrabold px-2 py-1 rounded-md border ${
+                                        rec.similarity >= 80
+                                          ? 'bg-rose-100 text-rose-800 border-rose-300'
+                                          : rec.similarity >= 60
+                                          ? 'bg-amber-100 text-amber-800 border-amber-300'
+                                          : 'bg-slate-100 text-slate-700 border-slate-200'
+                                      }`}
+                                    >
+                                      {rec.similarity}% Proximity
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+
+                              {rec.details && (
+                                <p className="text-[11px] text-slate-600 line-clamp-2 leading-relaxed bg-white p-2 rounded border border-slate-100">
+                                  <strong>Goods / Services:</strong> {rec.details}
+                                </p>
+                              )}
+
+                              {rec.url && (
+                                <div className="pt-0.5">
+                                  <a
+                                    href={rec.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-[11px] font-medium text-purple-700 hover:text-purple-900 inline-flex items-center gap-1 hover:underline"
+                                  >
+                                    <span>View Trade Marks Registry Record</span>
+                                    <ExternalLink className="w-3 h-3" />
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-slate-50 rounded-lg text-slate-600 text-xs flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span>No conflicting word marks or device marks found on record under this query.</span>
+                      </div>
+                    )}
+
+                    {/* Statutory Distinction Notice */}
+                    <div className="text-[10px] text-slate-400 leading-relaxed pt-2 border-t border-slate-100">
+                      <strong>Registry Distinction Notice:</strong> Trademark Conflict Analysis checks the official Trade Marks Registry database via TradeMarx. This preliminary search distinguishes registered/pending intellectual property from MCA corporate names. This search does NOT constitute official trademark registration, guarantee of non-infringement, or legal opinion. Formal Form TM-A filings are subject to IP India examiner scrutiny under Sections 9 and 11 of the Trade Marks Act, 1999.
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-500 flex items-center gap-2">
+                    <Info className="w-4 h-4 text-slate-400 shrink-0" />
+                    <span>Trademark search service is in standby or unconfigured.</span>
                   </div>
                 )}
               </div>
