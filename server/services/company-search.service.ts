@@ -304,7 +304,8 @@ export class CompanySearchService {
     }
 
     const cleanHost = apiHost.trim().replace(/^https?:\/\//, '').replace(/\/+$/, '');
-    const baseUrl = cleanHost.includes('/') ? `https://${cleanHost}` : `https://${cleanHost}/`;
+    const endpointPath = cleanHost.endsWith('getCompanyDetails') ? '' : '/getCompanyDetails';
+    const baseUrl = `https://${cleanHost}${endpointPath}`;
     const url = new URL(baseUrl);
     url.searchParams.set('cin', queryName);
 
