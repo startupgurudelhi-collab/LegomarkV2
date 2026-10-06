@@ -549,84 +549,51 @@ export const CompanyNameSearchPage: React.FC<CompanyNameSearchPageProps> = ({
 
                 return (
                   <>
-                    {/* Top Row: Proposed Name Header & Overall Name Strength Score Card */}
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-100">
-                      <div className="space-y-2 flex-1 min-w-0">
-                        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
-                          <Award className="w-4 h-4 text-orange-600" />
-                          <span>Proposed Corporate Name & Constitution</span>
-                        </div>
-
-                        {/* 1. Proposed Company Name */}
-                        <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight break-words">
-                          {result.fullProposedName}
-                        </h2>
-
-                        {/* 2 & 3. Business Activity and Company Type meta line */}
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-slate-600 pt-1">
-                          <span className="flex items-center gap-1">
-                            <Briefcase className="w-3.5 h-3.5 text-slate-400" />
-                            <strong>Activity:</strong>{' '}
-                            <span>{activityCategory.trim() || 'General Commercial / Technology Services'}</span>
-                          </span>
-                          <span aria-hidden="true" className="text-slate-300">·</span>
-                          <span className="flex items-center gap-1">
-                            <Layers className="w-3.5 h-3.5 text-slate-400" />
-                            <strong>Type:</strong> <span>{selectedEntityConfig.label} ({selectedEntityConfig.suffix})</span>
-                          </span>
-                          <span aria-hidden="true" className="text-slate-300">·</span>
-                          <span className="text-slate-500">
-                            {selectedEntityConfig.actReference}
-                          </span>
-                        </div>
+                    {/* 1. Full-Width Proposed Corporate Name & Constitution Header Card */}
+                    <div className="w-full bg-slate-50/80 rounded-2xl border border-slate-200/80 p-5 sm:p-6 space-y-3">
+                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+                        <Award className="w-4 h-4 text-orange-600" />
+                        <span>Proposed Corporate Name & Constitution</span>
                       </div>
 
-                      {/* 4. Overall Name Strength Score /100 with Radial Gauge */}
-                      <div className="flex items-center gap-4 bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200/80 shrink-0">
+                      {/* Proposed Company Name with full horizontal space on desktop */}
+                      <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
+                        {result.fullProposedName}
+                      </h2>
+
+                      {/* Clean Metadata Row: Business Activity, Entity Constitution, Applicable Act / legal basis */}
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-sm text-slate-600 pt-2 border-t border-slate-200/70">
+                        <span className="flex items-center gap-1.5">
+                          <Briefcase className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <strong className="text-slate-700">Business Activity:</strong>{' '}
+                          <span>{activityCategory.trim() || 'General Commercial / Technology Services'}</span>
+                        </span>
+                        <span aria-hidden="true" className="text-slate-300 hidden sm:inline">·</span>
+                        <span className="flex items-center gap-1.5">
+                          <Layers className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <strong className="text-slate-700">Entity Constitution:</strong>{' '}
+                          <span>{selectedEntityConfig.label} ({selectedEntityConfig.suffix})</span>
+                        </span>
+                        <span aria-hidden="true" className="text-slate-300 hidden sm:inline">·</span>
+                        <span className="flex items-center gap-1.5">
+                          <Scale className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <strong className="text-slate-700">Applicable Act:</strong>{' '}
+                          <span>{selectedEntityConfig.actReference}</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 2. Full-Width Primary Overall Name Strength Score Card */}
+                    <div className="w-full bg-slate-50/70 p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
+                      {/* Left: Radial Gauge, Big Score, Theme Label, Verdict */}
+                      <div className="flex items-center gap-5 shrink-0">
                         {renderRadialGauge(displayScore, theme.ringColor)}
                         <div className="space-y-1">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
-                              Overall Name Strength
-                            </span>
-                            {/* MCA Risk Badge */}
-                            {hasMcaConflict ? (
-                              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-300">
-                                MCA Conflict: HIGH
-                              </span>
-                            ) : (
-                              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                MCA Risk: LOW
-                              </span>
-                            )}
-                            {/* Web/Brand Presence Risk Badge */}
-                            {brandRisk === 'high' ? (
-                              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-300">
-                                Web/Brand Risk: HIGH
-                              </span>
-                            ) : brandRisk === 'medium' ? (
-                              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">
-                                Web/Brand Risk: MEDIUM
-                              </span>
-                            ) : (
-                              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                Web/Brand Risk: LOW
-                              </span>
-                            )}
-                            {/* Trademark Risk Diagnostic Badge */}
-                            {result.trademarkResult && (
-                              <span
-                                className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded border ${
-                                  result.trademarkResult.riskLevel === 'high'
-                                    ? 'bg-rose-100 text-rose-800 border-rose-300'
-                                    : result.trademarkResult.riskLevel === 'medium'
-                                    ? 'bg-amber-100 text-amber-800 border-amber-300'
-                                    : 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                                }`}
-                              >
-                                Trademark Risk: {result.trademarkResult.riskLevel.toUpperCase()}
-                              </span>
-                            )}
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                            Overall Name Strength
+                          </span>
+                          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight">
+                            {displayScore} <span className="text-sm sm:text-base font-bold text-slate-400">/ 100</span>
                           </div>
                           <div className="text-base font-extrabold text-slate-900 leading-tight">
                             {theme.label}
@@ -634,22 +601,68 @@ export const CompanyNameSearchPage: React.FC<CompanyNameSearchPageProps> = ({
                           <div className={`text-xs font-semibold ${theme.verdictColor}`}>
                             {theme.verdict}
                           </div>
-                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-600 pt-0.5">
-                            <span>
-                              MCA Assessment: <strong>{result.mcaScore ?? displayScore}</strong>/100 <span className="text-[10px] text-slate-400">(70% weight)</span>
+                        </div>
+                      </div>
+
+                      {/* Right: Risk Badges, Weights Breakdown & Diagnostic Text */}
+                      <div className="space-y-2 flex-1 md:max-w-xl md:border-l md:border-slate-200/80 md:pl-6">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {/* MCA Risk Badge */}
+                          {hasMcaConflict ? (
+                            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-300">
+                              MCA Conflict: HIGH
                             </span>
-                            {result.brandScore !== undefined && (
-                              <>
-                                <span aria-hidden="true" className="text-slate-300">·</span>
-                                <span>
-                                  Online Brand Presence: <strong>{result.brandScore}</strong>/100 <span className="text-[10px] text-slate-400">(30% weight)</span>
-                                </span>
-                              </>
-                            )}
-                          </div>
-                          <div className="text-[10px] text-slate-400">
-                            Overall Name Strength: <strong>{displayScore}</strong> / 100 · Preliminary diagnostic assessment
-                          </div>
+                          ) : (
+                            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              MCA Risk: LOW
+                            </span>
+                          )}
+                          {/* Web/Brand Presence Risk Badge */}
+                          {brandRisk === 'high' ? (
+                            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-300">
+                              Web/Brand Risk: HIGH
+                            </span>
+                          ) : brandRisk === 'medium' ? (
+                            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">
+                              Web/Brand Risk: MEDIUM
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              Web/Brand Risk: LOW
+                            </span>
+                          )}
+                          {/* Trademark Risk Diagnostic Badge */}
+                          {result.trademarkResult && (
+                            <span
+                              className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded border ${
+                                result.trademarkResult.riskLevel === 'high'
+                                  ? 'bg-rose-100 text-rose-800 border-rose-300'
+                                  : result.trademarkResult.riskLevel === 'medium'
+                                  ? 'bg-amber-100 text-amber-800 border-amber-300'
+                                  : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                              }`}
+                            >
+                              Trademark Risk: {result.trademarkResult.riskLevel.toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-slate-600 pt-1">
+                          <span>
+                            MCA Assessment: <strong>{result.mcaScore ?? displayScore}</strong>/100 <span className="text-[10px] text-slate-400">(70% weight)</span>
+                          </span>
+                          {result.brandScore !== undefined && (
+                            <>
+                              <span aria-hidden="true" className="text-slate-300">·</span>
+                              <span>
+                                Online Brand Presence: <strong>{result.brandScore}</strong>/100 <span className="text-[10px] text-slate-400">(30% weight)</span>
+                              </span>
+                            </>
+                          )}
+                        </div>
+
+                        <div className="text-[10px] text-slate-400">
+                          Overall Name Strength: <strong>{displayScore}</strong> / 100 · Preliminary diagnostic assessment
                         </div>
                       </div>
                     </div>
