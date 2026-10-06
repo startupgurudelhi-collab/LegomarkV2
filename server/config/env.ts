@@ -144,6 +144,9 @@ export interface AppConfig {
     key?: string;
     host?: string;
   };
+  falcon: {
+    key?: string;
+  };
   uploadsDir: string;
   appUrl?: string;
 }
@@ -221,6 +224,11 @@ function resolveConfig(): AppConfig {
       },
       get host(): string | undefined {
         return getRuntimeEnv('RAPIDAPI_HOST', 'RAPID_API_HOST', 'VITE_RAPIDAPI_HOST', 'X_RAPIDAPI_HOST');
+      },
+    },
+    falcon: {
+      get key(): string | undefined {
+        return getRuntimeEnv('FALCON_API_KEY', 'FALCON_KEY', 'VITE_FALCON_API_KEY');
       },
     },
     uploadsDir,

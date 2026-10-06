@@ -11,34 +11,50 @@ export interface McaRecordItem {
 }
 
 /**
- * Extracts and maps company fields from RapidAPI MCA Company Master response.
- * Maps only fields actually returned by the endpoint without inventing fields.
+ * Extracts and maps company fields from Falcon eBiz Company Search API response.
+ * Maps Falcon response:
+ *   value -> CIN/LLPIN
+ *   label -> registered company/LLP name
  */
-function extractMcaRecords(responseData: any): McaRecordItem[] {
-  if (!responseData) return [];
+function extractFalconRecords(responseData: any): { records: McaRecordItem[]; isError: boolean; errorMsg?: string } {
+  if (!responseData) return { records: [], isError: false };
+
+  let parsed = responseData;
+  if (typeof parsed === 'string') {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch {
+      return { records: [], isError: true, errorMsg: 'Malformed response body' };
+    }
+  }
+
+  // Check for Falcon error responses (e.g. [{"error_code":"205","error_msg":"Access Denied - Invalid API"}])
+  if (Array.isArray(parsed) && parsed.length > 0 && parsed[0]?.error_code) {
+    return { records: [], isError: true, errorMsg: parsed[0].error_msg || `Falcon Error ${parsed[0].error_code}` };
+  }
+  if (typeof parsed === 'object' && parsed !== null && parsed.error_code) {
+    return { records: [], isError: true, errorMsg: parsed.error_msg || `Falcon Error ${parsed.error_code}` };
+  }
+  if (typeof parsed === 'object' && parsed !== null && (parsed.error || parsed.message === 'Access Denied')) {
+    return { records: [], isError: true, errorMsg: parsed.error || parsed.message };
+  }
 
   let candidates: any[] = [];
-  if (Array.isArray(responseData)) {
-    candidates = responseData;
-  } else if (Array.isArray(responseData.data)) {
-    candidates = responseData.data;
-  } else if (Array.isArray(responseData.results)) {
-    candidates = responseData.results;
-  } else if (Array.isArray(responseData.companies)) {
-    candidates = responseData.companies;
-  } else if (Array.isArray(responseData.records)) {
-    candidates = responseData.records;
-  } else if (typeof responseData.data === 'object' && responseData.data !== null) {
-    candidates = [responseData.data];
-  } else if (typeof responseData === 'object' && responseData !== null) {
-    if (
-      responseData.company_name ||
-      responseData.companyName ||
-      responseData.cin ||
-      responseData.CIN ||
-      responseData.name
-    ) {
-      candidates = [responseData];
+  if (Array.isArray(parsed)) {
+    candidates = parsed;
+  } else if (Array.isArray(parsed.data)) {
+    candidates = parsed.data;
+  } else if (Array.isArray(parsed.results)) {
+    candidates = parsed.results;
+  } else if (Array.isArray(parsed.companies)) {
+    candidates = parsed.companies;
+  } else if (Array.isArray(parsed.records)) {
+    candidates = parsed.records;
+  } else if (typeof parsed.data === 'object' && parsed.data !== null) {
+    candidates = [parsed.data];
+  } else if (typeof parsed === 'object' && parsed !== null) {
+    if (parsed.value || parsed.label || parsed.company_name || parsed.cin) {
+      candidates = [parsed];
     }
   }
 
@@ -47,18 +63,21 @@ function extractMcaRecords(responseData: any): McaRecordItem[] {
   for (const item of candidates) {
     if (!item || typeof item !== 'object') continue;
 
+    // Falcon eBiz mapping:
+    // label -> registered company/LLP name
+    // value -> CIN/LLPIN
     const name = (
+      item.label ||
       item.company_name ||
       item.companyName ||
       item.name ||
-      item.company ||
-      item.legal_name ||
       item.title
     )?.toString().trim();
 
     if (!name) continue;
 
     const cin = (
+      item.value ||
       item.cin ||
       item.CIN ||
       item.cin_number ||
@@ -68,9 +87,8 @@ function extractMcaRecords(responseData: any): McaRecordItem[] {
     const status = (
       item.status ||
       item.company_status ||
-      item.cin_status ||
       item.companyStatus
-    )?.toString().trim();
+    )?.toString().trim() || 'Registered / Active';
 
     const roc = (
       item.roc ||
@@ -78,16 +96,25 @@ function extractMcaRecords(responseData: any): McaRecordItem[] {
       item.registrar
     )?.toString().trim();
 
+    const upperName = name.toUpperCase();
+    const upperCin = cin?.toUpperCase() || '';
     const entityType = (
       item.company_class ||
       item.class ||
       item.category
-    )?.toString().trim();
+    )?.toString().trim() || (upperCin.includes('LLP') || upperCin.startsWith('AAA') || upperName.includes('LLP') ? 'LLP' : 'Registered Entity');
 
     results.push({ name, cin, status, roc, entityType });
   }
 
-  return results;
+  return { records: results, isError: false };
+}
+
+/**
+ * Extracts and maps company fields from legacy/fallback MCA Company Master responses.
+ */
+function extractMcaRecords(responseData: any): McaRecordItem[] {
+  return extractFalconRecords(responseData).records;
 }
 
 // Prohibited terms under Emblems and Names Act, 1950 & MCA Rule 8
@@ -275,51 +302,48 @@ export class CompanySearchService {
   }
 
   /**
-   * Queries RapidAPI MCA Company Master API using the cin query parameter.
-   * Handles timeouts, network failures, and non-200 responses gracefully.
+   * Queries Falcon eBiz Company Search API for official MCA registered company/LLP records.
+   * GET https://www.falconebiz.com/api/search_company
+   * Headers:
+   *   Authorization: <FALCON_API_KEY>
+   *   Company: <searched company name>
+   *   Domain: legomarkindia.com
+   *   Content-Type: application/json
    */
   async fetchMcaCompanyMaster(queryName: string): Promise<{
     records: McaRecordItem[];
     status: 'connected' | 'no_records' | 'error' | 'unconfigured';
   }> {
-    const apiKey =
-      config.rapidApi.key ||
-      getRuntimeEnv('RAPIDAPI_KEY', 'RAPID_API_KEY', 'VITE_RAPIDAPI_KEY', 'X_RAPIDAPI_KEY');
-    const apiHost =
-      config.rapidApi.host ||
-      getRuntimeEnv('RAPIDAPI_HOST', 'RAPID_API_HOST', 'VITE_RAPIDAPI_HOST', 'X_RAPIDAPI_HOST');
+    const falconKey =
+      config.falcon.key ||
+      getRuntimeEnv('FALCON_API_KEY', 'FALCON_KEY', 'VITE_FALCON_API_KEY');
 
-    // Safe server-side diagnostic check (never logs the API key value)
+    // Safe server-side diagnostic check (never logs the secret API key value)
     logger.info(
-      `MCA RapidAPI Runtime Check -> Key configured: ${Boolean(apiKey)} (length: ${apiKey?.length || 0}), Host: ${apiHost || 'unconfigured'}`,
+      `Falcon eBiz MCA API Runtime Check -> Key configured: ${Boolean(falconKey)} (length: ${falconKey?.length || 0})`,
       'CompanySearchService'
     );
 
-    if (!apiKey || !apiHost) {
-      logger.info(
-        'RapidAPI credentials not configured; evaluating similarity via local reference benchmark.',
+    if (!falconKey) {
+      logger.warn(
+        'Falcon eBiz FALCON_API_KEY credentials not configured in environment.',
         'CompanySearchService'
       );
       return { records: [], status: 'unconfigured' };
     }
 
-    const cleanHost = apiHost.trim().replace(/^https?:\/\//, '').replace(/\/+$/, '');
-    const endpointPath = cleanHost.endsWith('getCompanyDetails') ? '' : '/getCompanyDetails';
-    const baseUrl = `https://${cleanHost}${endpointPath}`;
-    const url = new URL(baseUrl);
-    url.searchParams.set('cin', queryName);
-
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 6000);
+    const timeout = setTimeout(() => controller.abort(), 8000);
 
     try {
-      logger.info(`Querying RapidAPI MCA Company Master API for "${queryName}"`, 'CompanySearchService');
-      const response = await fetch(url.toString(), {
+      logger.info(`Querying Falcon eBiz Company Search API for "${queryName}"`, 'CompanySearchService');
+      const response = await fetch('https://www.falconebiz.com/api/search_company', {
         method: 'GET',
         headers: {
-          'x-rapidapi-key': apiKey,
-          'x-rapidapi-host': cleanHost.split('/')[0],
-          'Accept': 'application/json',
+          'Authorization': falconKey,
+          'Company': queryName,
+          'Domain': 'legomarkindia.com',
+          'Content-Type': 'application/json',
         },
         signal: controller.signal,
       });
@@ -328,26 +352,39 @@ export class CompanySearchService {
 
       if (!response.ok) {
         logger.warn(
-          `RapidAPI MCA Company Master returned HTTP ${response.status}: ${response.statusText}`,
+          `Falcon eBiz Company Search returned HTTP ${response.status}: ${response.statusText}`,
           'CompanySearchService'
         );
         return { records: [], status: 'error' };
       }
 
-      const data = await response.json();
-      const extracted = extractMcaRecords(data);
+      const text = await response.text();
+      let rawData: any;
+      try {
+        rawData = JSON.parse(text);
+      } catch (parseErr) {
+        logger.warn(`Failed to parse Falcon eBiz JSON response: ${text.slice(0, 100)}`, 'CompanySearchService');
+        return { records: [], status: 'error' };
+      }
 
-      if (extracted.length === 0) {
-        logger.info(`RapidAPI MCA API returned 0 matching records for "${queryName}"`, 'CompanySearchService');
+      const { records, isError, errorMsg } = extractFalconRecords(rawData);
+
+      if (isError) {
+        logger.warn(`Falcon eBiz returned upstream error: ${errorMsg}`, 'CompanySearchService');
+        return { records: [], status: 'error' };
+      }
+
+      if (records.length === 0) {
+        logger.info(`Falcon eBiz API returned 0 matching records for "${queryName}"`, 'CompanySearchService');
         return { records: [], status: 'no_records' };
       }
 
-      logger.info(`RapidAPI MCA API successfully retrieved ${extracted.length} records for "${queryName}"`, 'CompanySearchService');
-      return { records: extracted, status: 'connected' };
+      logger.info(`Falcon eBiz API successfully retrieved ${records.length} records for "${queryName}"`, 'CompanySearchService');
+      return { records, status: 'connected' };
     } catch (err: any) {
       clearTimeout(timeout);
       logger.warn(
-        `RapidAPI MCA API call failed or timed out: ${err?.message || err}`,
+        `Falcon eBiz API call failed or timed out: ${err?.message || err}`,
         'CompanySearchService'
       );
       return { records: [], status: 'error' };
@@ -472,12 +509,16 @@ export class CompanySearchService {
     }
     heuristicRegisteredNames.sort((a, b) => b.similarity - a.similarity);
 
-    // 7. Live MCA Company Master Lookup via RapidAPI using the cin query parameter
+    // 7. Live MCA Company Master Lookup via Falcon eBiz Company Search API
     const mcaResult = await this.fetchMcaCompanyMaster(normalized);
     const mcaRegisteredNames: SimilarNameResult[] = [];
 
     for (const record of mcaResult.records) {
-      const similarity = calculateLevenshteinSimilarity(normalized, record.name);
+      const normRecord = this.normalizeName(record.name).normalized;
+      const similarity = Math.max(
+        calculateLevenshteinSimilarity(normalized, record.name),
+        calculateLevenshteinSimilarity(normalized, normRecord)
+      );
       mcaRegisteredNames.push({
         name: record.name,
         similarity: Math.round(similarity * 100),
@@ -490,6 +531,12 @@ export class CompanySearchService {
       });
     }
     mcaRegisteredNames.sort((a, b) => b.similarity - a.similarity);
+
+    // If Falcon fails/unavailable, return mcaApiStatus='error' and DO NOT present the name as MCA-verified/available
+    const finalMcaStatus: 'connected' | 'no_records' | 'error' | 'unconfigured' =
+      mcaResult.status === 'connected' || mcaResult.status === 'no_records'
+        ? mcaResult.status
+        : 'error';
 
     // Use returned MCA company data as the source for similarRegisteredNames if available
     const similarRegisteredNames: SimilarNameResult[] =
@@ -518,24 +565,36 @@ export class CompanySearchService {
     // Deduct for close phonetic similarity (uses MCA registry data if available, else heuristic)
     if (similarRegisteredNames.length > 0) {
       const topSim = similarRegisteredNames[0].similarity;
-      if (topSim >= 90) score -= 45;
-      else if (topSim >= 75) score -= 25;
-      else if (topSim >= 60) score -= 15;
+      if (topSim >= 90) score -= 70;
+      else if (topSim >= 80) score -= 45;
+      else if (topSim >= 65) score -= 25;
+      else if (topSim >= 50) score -= 15;
     }
 
     score = Math.max(10, Math.min(98, score));
-    const isAvailable = score >= 65 && prohibitedFound.length === 0 && !isSingleGenericWord;
 
-    let summaryText = 'High probability of MCA name reservation approval.';
-    if (mcaRegisteredNames.length > 0 && mcaRegisteredNames[0].similarity >= 85) {
-      summaryText = `High similarity to registered corporate entity "${mcaRegisteredNames[0].name}" found in MCA Master Data. Review or modify distinctive element.`;
+    // If Falcon fails/unavailable, return mcaApiStatus='error' and DO NOT present the name as MCA-verified/available
+    let isAvailable = false;
+    let summaryText = '';
+
+    if (finalMcaStatus === 'error') {
+      isAvailable = false;
+      summaryText =
+        'Live MCA registry lookup is currently unavailable. The proposed name cannot be verified as available without active MCA Master Data confirmation.';
+    } else if (mcaRegisteredNames.length > 0 && mcaRegisteredNames[0].similarity >= 85) {
+      isAvailable = false;
+      summaryText = `High similarity to registered corporate entity "${mcaRegisteredNames[0].name}" (${mcaRegisteredNames[0].cin || 'CIN/LLPIN on record'}) found in MCA Master Data. Review or modify distinctive element.`;
     } else if (score >= 85) {
+      isAvailable = score >= 65 && prohibitedFound.length === 0 && !isSingleGenericWord;
       summaryText = 'Strong distinctive name! Highly compliant with MCA Rule 8 and low conflict risk.';
     } else if (score >= 65) {
+      isAvailable = score >= 65 && prohibitedFound.length === 0 && !isSingleGenericWord;
       summaryText = 'Good availability score. Recommended to proceed with preliminary CA/CS trademark check before SPICe+ filing.';
     } else if (score >= 40) {
+      isAvailable = false;
       summaryText = 'Moderate risk of ROC resubmission. Name contains regulatory or partially conflicting elements.';
     } else {
+      isAvailable = false;
       summaryText = 'High risk of MCA rejection. Prohibited terms or high similarity to existing corporate marks detected.';
     }
 
