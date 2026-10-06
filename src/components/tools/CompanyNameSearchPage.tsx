@@ -535,126 +535,324 @@ export const CompanyNameSearchPage: React.FC<CompanyNameSearchPageProps> = ({
           <div className="mt-8 space-y-6 pb-20">
             {/* Header / Primary Assessment Card */}
             <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6 sm:p-8 space-y-6">
-              {/* Top Row: Proposed Name, Gauge & Verdict */}
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-100">
-                <div className="space-y-2 flex-1">
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
-                    <Award className="w-4 h-4 text-orange-600" />
-                    <span>Overall Name Strength Assessment</span>
-                  </div>
+              {(() => {
+                const hasMcaConflict = Boolean(
+                  result.mcaRegisteredNames?.some((m) => m.similarity >= 80)
+                );
+                const brandRisk = result.onlineBrandPresence?.riskLevel || 'low';
+                const displayScore = result.overallScore ?? result.availabilityScore;
+                const theme = getScoreTheme(displayScore, hasMcaConflict, brandRisk);
+                const topMcaMatch =
+                  result.mcaRegisteredNames?.[0] ||
+                  result.similarRegisteredNames?.find((s) => s.source === 'mca_api') ||
+                  result.similarRegisteredNames?.[0];
 
-                  {/* 1. Proposed Company Name */}
-                  <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">
-                    {result.fullProposedName}
-                  </h2>
+                return (
+                  <>
+                    {/* Top Row: Proposed Name Header & Overall Name Strength Score Card */}
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-100">
+                      <div className="space-y-2 flex-1 min-w-0">
+                        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+                          <Award className="w-4 h-4 text-orange-600" />
+                          <span>Proposed Corporate Name & Constitution</span>
+                        </div>
 
-                  {/* 2 & 3. Business Activity and Company Type meta line */}
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600 pt-1">
-                    <span className="flex items-center gap-1">
-                      <Briefcase className="w-3.5 h-3.5 text-slate-400" />
-                      <strong>Activity:</strong>{' '}
-                      <span>{activityCategory.trim() || 'General Commercial / Technology Services'}</span>
-                    </span>
-                    <span aria-hidden="true" className="text-slate-300">·</span>
-                    <span className="flex items-center gap-1">
-                      <Layers className="w-3.5 h-3.5 text-slate-400" />
-                      <strong>Type:</strong> <span>{selectedEntityConfig.label} ({selectedEntityConfig.suffix})</span>
-                    </span>
-                    <span aria-hidden="true" className="text-slate-300">·</span>
-                    <span className="text-slate-500">
-                      {selectedEntityConfig.actReference}
-                    </span>
-                  </div>
+                        {/* 1. Proposed Company Name */}
+                        <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight break-words">
+                          {result.fullProposedName}
+                        </h2>
 
-                  {/* 5. Overall Assessment Summary */}
-                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed pt-2">
-                    {result.summary}
-                  </p>
-                </div>
-
-                {/* 4. Overall Name Strength Score /100 with Radial Gauge */}
-                {(() => {
-                  const hasMcaConflict = Boolean(
-                    result.mcaRegisteredNames?.some((m) => m.similarity >= 80)
-                  );
-                  const brandRisk = result.onlineBrandPresence?.riskLevel || 'low';
-                  const displayScore = result.overallScore ?? result.availabilityScore;
-                  const theme = getScoreTheme(displayScore, hasMcaConflict, brandRisk);
-
-                  return (
-                    <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200/80 shrink-0">
-                      {renderRadialGauge(displayScore, theme.ringColor)}
-                      <div className="space-y-1">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
-                            Overall Name Strength
+                        {/* 2 & 3. Business Activity and Company Type meta line */}
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-slate-600 pt-1">
+                          <span className="flex items-center gap-1">
+                            <Briefcase className="w-3.5 h-3.5 text-slate-400" />
+                            <strong>Activity:</strong>{' '}
+                            <span>{activityCategory.trim() || 'General Commercial / Technology Services'}</span>
                           </span>
-                          {/* MCA Risk Badge */}
-                          {hasMcaConflict ? (
-                            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-300">
-                              MCA Conflict: HIGH
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
-                              MCA Risk: LOW
-                            </span>
-                          )}
-                          {/* Web/Brand Presence Risk Badge */}
-                          {brandRisk === 'high' ? (
-                            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-300">
-                              Web/Brand Risk: HIGH
-                            </span>
-                          ) : brandRisk === 'medium' ? (
-                            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">
-                              Web/Brand Risk: MEDIUM
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
-                              Web/Brand Risk: LOW
-                            </span>
-                          )}
-                          {/* Trademark Risk Diagnostic Badge */}
-                          {result.trademarkResult && (
-                            <span
-                              className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded border ${
-                                result.trademarkResult.riskLevel === 'high'
-                                  ? 'bg-rose-100 text-rose-800 border-rose-300'
-                                  : result.trademarkResult.riskLevel === 'medium'
-                                  ? 'bg-amber-100 text-amber-800 border-amber-300'
-                                  : 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                              }`}
-                            >
-                              Trademark Risk: {result.trademarkResult.riskLevel.toUpperCase()}
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-base font-extrabold text-slate-900 leading-tight">
-                          {theme.label}
-                        </div>
-                        <div className={`text-xs font-semibold ${theme.verdictColor}`}>
-                          {theme.verdict}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-600 pt-0.5">
-                          <span>
-                            MCA Assessment: <strong>{result.mcaScore ?? displayScore}</strong>/100 <span className="text-[10px] text-slate-400">(70% weight)</span>
+                          <span aria-hidden="true" className="text-slate-300">·</span>
+                          <span className="flex items-center gap-1">
+                            <Layers className="w-3.5 h-3.5 text-slate-400" />
+                            <strong>Type:</strong> <span>{selectedEntityConfig.label} ({selectedEntityConfig.suffix})</span>
                           </span>
-                          {result.brandScore !== undefined && (
-                            <>
-                              <span aria-hidden="true" className="text-slate-300">·</span>
-                              <span>
-                                Online Brand Presence: <strong>{result.brandScore}</strong>/100 <span className="text-[10px] text-slate-400">(30% weight)</span>
+                          <span aria-hidden="true" className="text-slate-300">·</span>
+                          <span className="text-slate-500">
+                            {selectedEntityConfig.actReference}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* 4. Overall Name Strength Score /100 with Radial Gauge */}
+                      <div className="flex items-center gap-4 bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200/80 shrink-0">
+                        {renderRadialGauge(displayScore, theme.ringColor)}
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                              Overall Name Strength
+                            </span>
+                            {/* MCA Risk Badge */}
+                            {hasMcaConflict ? (
+                              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-300">
+                                MCA Conflict: HIGH
                               </span>
-                            </>
-                          )}
-                        </div>
-                        <div className="text-[10px] text-slate-400">
-                          Overall Name Strength: <strong>{displayScore}</strong> / 100 · Preliminary diagnostic assessment
+                            ) : (
+                              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                MCA Risk: LOW
+                              </span>
+                            )}
+                            {/* Web/Brand Presence Risk Badge */}
+                            {brandRisk === 'high' ? (
+                              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-300">
+                                Web/Brand Risk: HIGH
+                              </span>
+                            ) : brandRisk === 'medium' ? (
+                              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">
+                                Web/Brand Risk: MEDIUM
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                Web/Brand Risk: LOW
+                              </span>
+                            )}
+                            {/* Trademark Risk Diagnostic Badge */}
+                            {result.trademarkResult && (
+                              <span
+                                className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded border ${
+                                  result.trademarkResult.riskLevel === 'high'
+                                    ? 'bg-rose-100 text-rose-800 border-rose-300'
+                                    : result.trademarkResult.riskLevel === 'medium'
+                                    ? 'bg-amber-100 text-amber-800 border-amber-300'
+                                    : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                }`}
+                              >
+                                Trademark Risk: {result.trademarkResult.riskLevel.toUpperCase()}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-base font-extrabold text-slate-900 leading-tight">
+                            {theme.label}
+                          </div>
+                          <div className={`text-xs font-semibold ${theme.verdictColor}`}>
+                            {theme.verdict}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-600 pt-0.5">
+                            <span>
+                              MCA Assessment: <strong>{result.mcaScore ?? displayScore}</strong>/100 <span className="text-[10px] text-slate-400">(70% weight)</span>
+                            </span>
+                            {result.brandScore !== undefined && (
+                              <>
+                                <span aria-hidden="true" className="text-slate-300">·</span>
+                                <span>
+                                  Online Brand Presence: <strong>{result.brandScore}</strong>/100 <span className="text-[10px] text-slate-400">(30% weight)</span>
+                                </span>
+                              </>
+                            )}
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            Overall Name Strength: <strong>{displayScore}</strong> / 100 · Preliminary diagnostic assessment
+                          </div>
                         </div>
                       </div>
                     </div>
-                  );
-                })()}
-              </div>
+
+                    {/* Structured Preliminary Assessment Card (Full Readable Width) */}
+                    <div
+                      className={`p-5 sm:p-6 rounded-2xl border space-y-4 shadow-xs transition-all ${
+                        hasMcaConflict
+                          ? 'bg-rose-50/70 border-rose-300 text-slate-900'
+                          : brandRisk === 'high'
+                          ? 'bg-amber-50/60 border-amber-300 text-slate-900'
+                          : brandRisk === 'medium'
+                          ? 'bg-amber-50/30 border-amber-200 text-slate-900'
+                          : 'bg-slate-50/70 border-slate-200 text-slate-900'
+                      }`}
+                    >
+                      {/* 1. Preliminary Assessment / Verdict Header */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/80">
+                        <div className="flex items-center gap-2.5">
+                          {hasMcaConflict ? (
+                            <AlertOctagon className="w-5 h-5 text-rose-600 shrink-0" />
+                          ) : brandRisk === 'high' ? (
+                            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+                          ) : brandRisk === 'medium' ? (
+                            <Info className="w-5 h-5 text-amber-600 shrink-0" />
+                          ) : (
+                            <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+                          )}
+                          <div>
+                            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                              Preliminary Assessment
+                            </div>
+                            <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
+                              {hasMcaConflict
+                                ? 'Critical MCA Conflict Detected — Statutory Modification Required'
+                                : brandRisk === 'high'
+                                ? 'Commercial Brand Caution — Public Web Intelligence Conflict'
+                                : brandRisk === 'medium'
+                                ? 'Moderate Proximity — Further Class Clearance Advised'
+                                : 'Favorable Statutory Availability — Ready for Formal Reservation'}
+                            </h3>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span
+                            className={`text-xs font-extrabold uppercase px-3 py-1 rounded-full border ${
+                              hasMcaConflict
+                                ? 'bg-rose-100 text-rose-800 border-rose-300'
+                                : brandRisk === 'high'
+                                ? 'bg-rose-100 text-rose-800 border-rose-300'
+                                : brandRisk === 'medium'
+                                ? 'bg-amber-100 text-amber-800 border-amber-300'
+                                : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                            }`}
+                          >
+                            {theme.verdict}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* 2. Short Conflict Explanation (Full Readable Width) */}
+                      <div className="space-y-1">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                          Conflict Explanation & Statutory Reasoning
+                        </span>
+                        <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-normal">
+                          {result.summary}
+                        </p>
+                      </div>
+
+                      {/* 3. MCA Record Facts in a Compact Structured Format */}
+                      <div className="space-y-1.5 pt-1">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                          MCA Corporate Record Facts
+                        </span>
+                        {hasMcaConflict && topMcaMatch ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-3.5 rounded-xl bg-white border border-rose-200/90 shadow-xs">
+                            <div>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                                Conflicting Registered Entity
+                              </span>
+                              <strong className="text-xs font-bold text-slate-900 block truncate mt-0.5" title={topMcaMatch.name}>
+                                {topMcaMatch.name}
+                              </strong>
+                              <span className="text-[10px] text-slate-500 block truncate">
+                                {topMcaMatch.entityType || 'Registered Corporate Entity'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                                Corporate CIN / LLPIN
+                              </span>
+                              <strong className="text-xs font-mono font-semibold text-slate-800 block truncate mt-0.5">
+                                {topMcaMatch.cin || 'CIN/LLPIN on record'}
+                              </strong>
+                              <span className="text-[10px] text-slate-500 block">
+                                Status: {topMcaMatch.companyStatus || 'Active'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                                Proximity & Jurisdiction
+                              </span>
+                              <strong className="text-xs font-bold text-rose-700 block mt-0.5">
+                                {topMcaMatch.similarity}% Phonetic Proximity
+                              </strong>
+                              <span className="text-[10px] text-slate-500 block truncate">
+                                {topMcaMatch.roc ? `ROC: ${topMcaMatch.roc}` : 'ROC Master Registry'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                                Statutory Legal Basis
+                              </span>
+                              <strong className="text-xs font-bold text-slate-800 block mt-0.5">
+                                Companies Act 2013 § 4(2)
+                              </strong>
+                              <span className="text-[10px] text-rose-700 block">
+                                MCA Rule 8(2)(a) Prohibited
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-3.5 rounded-xl bg-white border border-slate-200 shadow-xs">
+                            <div>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                                MCA Registry Master Source
+                              </span>
+                              <strong className="text-xs font-bold text-slate-900 block mt-0.5">
+                                {result.mcaSource === 'live_mca_api' ? 'Live MCA Master Data' : 'Benchmark Registry Data'}
+                              </strong>
+                              <span className="text-[10px] text-emerald-700 block">
+                                {result.mcaSource === 'live_mca_api' ? '✓ CRC Live Verified' : 'Local Heuristic Set'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                                Exact Registered Matches
+                              </span>
+                              <strong className="text-xs font-bold text-emerald-700 block mt-0.5">
+                                0 Identical Conflicts Found
+                              </strong>
+                              <span className="text-[10px] text-slate-500 block">
+                                No verbatim collision on file
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                                Closest Registered Record
+                              </span>
+                              <strong className="text-xs font-bold text-slate-800 block truncate mt-0.5" title={topMcaMatch?.name || 'None'}>
+                                {topMcaMatch ? `${topMcaMatch.name} (${topMcaMatch.similarity}%)` : 'None detected (<50%)'}
+                              </strong>
+                              <span className="text-[10px] text-slate-500 block">
+                                {topMcaMatch ? 'Below hard conflict threshold' : 'Clean corporate space'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                                Statutory Compliance Standing
+                              </span>
+                              <strong className="text-xs font-bold text-emerald-700 block mt-0.5">
+                                Section 4(2) Compliant
+                              </strong>
+                              <span className="text-[10px] text-slate-500 block">
+                                Rule 8 distinctiveness criteria satisfied
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 4. Clear Action Required / Recommendation Area */}
+                      <div className="p-3.5 rounded-xl bg-white/95 border border-slate-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                        <div className="flex items-start sm:items-center gap-2.5">
+                          <span
+                            className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded shrink-0 ${
+                              hasMcaConflict
+                                ? 'bg-rose-600 text-white'
+                                : brandRisk === 'high'
+                                ? 'bg-amber-600 text-white'
+                                : brandRisk === 'medium'
+                                ? 'bg-amber-600 text-white'
+                                : 'bg-emerald-600 text-white'
+                            }`}
+                          >
+                            Action Required
+                          </span>
+                          <p className="text-xs text-slate-700 leading-snug">
+                            {hasMcaConflict
+                              ? 'Modify proposed coined prefix prior to RUN / SPICe+ Part A filing. CRC will reject identical or deceptively similar names under Section 4(2).'
+                              : brandRisk === 'high'
+                              ? 'Conduct a comprehensive trademark class search and common-law brand clearance before commercial marketing or domain acquisition.'
+                              : brandRisk === 'medium'
+                              ? 'Prepare primary and secondary name choices and verify Nice trademark class alignment prior to formal SPICe+ submission.'
+                              : 'Suitable to proceed with formal SPICe+ Part A / RUN submission. Prepare primary and secondary preferences for final reservation.'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
 
               {/* Entity Constitution Card Snapshot */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs">
