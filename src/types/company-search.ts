@@ -35,6 +35,35 @@ export interface NameSearchRequest {
   activityCategory?: string;
 }
 
+export interface BrandPresenceSource {
+  title: string;
+  url: string;
+  snippet?: string;
+}
+
+export interface BrandEntityFound {
+  name: string;
+  description: string;
+  url?: string;
+  usageStrength: 'strong' | 'moderate' | 'weak';
+}
+
+export interface OnlineBrandPresenceResult {
+  riskLevel: 'low' | 'medium' | 'high';
+  findingSummary: string;
+  hasCommercialUsage: boolean;
+  brandsFound: BrandEntityFound[];
+  sources: BrandPresenceSource[];
+  status: 'completed' | 'no_evidence' | 'unavailable';
+}
+
+export interface CombinedAssessment {
+  overallRisk: 'low' | 'medium' | 'high';
+  mcaRisk: 'low' | 'medium' | 'high';
+  brandRisk: 'low' | 'medium' | 'high';
+  guidance: string;
+}
+
 export interface NameSearchResponse {
   query: string;
   entityType: EntityType;
@@ -50,5 +79,7 @@ export interface NameSearchResponse {
   heuristicRegisteredNames?: SimilarNameResult[];
   mcaApiStatus?: 'connected' | 'no_records' | 'error' | 'unconfigured';
   mcaSource?: 'live_mca_api' | 'local_heuristic';
+  onlineBrandPresence?: OnlineBrandPresenceResult;
+  combinedAssessment?: CombinedAssessment;
   timestamp: string;
 }

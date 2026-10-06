@@ -1,4 +1,14 @@
-import { EntityType, RuleCheckResult, SimilarNameResult, NameSearchResponse } from '../../src/types/company-search';
+import {
+  EntityType,
+  RuleCheckResult,
+  SimilarNameResult,
+  NameSearchResponse,
+  OnlineBrandPresenceResult,
+  BrandPresenceSource,
+  BrandEntityFound,
+  CombinedAssessment,
+} from '../../src/types/company-search';
+import { GoogleGenAI } from '@google/genai';
 import { logger } from '../utils/logger';
 import { config, getRuntimeEnv } from '../config/env';
 
@@ -448,6 +458,189 @@ export class CompanySearchService {
   }
 
   /**
+   * Layer 2: Online Brand Presence Analysis using Gemini with Google Search Grounding.
+   * Performs real-time web search for exact name, close variations, existing businesses/brands,
+   * active websites/products, and public web references.
+   *
+   * STRICT RULES:
+   * - NOT an official trademark search.
+   * - Does NOT claim trademark registration status.
+   * - Does NOT invent sources or search findings.
+   * - If search returns no meaningful evidence, returns "No significant web presence found".
+   */
+  async analyzeOnlineBrandPresence(
+    proposedName: string,
+    activityCategory?: string
+  ): Promise<OnlineBrandPresenceResult> {
+    const geminiKey = process.env.GEMINI_API_KEY || getRuntimeEnv('GEMINI_API_KEY');
+    if (!geminiKey) {
+      logger.warn('GEMINI_API_KEY not configured for Online Brand Presence Analysis', 'CompanySearchService');
+      return {
+        riskLevel: 'low',
+        findingSummary: 'No significant web presence found.',
+        hasCommercialUsage: false,
+        brandsFound: [],
+        sources: [],
+        status: 'unavailable',
+      };
+    }
+
+    try {
+      const ai = new GoogleGenAI({ apiKey: geminiKey });
+      const prompt = `Conduct a real-time public web brand presence search for the proposed company/brand name: "${proposedName}"${
+        activityCategory ? ` in the industry/activity sector: "${activityCategory}"` : ''
+      }.
+
+Check real-time web results for:
+1. Exact name matches on the public web.
+2. Close name variations used as commercial brand identities or trade names.
+3. Existing businesses, startups, products, domain websites, or commercial platforms using this name.
+4. Meaningful public references vs weak or irrelevant mentions (e.g. dictionary definitions, random directory mentions).
+
+CRITICAL RULES:
+- This is NOT an official trademark search. Do NOT claim trademark registration or legal status.
+- Do NOT invent or hallucinate URLs, companies, or sources. Only cite evidence found via Google Search.
+- Distinguish strong commercial/brand usage (active company, operating commercial website, commercial product) from weak or incidental mentions.
+- If no existing business, product, or commercial brand is found, state "No significant web presence found".
+
+Output pure JSON matching this exact structure:
+{
+  "riskLevel": "low" | "medium" | "high",
+  "findingSummary": "Concise 1-3 sentence summary of findings.",
+  "hasCommercialUsage": boolean,
+  "brandsFound": [
+    {
+      "name": "Brand or Business Name",
+      "description": "Short description of the business/product and commercial scope",
+      "url": "https://... (valid URL if available)",
+      "usageStrength": "strong" | "moderate" | "weak"
+    }
+  ],
+  "sources": [
+    {
+      "title": "Page Title or Domain",
+      "url": "https://...",
+      "snippet": "Brief context"
+    }
+  ]
+}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: prompt,
+        config: {
+          tools: [{ googleSearch: {} }],
+          temperature: 0.1,
+        },
+      });
+
+      const text = response.text || '';
+      const candidate = response.candidates?.[0];
+      const groundingChunks = candidate?.groundingMetadata?.groundingChunks || [];
+      const groundingSources: BrandPresenceSource[] = [];
+
+      for (const chunk of groundingChunks) {
+        if (chunk.web?.uri) {
+          groundingSources.push({
+            title: chunk.web.title || chunk.web.uri.replace(/^https?:\/\//, '').split('/')[0],
+            url: chunk.web.uri,
+          });
+        }
+      }
+
+      let parsed: any = null;
+      try {
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          parsed = JSON.parse(jsonMatch[0]);
+        }
+      } catch (parseErr) {
+        logger.warn('Could not parse JSON from Gemini brand presence response', 'CompanySearchService', parseErr);
+      }
+
+      if (!parsed) {
+        const hasTextEvidence = text.length > 25 && !text.toLowerCase().includes('no significant web presence');
+        return {
+          riskLevel: hasTextEvidence ? 'medium' : 'low',
+          findingSummary: text.slice(0, 280) || 'No significant web presence found.',
+          hasCommercialUsage: hasTextEvidence,
+          brandsFound: [],
+          sources: groundingSources.slice(0, 5),
+          status: groundingSources.length > 0 ? 'completed' : 'no_evidence',
+        };
+      }
+
+      const sourcesMap = new Map<string, BrandPresenceSource>();
+      if (Array.isArray(parsed.sources)) {
+        for (const s of parsed.sources) {
+          if (s?.url && typeof s.url === 'string') {
+            sourcesMap.set(s.url, {
+              title: s.title || s.url,
+              url: s.url,
+              snippet: s.snippet,
+            });
+          }
+        }
+      }
+      for (const gs of groundingSources) {
+        if (!sourcesMap.has(gs.url)) {
+          sourcesMap.set(gs.url, gs);
+        }
+      }
+
+      const riskLevel: 'low' | 'medium' | 'high' =
+        ['low', 'medium', 'high'].includes(parsed.riskLevel)
+          ? parsed.riskLevel
+          : 'low';
+
+      const brandsFound: BrandEntityFound[] = Array.isArray(parsed.brandsFound)
+        ? parsed.brandsFound
+            .filter((b: any) => b && typeof b === 'object' && b.name)
+            .map((b: any) => ({
+              name: String(b.name).trim(),
+              description: String(b.description || '').trim(),
+              url: b.url && typeof b.url === 'string' ? b.url.trim() : undefined,
+              usageStrength: ['strong', 'moderate', 'weak'].includes(b.usageStrength)
+                ? b.usageStrength
+                : 'moderate',
+            }))
+        : [];
+
+      const hasCommercialUsage = Boolean(
+        parsed.hasCommercialUsage || brandsFound.some((b) => b.usageStrength === 'strong')
+      );
+
+      const findingSummary = parsed.findingSummary
+        ? String(parsed.findingSummary).trim()
+        : hasCommercialUsage
+        ? 'Public commercial brands or active websites were identified using this name.'
+        : 'No significant web presence found.';
+
+      return {
+        riskLevel,
+        findingSummary,
+        hasCommercialUsage,
+        brandsFound,
+        sources: Array.from(sourcesMap.values()).slice(0, 6),
+        status: brandsFound.length > 0 || sourcesMap.size > 0 ? 'completed' : 'no_evidence',
+      };
+    } catch (err: any) {
+      logger.warn(
+        `Gemini Google Search Grounding for Brand Presence fallback: ${err?.message || err}`,
+        'CompanySearchService'
+      );
+      return {
+        riskLevel: 'low',
+        findingSummary: 'No significant web presence found.',
+        hasCommercialUsage: false,
+        brandsFound: [],
+        sources: [],
+        status: 'unavailable',
+      };
+    }
+  }
+
+  /**
    * Evaluates proposed name against MCA Rule 8 & Trademarks heuristics + RapidAPI MCA Master Data
    */
   async evaluateName(
@@ -565,8 +758,11 @@ export class CompanySearchService {
     }
     heuristicRegisteredNames.sort((a, b) => b.similarity - a.similarity);
 
-    // 7. Live MCA Company Master Lookup via Falcon eBiz Company Search API
-    const mcaResult = await this.fetchMcaCompanyMaster(normalized);
+    // 7. Live MCA Company Master Lookup via Falcon eBiz + Layer 2 Online Brand Presence via Gemini Google Search Grounding
+    const [mcaResult, onlineBrandPresence] = await Promise.all([
+      this.fetchMcaCompanyMaster(normalized),
+      this.analyzeOnlineBrandPresence(normalized, activityCategory),
+    ]);
     const mcaRegisteredNames: SimilarNameResult[] = [];
 
     for (const record of mcaResult.records) {
@@ -605,6 +801,49 @@ export class CompanySearchService {
     const topMcaSim = topMcaMatch ? topMcaMatch.similarity : 0;
     const hasExactMcaConflict = topMcaSim >= 95;
     const hasHighMcaConflict = topMcaSim >= 80;
+
+    // Combine MCA Risk + Web/Brand Presence Risk into the combined preliminary assessment:
+    // - High MCA conflict always remains High.
+    // - Low MCA + High Web Presence = caution/high brand conflict signal.
+    // - Low MCA + Low Web Presence = better preliminary position.
+    const mcaRisk: 'low' | 'medium' | 'high' = hasHighMcaConflict
+      ? 'high'
+      : similarRegisteredNames.some((s) => s.similarity >= 65)
+      ? 'medium'
+      : 'low';
+
+    const brandRisk: 'low' | 'medium' | 'high' = onlineBrandPresence.riskLevel;
+
+    let overallRisk: 'low' | 'medium' | 'high' = 'low';
+    let combinedGuidance = '';
+
+    if (mcaRisk === 'high') {
+      // High MCA conflict always remains High
+      overallRisk = 'high';
+      combinedGuidance =
+        'Direct prior corporate rights conflict in MCA Master Data takes statutory precedence. Official MCA Rule 8 reservation cannot proceed without modifying the distinctive coined element, regardless of public web availability.';
+    } else if (brandRisk === 'high') {
+      // Low MCA + High Web Presence = caution/high brand conflict signal
+      overallRisk = 'medium';
+      combinedGuidance =
+        'Favorable preliminary MCA registry status, but significant commercial brand presence was detected on the public web. While no registered corporate entity was found in MCA Master Data, operating commercial brands pose potential trademark conflict or passing-off objections under common law.';
+    } else if (mcaRisk === 'medium' || brandRisk === 'medium') {
+      overallRisk = 'medium';
+      combinedGuidance =
+        'Moderate preliminary risk. Some phonetic proximity or commercial web references exist. A preliminary trademark class search and activity clause alignment are recommended.';
+    } else {
+      // Low MCA + Low Web Presence = better preliminary position
+      overallRisk = 'low';
+      combinedGuidance =
+        'Favorable preliminary position. No identical corporate records were detected in MCA Master Data, and real-time public web search indicates low commercial brand presence for this coined mark.';
+    }
+
+    const combinedAssessment: CombinedAssessment = {
+      overallRisk,
+      mcaRisk,
+      brandRisk,
+      guidance: combinedGuidance,
+    };
 
     // Compute deterministic preliminary Name Strength Score (0 to 100)
     let score = 95;
@@ -655,6 +894,10 @@ export class CompanySearchService {
     } else if (isSingleGenericWord) {
       isAvailable = false;
       summaryText = 'Single generic industry word detected. An additional distinctive coined prefix is required under MCA Rule 8.';
+    } else if (brandRisk === 'high') {
+      isAvailable = prohibitedFound.length === 0 && !isSingleGenericWord;
+      summaryText =
+        'Low MCA registry conflict, but significant online commercial brand presence was detected on the public web. Existing commercial brands may present trademark or common-law passing-off objections. Professional caution is advised before committing capital.';
     } else if (score >= 85) {
       isAvailable = prohibitedFound.length === 0 && !isSingleGenericWord;
       summaryText = 'Strong distinctive coined name. Preliminary checks indicate favorable alignment with MCA Rule 8 principles, with no identical or conflicting MCA corporate records found in integrated company master lookup.';
@@ -670,7 +913,7 @@ export class CompanySearchService {
     }
 
     logger.info(
-      `Evaluated company name "${rawName}" -> Score: ${score} (MCA Source: ${mcaSource}, MCA Status: ${mcaResult.status})`,
+      `Evaluated company name "${rawName}" -> Score: ${score} (MCA Source: ${mcaSource}, MCA Status: ${mcaResult.status}, Brand Risk: ${brandRisk})`,
       'CompanySearchService'
     );
 
@@ -689,6 +932,8 @@ export class CompanySearchService {
       heuristicRegisteredNames,
       mcaApiStatus: mcaResult.status,
       mcaSource,
+      onlineBrandPresence,
+      combinedAssessment,
       timestamp,
     };
   }

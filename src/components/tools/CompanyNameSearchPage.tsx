@@ -20,6 +20,8 @@ import {
   Sparkles,
   Download,
   FileDown,
+  Globe,
+  ExternalLink,
   X,
   User,
   Phone,
@@ -902,6 +904,169 @@ export const CompanyNameSearchPage: React.FC<CompanyNameSearchPageProps> = ({
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* Online Brand Presence Analysis (Layer 2) */}
+              <div className="space-y-3 pt-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                    <Globe className="w-4 h-4 text-indigo-600" />
+                    Online Brand Presence Analysis
+                  </h3>
+                  {result.onlineBrandPresence && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-slate-400">Layer 2 Web Intelligence</span>
+                      <span
+                        className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-md border ${
+                          result.onlineBrandPresence.riskLevel === 'high'
+                            ? 'bg-rose-50 text-rose-700 border-rose-200'
+                            : result.onlineBrandPresence.riskLevel === 'medium'
+                            ? 'bg-amber-50 text-amber-800 border-amber-200'
+                            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        }`}
+                      >
+                        Web/Brand Presence Risk: {result.onlineBrandPresence.riskLevel.toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {result.onlineBrandPresence ? (
+                  <div className="p-4 sm:p-5 rounded-xl bg-white border border-slate-200 space-y-4 shadow-sm text-xs">
+                    {/* Concise Finding / Summary */}
+                    <div className="space-y-1">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                        Web Intelligence Summary
+                      </span>
+                      <p className="text-slate-700 leading-relaxed text-xs sm:text-sm">
+                        {result.onlineBrandPresence.findingSummary}
+                      </p>
+                    </div>
+
+                    {/* Combined Preliminary Assessment Signal */}
+                    {result.combinedAssessment && (
+                      <div
+                        className={`p-3.5 rounded-lg border flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
+                          result.combinedAssessment.overallRisk === 'high'
+                            ? 'bg-rose-50/70 border-rose-200 text-rose-900'
+                            : result.combinedAssessment.overallRisk === 'medium'
+                            ? 'bg-amber-50/70 border-amber-200 text-amber-900'
+                            : 'bg-emerald-50/70 border-emerald-200 text-emerald-900'
+                        }`}
+                      >
+                        <div className="space-y-0.5">
+                          <div className="font-bold flex items-center gap-1.5 text-xs">
+                            <ShieldCheck className="w-4 h-4 shrink-0" />
+                            <span>Combined Preliminary Signal: {result.combinedAssessment.overallRisk.toUpperCase()} RISK</span>
+                          </div>
+                          <p className="text-[11px] leading-relaxed opacity-90">
+                            {result.combinedAssessment.guidance}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Commercial Brands & Operating Entities Identified */}
+                    {result.onlineBrandPresence.brandsFound.length > 0 && (
+                      <div className="space-y-2 pt-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                            Identified Commercial Brands & Operating Entities
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            Distinguishing commercial usage strength
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {result.onlineBrandPresence.brandsFound.map((brand, bIdx) => (
+                            <div
+                              key={bIdx}
+                              className="p-3 rounded-lg border border-slate-200 bg-slate-50/50 space-y-1"
+                            >
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="font-bold text-slate-900 text-xs truncate">
+                                  {brand.name}
+                                </span>
+                                <span
+                                  className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0 ${
+                                    brand.usageStrength === 'strong'
+                                      ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                                      : brand.usageStrength === 'moderate'
+                                      ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                      : 'bg-slate-200 text-slate-700'
+                                  }`}
+                                >
+                                  {brand.usageStrength === 'strong'
+                                    ? 'Strong Commercial Usage'
+                                    : brand.usageStrength === 'moderate'
+                                    ? 'Moderate Usage'
+                                    : 'Incidental Mention'}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-600 leading-snug line-clamp-2">
+                                {brand.description}
+                              </p>
+                              {brand.url && (
+                                <a
+                                  href={brand.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-[10px] text-indigo-600 hover:text-indigo-800 hover:underline pt-0.5 truncate max-w-full"
+                                >
+                                  <span>{brand.url.replace(/^https?:\/\//, '').split('/')[0]}</span>
+                                  <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                                </a>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Relevant Web Sources with Clickable Citations */}
+                    {result.onlineBrandPresence.sources.length > 0 && (
+                      <div className="space-y-2 pt-2 border-t border-slate-100">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                          Relevant Web Sources & Citations
+                        </span>
+                        <div className="flex flex-wrap gap-2">
+                          {result.onlineBrandPresence.sources.map((src, sIdx) => (
+                            <a
+                              key={sIdx}
+                              href={src.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] transition-colors border border-slate-200/80 max-w-xs truncate"
+                              title={src.title}
+                            >
+                              <ExternalLink className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span className="truncate">{src.title}</span>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* When no significant evidence was found */}
+                    {result.onlineBrandPresence.brandsFound.length === 0 &&
+                      result.onlineBrandPresence.sources.length === 0 && (
+                        <div className="p-3 bg-slate-50 rounded-lg text-slate-600 text-xs flex items-center gap-2">
+                          <Info className="w-4 h-4 text-slate-400 shrink-0" />
+                          <span>No significant web presence found for this specific proposed name across public search indexing.</span>
+                        </div>
+                      )}
+
+                    {/* Statutory / Trademark Caveat Notice */}
+                    <div className="text-[10px] text-slate-400 leading-relaxed pt-1 border-t border-slate-100">
+                      <strong>Search Notice:</strong> This online brand presence analysis queries public web references in real-time via integrated search grounding. This is NOT an official trademark search and does NOT guarantee or certify trademark availability. Public web presence does not supersede statutory Ministry of Corporate Affairs (MCA) registration records.
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-500 flex items-center gap-2">
+                    <Info className="w-4 h-4 text-slate-400 shrink-0" />
+                    <span>No significant web presence found.</span>
+                  </div>
+                )}
               </div>
 
               {/* 9. Clear Recommendations */}
