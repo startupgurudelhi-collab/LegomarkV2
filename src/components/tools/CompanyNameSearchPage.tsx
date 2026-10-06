@@ -132,6 +132,7 @@ export const CompanyNameSearchPage: React.FC<CompanyNameSearchPageProps> = ({
 
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (isLoading) return; // Prevent duplicate submissions while request is in flight
     if (!nameInput.trim()) {
       setError('Please enter a proposed company name to verify.');
       return;
@@ -486,12 +487,29 @@ export const CompanyNameSearchPage: React.FC<CompanyNameSearchPageProps> = ({
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="px-6 py-3 rounded-xl bg-orange-600 hover:bg-orange-500 active:bg-orange-700 text-white font-semibold text-sm transition-colors cursor-pointer shadow-md shadow-orange-600/20 flex items-center justify-center gap-2 shrink-0 disabled:opacity-60"
+                  className="px-6 py-3 rounded-xl bg-orange-600 hover:bg-orange-500 active:bg-orange-700 text-white font-semibold text-sm transition-all duration-200 cursor-pointer shadow-md shadow-orange-600/20 flex items-center justify-center gap-2 shrink-0 disabled:opacity-75 disabled:cursor-not-allowed"
                 >
-                  <Search className="w-4 h-4" />
-                  {isLoading ? 'Checking Rule 8...' : 'Check Availability'}
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-white shrink-0" />
+                      <span>Checking Availability…</span>
+                    </>
+                  ) : (
+                    <>
+                      <Search className="w-4 h-4" />
+                      <span>Check Availability</span>
+                    </>
+                  )}
                 </button>
               </div>
+
+              {/* Real-time search status message while request is running */}
+              {isLoading && (
+                <div className="flex items-center gap-2 text-xs font-medium text-orange-800 bg-orange-50/90 border border-orange-200/90 px-3.5 py-2 rounded-lg animate-pulse">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-600 shrink-0" />
+                  <span>Checking MCA records, online brand presence & trademark records…</span>
+                </div>
+              )}
 
               {error && (
                 <div className="text-xs font-medium text-rose-600 flex items-center gap-1.5 pt-1">
