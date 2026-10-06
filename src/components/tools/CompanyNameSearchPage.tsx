@@ -268,7 +268,16 @@ export const CompanyNameSearchPage: React.FC<CompanyNameSearchPageProps> = ({
     }
   };
 
-  const getScoreTheme = (score: number) => {
+  const getScoreTheme = (score: number, hasMcaConflict = false) => {
+    if (hasMcaConflict) {
+      return {
+        badgeBg: 'bg-rose-50 text-rose-700 border-rose-200',
+        ringColor: '#F43F5E',
+        label: 'High MCA Conflict',
+        verdict: 'Preliminary Assessment: Existing MCA Conflict Detected',
+        verdictColor: 'text-rose-700',
+      };
+    }
     if (score >= 85) {
       return {
         badgeBg: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -521,23 +530,41 @@ export const CompanyNameSearchPage: React.FC<CompanyNameSearchPageProps> = ({
                 </div>
 
                 {/* 4. Name Strength Score /100 with Radial Gauge */}
-                <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200/80 shrink-0">
-                  {renderRadialGauge(result.availabilityScore, getScoreTheme(result.availabilityScore).ringColor)}
-                  <div className="space-y-1">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
-                      Name Strength Score
-                    </span>
-                    <div className="text-base font-extrabold text-slate-900 leading-tight">
-                      {getScoreTheme(result.availabilityScore).label}
+                {(() => {
+                  const hasMcaConflict = Boolean(
+                    result.mcaRegisteredNames?.some((m) => m.similarity >= 80)
+                  );
+                  const theme = getScoreTheme(result.availabilityScore, hasMcaConflict);
+                  return (
+                    <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200/80 shrink-0">
+                      {renderRadialGauge(result.availabilityScore, theme.ringColor)}
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                            Name Strength Score
+                          </span>
+                          {hasMcaConflict && (
+                            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-300">
+                              MCA Conflict Risk: HIGH
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-base font-extrabold text-slate-900 leading-tight">
+                          {theme.label}
+                        </div>
+                        <div className={`text-xs font-semibold ${theme.verdictColor}`}>
+                          {theme.verdict}
+                        </div>
+                        <div className="text-[11px] text-slate-500">
+                          Preliminary Assessment: <strong>{result.availabilityScore}</strong> / 100
+                          <span className="text-[10px] text-slate-400 block mt-0.5">
+                            (Preliminary diagnostic assessment · Not approval probability)
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <div className={`text-xs font-semibold ${getScoreTheme(result.availabilityScore).verdictColor}`}>
-                      {getScoreTheme(result.availabilityScore).verdict}
-                    </div>
-                    <div className="text-[11px] text-slate-500">
-                      Preliminary Assessment: <strong>{result.availabilityScore}</strong> / 100
-                    </div>
-                  </div>
-                </div>
+                  );
+                })()}
               </div>
 
               {/* Entity Constitution Card Snapshot */}
@@ -700,6 +727,19 @@ export const CompanyNameSearchPage: React.FC<CompanyNameSearchPageProps> = ({
                   </span>
                 </div>
 
+                {/* MCA Conflict Notice Banner if conflict detected */}
+                {result.mcaRegisteredNames && result.mcaRegisteredNames.some((m) => m.similarity >= 80) && (
+                  <div className="p-4 rounded-xl bg-rose-50 border border-rose-300 text-rose-900 text-xs space-y-1">
+                    <div className="font-bold flex items-center gap-1.5 uppercase text-[11px] tracking-wider text-rose-800">
+                      <AlertOctagon className="w-4 h-4 text-rose-600 shrink-0" />
+                      MCA Conflict Risk: HIGH — Modification Required
+                    </div>
+                    <p className="leading-relaxed text-rose-700">
+                      Live MCA Master Data contains an exact or highly similar registered corporate entity. Under Section 4(2) of the Companies Act 2013 and MCA Rule 8(2)(a), identical or deceptively similar names are strictly prohibited. The proposed name has an existing MCA conflict and should be reviewed or changed prior to filing.
+                    </p>
+                  </div>
+                )}
+
                 {result.similarRegisteredNames.length > 0 ? (
                   <div className="space-y-3">
                     <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100 bg-white">
@@ -761,15 +801,15 @@ export const CompanyNameSearchPage: React.FC<CompanyNameSearchPageProps> = ({
                             </span>
                             <span
                               className={`block text-[11px] font-semibold ${
-                                sim.similarity >= 85
+                                sim.similarity >= 80
                                   ? 'text-rose-600'
-                                  : sim.similarity >= 70
+                                  : sim.similarity >= 65
                                   ? 'text-amber-600'
                                   : 'text-slate-500'
                               }`}
                             >
-                              {sim.similarity >= 85
-                                ? 'High Similarity (Potential Phonetic Conflict)'
+                              {sim.similarity >= 80
+                                ? (sim.source === 'mca_api' ? 'High Similarity (MCA Conflict Risk: HIGH)' : 'High Similarity (Potential Phonetic Conflict)')
                                 : 'Moderate Phonetic Proximity'}
                             </span>
                           </div>
@@ -921,7 +961,7 @@ export const CompanyNameSearchPage: React.FC<CompanyNameSearchPageProps> = ({
                   Statutory & Preliminary Assessment Disclaimer
                 </div>
                 <p className="leading-relaxed text-[11px] text-slate-600">
-                  This tool provides a preliminary Name Strength Score and heuristic compliance assessment based on Ministry of Corporate Affairs (MCA) Rule 8 principles, prohibited words, and local similarity heuristics. It does not query live MCA Master Data in real time and does not constitute official reservation, pre-approval, or guarantee of name availability. Official reservation and final approval authority rests exclusively with the Central Registration Centre (CRC) under the Ministry of Corporate Affairs (MCA), Government of India, upon formal SPICe+ Part A / RUN submission.
+                  This tool provides a preliminary Name Strength Score and regulatory compliance assessment based on Ministry of Corporate Affairs (MCA) Rule 8 principles, prohibited words, and registered corporate data. Live MCA/company-master lookup is performed through the integrated data provider, but this preliminary assessment does not constitute official MCA name approval, reservation, or a legal guarantee of availability. Official reservation and final approval authority rests exclusively with the Central Registration Centre (CRC) under the Ministry of Corporate Affairs (MCA), Government of India, upon formal SPICe+ Part A / RUN submission.
                 </p>
               </div>
 

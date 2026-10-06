@@ -248,6 +248,62 @@ function calculateLevenshteinSimilarity(str1: string, str2: string): number {
   return Math.max(0, 1 - distance / maxLength);
 }
 
+/**
+ * Calculates corporate name similarity accounting for MCA Rule 8:
+ * - Direct Levenshtein distance on full normalized strings
+ * - Exact or high-proximity match on primary coined prefix (first distinctive word)
+ * - Prefix containment and token overlap
+ */
+function calculateCorporateSimilarity(proposedName: string, registeredName: string): number {
+  const pNorm = proposedName.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  const rClean = registeredName
+    .replace(/\s+(pvt\.?\s*ltd\.?|private\s+limited|llp|limited\s+liability\s+partnership|\(opc\)\s*private\s+limited|ltd\.?|limited|foundation)$/i, '')
+    .trim();
+  const rNorm = rClean.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+
+  if (!pNorm || !rNorm) return 0.0;
+  if (pNorm === rNorm) return 1.0;
+
+  const fullLev = calculateLevenshteinSimilarity(pNorm, rNorm);
+  const pWords = pNorm.split(/\s+/).filter(Boolean);
+  const rWords = rNorm.split(/\s+/).filter(Boolean);
+
+  if (pWords.length === 0 || rWords.length === 0) return fullLev;
+
+  const pFirst = pWords[0];
+  const rFirst = rWords[0];
+
+  // Exact primary coined prefix match (e.g., "legomark" vs "legomark india corporate solutions")
+  if (pFirst === rFirst && pFirst.length >= 3) {
+    return Math.max(fullLev, 0.95);
+  }
+
+  // Phonetic/Levenshtein proximity of primary coined word
+  const firstWordLev = calculateLevenshteinSimilarity(pFirst, rFirst);
+  if (firstWordLev >= 0.85 && pFirst.length >= 4) {
+    return Math.max(fullLev, firstWordLev * 0.92);
+  }
+
+  // Substring or prefix containment
+  if (rNorm.startsWith(pNorm) || pNorm.startsWith(rNorm)) {
+    return Math.max(fullLev, 0.92);
+  }
+  if (rNorm.includes(pNorm) && pNorm.length >= 4) {
+    return Math.max(fullLev, 0.88);
+  }
+
+  // Significant word overlap
+  const commonWords = pWords.filter((w) => rWords.includes(w) && !GENERIC_INDUSTRY_WORDS.has(w));
+  if (commonWords.length > 0) {
+    const overlapRatio = (2 * commonWords.length) / (pWords.length + rWords.length);
+    if (overlapRatio >= 0.5) {
+      return Math.max(fullLev, 0.82);
+    }
+  }
+
+  return fullLev;
+}
+
 export class CompanySearchService {
   /**
    * Suffix string builder according to MCA entity type
@@ -514,15 +570,12 @@ export class CompanySearchService {
     const mcaRegisteredNames: SimilarNameResult[] = [];
 
     for (const record of mcaResult.records) {
-      const normRecord = this.normalizeName(record.name).normalized;
-      const similarity = Math.max(
-        calculateLevenshteinSimilarity(normalized, record.name),
-        calculateLevenshteinSimilarity(normalized, normRecord)
-      );
+      const similarity = calculateCorporateSimilarity(normalized, record.name);
+      const similarityPct = Math.round(similarity * 100);
       mcaRegisteredNames.push({
         name: record.name,
-        similarity: Math.round(similarity * 100),
-        status: similarity >= 0.85 ? 'trademark_conflict' : 'phonetic_match',
+        similarity: similarityPct,
+        status: similarityPct >= 80 ? 'trademark_conflict' : 'phonetic_match',
         entityType: record.entityType || 'Registered Corporate Entity',
         cin: record.cin,
         companyStatus: record.status || 'Active',
@@ -547,7 +600,13 @@ export class CompanySearchService {
     const mcaSource: 'live_mca_api' | 'local_heuristic' =
       mcaRegisteredNames.length > 0 ? 'live_mca_api' : 'local_heuristic';
 
-    // Compute deterministic availability score (0 to 100)
+    // Identify exact or high similarity conflicts from live MCA data
+    const topMcaMatch = mcaRegisteredNames.length > 0 ? mcaRegisteredNames[0] : null;
+    const topMcaSim = topMcaMatch ? topMcaMatch.similarity : 0;
+    const hasExactMcaConflict = topMcaSim >= 95;
+    const hasHighMcaConflict = topMcaSim >= 80;
+
+    // Compute deterministic preliminary Name Strength Score (0 to 100)
     let score = 95;
 
     // Deduct for format errors
@@ -562,8 +621,14 @@ export class CompanySearchService {
     // Deduct for generic single word
     if (isSingleGenericWord) score -= 35;
 
-    // Deduct for close phonetic similarity (uses MCA registry data if available, else heuristic)
-    if (similarRegisteredNames.length > 0) {
+    // Strong score reduction when live MCA/Falcon results contain an exact or highly similar registered company/LLP name
+    if (hasExactMcaConflict) {
+      // Exact or coined match with registered MCA entity: major penalty, capped at 15-20
+      score = Math.min(20, score - 75);
+    } else if (hasHighMcaConflict) {
+      // High similarity conflict (>= 80%): strong score reduction, capped at 30-32
+      score = Math.min(32, score - 60);
+    } else if (similarRegisteredNames.length > 0) {
       const topSim = similarRegisteredNames[0].similarity;
       if (topSim >= 90) score -= 70;
       else if (topSim >= 80) score -= 45;
@@ -581,21 +646,27 @@ export class CompanySearchService {
       isAvailable = false;
       summaryText =
         'Live MCA registry lookup is currently unavailable. The proposed name cannot be verified as available without active MCA Master Data confirmation.';
-    } else if (mcaRegisteredNames.length > 0 && mcaRegisteredNames[0].similarity >= 85) {
+    } else if (hasHighMcaConflict && topMcaMatch) {
       isAvailable = false;
-      summaryText = `High similarity to registered corporate entity "${mcaRegisteredNames[0].name}" (${mcaRegisteredNames[0].cin || 'CIN/LLPIN on record'}) found in MCA Master Data. Review or modify distinctive element.`;
+      summaryText = `High MCA Conflict Risk: The proposed name directly conflicts with existing registered entity "${topMcaMatch.name}" (${topMcaMatch.cin || 'CIN/LLPIN on record'}) in live MCA Master Data with ${topMcaSim}% similarity. Under Section 4(2) of the Companies Act 2013 and MCA Rule 8(2)(a), identical or deceptively similar names are strictly prohibited. The proposed name has an existing MCA conflict and should be reviewed or changed prior to filing.`;
+    } else if (prohibitedFound.length > 0) {
+      isAvailable = false;
+      summaryText = `Contains prohibited statutory term(s): "${prohibitedFound.join(', ')}". Reservation will be rejected under the Emblems and Names Act.`;
+    } else if (isSingleGenericWord) {
+      isAvailable = false;
+      summaryText = 'Single generic industry word detected. An additional distinctive coined prefix is required under MCA Rule 8.';
     } else if (score >= 85) {
-      isAvailable = score >= 65 && prohibitedFound.length === 0 && !isSingleGenericWord;
-      summaryText = 'Strong distinctive name! Highly compliant with MCA Rule 8 and low conflict risk.';
+      isAvailable = prohibitedFound.length === 0 && !isSingleGenericWord;
+      summaryText = 'Strong distinctive coined name. Preliminary checks indicate favorable alignment with MCA Rule 8 principles, with no identical or conflicting MCA corporate records found in integrated company master lookup.';
     } else if (score >= 65) {
-      isAvailable = score >= 65 && prohibitedFound.length === 0 && !isSingleGenericWord;
-      summaryText = 'Good availability score. Recommended to proceed with preliminary CA/CS trademark check before SPICe+ filing.';
+      isAvailable = prohibitedFound.length === 0 && !isSingleGenericWord;
+      summaryText = 'Preliminary assessment indicates acceptable baseline compliance. It is recommended to conduct a thorough trademark class check and confirm object clause consistency prior to SPICe+ submission.';
     } else if (score >= 40) {
       isAvailable = false;
-      summaryText = 'Moderate risk of ROC resubmission. Name contains regulatory or partially conflicting elements.';
+      summaryText = 'Moderate risk of ROC resubmission. Name contains regulatory, descriptive, or partially conflicting elements requiring modification.';
     } else {
       isAvailable = false;
-      summaryText = 'High risk of MCA rejection. Prohibited terms or high similarity to existing corporate marks detected.';
+      summaryText = 'High risk of MCA rejection. Existing corporate conflicts, prohibited terms, or high similarity to registered marks detected. Name modification required.';
     }
 
     logger.info(
